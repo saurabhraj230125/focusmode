@@ -1,85 +1,145 @@
-// ── useCommunity — Real-time Community Feed Hook ─────────────────────────────
-// Uses Gun.js loaded from CDN (window.Gun) for cross-user real-time sync
+// ── useCommunity — Real-time Community Feed via Firebase Realtime Database ────
+// Uses Firebase REST API + Server-Sent Events (SSE) for true real-time sync.
+// No SDK needed — just fetch() and EventSource.
+// Replace FIREBASE_URL below with your Firebase Realtime Database URL.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const MAX_POSTS = 80;
-const APP_KEY = 'focusmodeplayer-v2';
+// ⚠️ REPLACE THIS with your Firebase Realtime Database URL
+// Example: https://your-project-default-rtdb.firebaseio.com
+const FIREBASE_URL = 'https://studentmesh-878b5-default-rtdb.asia-southeast1.firebasedatabase.app';
+const POSTS_PATH = `${FIREBASE_URL}/focusmodeplayer/community`;
 
-const getGunDb = () => {
-  if (typeof window === 'undefined' || !window.Gun) return null;
-  if (!window._fmpGun) {
-    window._fmpGun = window.Gun({
-      peers: [
-        'https://gun-manhattan.herokuapp.com/gun',
-        'https://gunjs.herokuapp.com/gun',
-      ],
-      localStorage: true,
-    });
+const MAX_POSTS = 80;
+
+/**
+ * Reads all posts once via REST GET
+ */
+const fetchPosts = async () => {
+  try {
+    const res = await fetch(`${POSTS_PATH}.json?orderBy="createdAt"&limitToLast=80`);
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data || {};
+  } catch {
+    return {};
   }
-  return window._fmpGun.get(APP_KEY).get('community');
+};
+
+/**
+ * Writes a new post via REST PUT
+ */
+const writePost = async (id, post) => {
+  await fetch(`${POSTS_PATH}/${id}.json`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(post),
+  });
+};
+
+/**
+ * Patches specific fields on an existing post
+ */
+const patchPost = async (id, patch) => {
+  await fetch(`${POSTS_PATH}/${id}.json`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+};
+
+const parsePostsMap = (data) => {
+  if (!data || typeof data !== 'object') return [];
+  return Object.entries(data)
+    .map(([key, val]) => ({
+      id: key,
+      user: val.user || 'Anonymous',
+      prep: val.prep || '',
+      xp: val.xp || 0,
+      action: val.action || '',
+      time: val.time || 'just now',
+      createdAt: val.createdAt || 0,
+      likes: val.likes || 0,
+      likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
+      comments: Array.isArray(val.comments) ? val.comments : [],
+    }))
+    .filter(p => p.action)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, MAX_POSTS);
 };
 
 export const useCommunity = (sessionUser, currentXP, prepType) => {
   const [posts, setPosts] = useState([]);
-  const incomingRef = useRef({});
-  const listenerRef = useRef(null);
+  const sseRef = useRef(null);
 
   useEffect(() => {
-    // Gun might not be ready instantly (CDN load), retry until available
-    let retries = 0;
-    const tryConnect = () => {
-      const db = getGunDb();
-      if (!db) {
-        if (retries++ < 20) {
-          setTimeout(tryConnect, 500);
+    if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') {
+      console.warn('useCommunity: FIREBASE_URL not configured — community feed will be empty');
+      return;
+    }
+
+    // Initial load
+    fetchPosts().then(data => setPosts(parsePostsMap(data)));
+
+    // SSE real-time listener — Firebase Realtime Database natively supports SSE
+    const url = `${POSTS_PATH}.json`;
+    const es = new EventSource(url);
+    sseRef.current = es;
+
+    es.addEventListener('put', (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.data) {
+          // Full snapshot (initial or replace)
+          setPosts(parsePostsMap(payload.data));
         }
-        return;
-      }
+      } catch {}
+    });
 
-      // Listen for new/updated posts
-      listenerRef.current = db.map().on((data, key) => {
-        if (!data || !key || !data.action) return;
-
-        incomingRef.current[key] = {
-          id: key,
-          user: data.user || 'Anonymous',
-          prep: data.prep || '',
-          xp: data.xp || 0,
-          action: data.action || '',
-          time: data.time || 'just now',
-          createdAt: data.createdAt || 0,
-          likes: data.likes || 0,
-          likedBy: (() => { try { return JSON.parse(data.likedBy || '[]'); } catch { return []; } })(),
-          comments: (() => { try { return JSON.parse(data.comments || '[]'); } catch { return []; } })(),
-        };
-
-        const sorted = Object.values(incomingRef.current)
-          .filter(p => p.action)
-          .sort((a, b) => b.createdAt - a.createdAt)
-          .slice(0, MAX_POSTS);
-
-        setPosts(sorted);
-      });
-    };
-
-    tryConnect();
+    es.addEventListener('patch', (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.data) {
+          // Incremental update — merge into current state
+          setPosts(prev => {
+            const map = {};
+            prev.forEach(p => { map[p.id] = p; });
+            Object.entries(payload.data).forEach(([key, val]) => {
+              if (val === null) {
+                delete map[key];
+              } else {
+                map[key] = {
+                  id: key,
+                  user: val.user || 'Anonymous',
+                  prep: val.prep || '',
+                  xp: val.xp || 0,
+                  action: val.action || '',
+                  time: val.time || 'just now',
+                  createdAt: val.createdAt || 0,
+                  likes: val.likes || 0,
+                  likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
+                  comments: Array.isArray(val.comments) ? val.comments : [],
+                };
+              }
+            });
+            return Object.values(map)
+              .filter(p => p.action)
+              .sort((a, b) => b.createdAt - a.createdAt)
+              .slice(0, MAX_POSTS);
+          });
+        }
+      } catch {}
+    });
 
     return () => {
-      try {
-        const db = getGunDb();
-        if (db) db.map().off();
-      } catch (e) { /* ignore */ }
+      es.close();
     };
   }, []);
 
-  const postMessage = useCallback((text) => {
-    if (!text?.trim()) return;
-    const db = getGunDb();
-    if (!db) return;
-
+  const postMessage = useCallback(async (text) => {
+    if (!text?.trim() || !FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
     const id = `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    db.get(id).put({
+    await writePost(id, {
       user: sessionUser,
       prep: prepType || '',
       xp: currentXP || 0,
@@ -87,46 +147,38 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
       time: 'just now',
       createdAt: Date.now(),
       likes: 0,
-      likedBy: '[]',
-      comments: '[]',
+      likedBy: [],
+      comments: [],
     });
     return id;
   }, [sessionUser, currentXP, prepType]);
 
-  const toggleLike = useCallback((postId) => {
-    const db = getGunDb();
-    if (!db) return;
-
-    db.get(postId).once((data) => {
-      if (!data) return;
-      let likedBy = [];
-      try { likedBy = JSON.parse(data.likedBy || '[]'); } catch {}
+  const toggleLike = useCallback(async (postId) => {
+    // Read current likedBy, then patch
+    try {
+      const res = await fetch(`${POSTS_PATH}/${postId}.json`);
+      const data = await res.json();
+      const likedBy = Array.isArray(data?.likedBy) ? data.likedBy : [];
       const hasLiked = likedBy.includes(sessionUser);
       const newLikedBy = hasLiked
         ? likedBy.filter(u => u !== sessionUser)
         : [...likedBy, sessionUser];
-      db.get(postId).put({
-        likes: newLikedBy.length,
-        likedBy: JSON.stringify(newLikedBy),
-      });
-    });
+      await patchPost(postId, { likes: newLikedBy.length, likedBy: newLikedBy });
+    } catch {}
   }, [sessionUser]);
 
-  const addComment = useCallback((postId, text) => {
+  const addComment = useCallback(async (postId, text) => {
     if (!text?.trim()) return;
-    const db = getGunDb();
-    if (!db) return;
-
-    db.get(postId).once((data) => {
-      if (!data) return;
-      let comments = [];
-      try { comments = JSON.parse(data.comments || '[]'); } catch {}
+    try {
+      const res = await fetch(`${POSTS_PATH}/${postId}.json`);
+      const data = await res.json();
+      const comments = Array.isArray(data?.comments) ? data.comments : [];
       const newComments = [
         ...comments,
         { user: sessionUser, text: text.trim(), time: 'just now', ts: Date.now() },
       ];
-      db.get(postId).put({ comments: JSON.stringify(newComments) });
-    });
+      await patchPost(postId, { comments: newComments });
+    } catch {}
   }, [sessionUser]);
 
   return { posts, postMessage, toggleLike, addComment };
