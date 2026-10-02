@@ -1,103 +1,131 @@
 // ── useCommunity — Real-time Community Feed Hook ─────────────────────────────
-// Syncs posts, likes and comments in real-time across ALL users via Gun.js
+// Uses Gun.js loaded from CDN (window.Gun) for cross-user real-time sync
 
-import { useState, useEffect, useCallback } from 'react';
-import { communityDb } from './gundb.js';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-const MAX_POSTS = 100;
+const MAX_POSTS = 80;
+const APP_KEY = 'focusmodeplayer-v2';
 
-/**
- * Returns { posts, postMessage, toggleLike, addComment }
- * All operations are immediately reflected for EVERY user on the site.
- */
+const getGunDb = () => {
+  if (typeof window === 'undefined' || !window.Gun) return null;
+  if (!window._fmpGun) {
+    window._fmpGun = window.Gun({
+      peers: [
+        'https://gun-manhattan.herokuapp.com/gun',
+        'https://gunjs.herokuapp.com/gun',
+      ],
+      localStorage: true,
+    });
+  }
+  return window._fmpGun.get(APP_KEY).get('community');
+};
+
 export const useCommunity = (sessionUser, currentXP, prepType) => {
   const [posts, setPosts] = useState([]);
+  const incomingRef = useRef({});
+  const listenerRef = useRef(null);
 
   useEffect(() => {
-    const seen = new Set();
-    const incoming = {};
+    // Gun might not be ready instantly (CDN load), retry until available
+    let retries = 0;
+    const tryConnect = () => {
+      const db = getGunDb();
+      if (!db) {
+        if (retries++ < 20) {
+          setTimeout(tryConnect, 500);
+        }
+        return;
+      }
 
-    // Listen for new / updated posts on the real-time feed
-    communityDb.map().on((data, key) => {
-      if (!data || !key) return;
+      // Listen for new/updated posts
+      listenerRef.current = db.map().on((data, key) => {
+        if (!data || !key || !data.action) return;
 
-      incoming[key] = {
-        id: key,
-        user: data.user || 'Anonymous',
-        prep: data.prep || '',
-        xp: data.xp || 0,
-        action: data.action || '',
-        time: data.time || 'just now',
-        createdAt: data.createdAt || 0,
-        isChat: data.isChat !== false,
-        likes: data.likes || 0,
-        likedBy: data.likedBy ? JSON.parse(data.likedBy) : [],
-        comments: data.comments ? JSON.parse(data.comments) : [],
-      };
+        incomingRef.current[key] = {
+          id: key,
+          user: data.user || 'Anonymous',
+          prep: data.prep || '',
+          xp: data.xp || 0,
+          action: data.action || '',
+          time: data.time || 'just now',
+          createdAt: data.createdAt || 0,
+          likes: data.likes || 0,
+          likedBy: (() => { try { return JSON.parse(data.likedBy || '[]'); } catch { return []; } })(),
+          comments: (() => { try { return JSON.parse(data.comments || '[]'); } catch { return []; } })(),
+        };
 
-      // Rebuild sorted list
-      const sorted = Object.values(incoming)
-        .filter(p => p.action)
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .slice(0, MAX_POSTS);
+        const sorted = Object.values(incomingRef.current)
+          .filter(p => p.action)
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .slice(0, MAX_POSTS);
 
-      setPosts(sorted);
-    });
+        setPosts(sorted);
+      });
+    };
+
+    tryConnect();
 
     return () => {
-      communityDb.map().off();
+      try {
+        const db = getGunDb();
+        if (db) db.map().off();
+      } catch (e) { /* ignore */ }
     };
   }, []);
 
-  /** Post a new message */
   const postMessage = useCallback((text) => {
     if (!text?.trim()) return;
+    const db = getGunDb();
+    if (!db) return;
+
     const id = `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const now = Date.now();
-    communityDb.get(id).put({
+    db.get(id).put({
       user: sessionUser,
       prep: prepType || '',
       xp: currentXP || 0,
       action: text.trim(),
       time: 'just now',
-      createdAt: now,
-      isChat: true,
+      createdAt: Date.now(),
       likes: 0,
-      likedBy: JSON.stringify([]),
-      comments: JSON.stringify([]),
+      likedBy: '[]',
+      comments: '[]',
     });
     return id;
   }, [sessionUser, currentXP, prepType]);
 
-  /** Toggle like on a post */
   const toggleLike = useCallback((postId) => {
-    communityDb.get(postId).once((data) => {
+    const db = getGunDb();
+    if (!db) return;
+
+    db.get(postId).once((data) => {
       if (!data) return;
-      const likedBy = data.likedBy ? JSON.parse(data.likedBy) : [];
+      let likedBy = [];
+      try { likedBy = JSON.parse(data.likedBy || '[]'); } catch {}
       const hasLiked = likedBy.includes(sessionUser);
       const newLikedBy = hasLiked
         ? likedBy.filter(u => u !== sessionUser)
         : [...likedBy, sessionUser];
-      communityDb.get(postId).put({
+      db.get(postId).put({
         likes: newLikedBy.length,
         likedBy: JSON.stringify(newLikedBy),
       });
     });
   }, [sessionUser]);
 
-  /** Add a comment to a post */
   const addComment = useCallback((postId, text) => {
     if (!text?.trim()) return;
-    communityDb.get(postId).once((data) => {
+    const db = getGunDb();
+    if (!db) return;
+
+    db.get(postId).once((data) => {
       if (!data) return;
-      const comments = data.comments ? JSON.parse(data.comments) : [];
+      let comments = [];
+      try { comments = JSON.parse(data.comments || '[]'); } catch {}
       const newComments = [
         ...comments,
         { user: sessionUser, text: text.trim(), time: 'just now', ts: Date.now() },
       ];
-      communityDb.get(postId).put({
-        comments: JSON.stringify(newComments),
-      });
+      db.get(postId).put({ comments: JSON.stringify(newComments) });
     });
   }, [sessionUser]);
 

@@ -1,21 +1,32 @@
-// ── FocusModePlayer — Real-time Community via Gun.js ─────────────────────────
-// Gun.js is a decentralized, peer-to-peer real-time database.
-// Posts sync instantly across ALL browsers with zero backend setup.
+// ── FocusModePlayer — Real-time Community via Gun.js CDN ─────────────────────
+// Gun.js is loaded via CDN script tag in index.html as window.Gun
+// This avoids the Node.js compatibility crash from the npm package in browsers.
 
-import Gun from 'gun';
+let gun = null;
+let communityDb = null;
 
-// Use public Gun relay peers so data syncs across different users/devices
-const gun = Gun({
-  peers: [
-    'https://gun-manhattan.herokuapp.com/gun',
-    'https://gunjs.herokuapp.com/gun',
-  ],
-  localStorage: true, // also keep local copy as offline cache
-});
+const initGun = () => {
+  if (gun) return gun;
+  
+  // window.Gun is set by the CDN script tag in index.html
+  if (typeof window !== 'undefined' && window.Gun) {
+    gun = window.Gun({
+      peers: [
+        'https://gun-manhattan.herokuapp.com/gun',
+        'https://gunjs.herokuapp.com/gun',
+      ],
+      localStorage: true,
+    });
+    communityDb = gun.get('focusmodeplayer-v2').get('community');
+  }
+  return gun;
+};
 
-// Namespace all data under this app key
-const DB = gun.get('focusmodeplayer-v2');
+export { initGun, communityDb };
 
-export const communityDb = DB.get('community');
+export const getCommunityDb = () => {
+  initGun();
+  return communityDb;
+};
 
-export default gun;
+export default { initGun, getCommunityDb };
