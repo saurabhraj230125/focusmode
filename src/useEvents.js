@@ -36,6 +36,7 @@ const patchEvent = async (id, patch) => {
 
 export const useEvents = (sessionUser) => {
   const [events, setEvents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const sseRef = useRef(null);
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export const useEvents = (sessionUser) => {
         const active = parsed.filter(e => now - e.createdAt < 24 * 60 * 60 * 1000);
         setEvents(active.sort((a, b) => b.createdAt - a.createdAt));
       }
+      setIsLoading(false);
     });
 
     const es = new EventSource(`${EVENTS_PATH}.json`);
@@ -142,5 +144,5 @@ export const useEvents = (sessionUser) => {
     } catch (e) { console.error(e); }
   }, []);
 
-  return { events, createEvent, joinEvent, deleteEvent };
+  return { events, isLoading, createEvent, joinEvent, deleteEvent };
 };

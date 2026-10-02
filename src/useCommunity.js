@@ -70,6 +70,7 @@ const parsePostsMap = (data) => {
 
 export const useCommunity = (sessionUser, currentXP, prepType) => {
   const [posts, setPosts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const sseRef = useRef(null);
 
   useEffect(() => {
@@ -79,7 +80,10 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     }
 
     // Initial load
-    fetchPosts().then(data => setPosts(parsePostsMap(data)));
+    fetchPosts().then(data => {
+      setPosts(parsePostsMap(data));
+      setIsLoading(false);
+    });
 
     // SSE real-time listener — Firebase Realtime Database natively supports SSE
     const url = `${POSTS_PATH}.json`;
@@ -221,5 +225,5 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     }
   }, [sessionUser]);
 
-  return { posts, postMessage, toggleLike, addComment };
+  return { posts, isLoading, postMessage, toggleLike, addComment };
 };

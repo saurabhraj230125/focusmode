@@ -116,13 +116,14 @@ const App = () => {
   // ── Real-time Community (Gun.js) ──────────────────────────────────────────
   const {
     posts: feed,
+    isLoading: isCommunityLoading,
     postMessage: gunPostMessage,
     toggleLike: gunToggleLike,
     addComment: gunAddComment,
   } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
 
   // ── Scheduled Events (Firebase) ──────────────────────────────────────────
-  const { events: studyEvents, createEvent, joinEvent, deleteEvent } = useEvents(sessionUser);
+  const { events: studyEvents, isLoading: isEventsLoading, createEvent, joinEvent, deleteEvent } = useEvents(sessionUser);
   const [showEventModal, setShowEventModal] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventTime, setNewEventTime] = useState('');
@@ -1370,7 +1371,20 @@ const App = () => {
             </div>
           </div>
 
-          {feed.length === 0 ? (
+          {isCommunityLoading ? (
+            <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', padding:'1rem 0'}}>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="glass" style={{padding:'1.5rem', borderRadius:'20px', display:'flex', gap:'1rem', opacity: 1 - i * 0.2}}>
+                  <div style={{width:'40px', height:'40px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', flexShrink:0, animation:'pulse 1.5s infinite'}}></div>
+                  <div style={{flex:1, display:'flex', flexDirection:'column', gap:'10px'}}>
+                    <div style={{width:'150px', height:'16px', background:'rgba(255,255,255,0.1)', borderRadius:'8px', animation:'pulse 1.5s infinite'}}></div>
+                    <div style={{width:'80%', height:'14px', background:'rgba(255,255,255,0.05)', borderRadius:'8px', animation:'pulse 1.5s infinite'}}></div>
+                    <div style={{width:'60%', height:'14px', background:'rgba(255,255,255,0.05)', borderRadius:'8px', animation:'pulse 1.5s infinite'}}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : feed.length === 0 ? (
             <div style={{textAlign:'center', padding:'3rem 1rem', color:'var(--text-muted)'}}>
               <span style={{fontSize:'2rem'}}>🌍</span>
               <p style={{marginTop:'0.75rem', fontWeight:600}}>No posts yet — be the first!</p>
@@ -1498,7 +1512,19 @@ const App = () => {
         )}
 
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem'}}>
-          {studyEvents.length === 0 ? <p style={{color: 'var(--text-muted)'}}>No upcoming events. Be the first to schedule one!</p> : studyEvents.map(e => (
+          {isEventsLoading ? (
+            [1, 2, 3].map(i => (
+              <div key={i} className="glass" style={{padding: '1.5rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: 1 - i * 0.2}}>
+                <div style={{width: '60%', height: '24px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', animation: 'pulse 1.5s infinite'}}></div>
+                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                  <div style={{width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', animation: 'pulse 1.5s infinite'}}></div>
+                  <div style={{width: '40%', height: '14px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', animation: 'pulse 1.5s infinite'}}></div>
+                </div>
+                <div style={{width: '80%', height: '14px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', animation: 'pulse 1.5s infinite'}}></div>
+                <div style={{width: '100px', height: '32px', background: 'rgba(255,255,255,0.1)', borderRadius: '100px', alignSelf: 'flex-end', animation: 'pulse 1.5s infinite'}}></div>
+              </div>
+            ))
+          ) : studyEvents.length === 0 ? <p style={{color: 'var(--text-muted)'}}>No upcoming events. Be the first to schedule one!</p> : studyEvents.map(e => (
             <div key={e.id} className="glass" style={{padding: '1.5rem', borderRadius: '20px', background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden', transition: 'transform 0.2s'}} onMouseEnter={ev => ev.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={ev => ev.currentTarget.style.transform = 'none'}>
                <div style={{position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'linear-gradient(to bottom, var(--accent-math), var(--accent-physics))'}}></div>
                <h4 style={{fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem', lineHeight: 1.3}}>{e.title}</h4>
