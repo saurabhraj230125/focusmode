@@ -1138,38 +1138,122 @@ const App = () => {
     );
   };
 
-  const renderProfile = () => (
-    <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '800px'}}>
-      <div className="glass" style={{padding: '3rem', display: 'flex', alignItems: 'center', gap: '2rem'}}>
-        <div style={{width: '100px', height: '100px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', fontWeight: 'bold'}}>
-          {sessionUser.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <h1 className="greeting" style={{fontSize: '2.5rem', margin: 0}}>{isGuest ? 'Guest Aspirant' : sessionUser}</h1>
-          <p style={{color: 'var(--accent-success)', fontWeight: 'bold', fontSize: '1.2rem'}}>{currentXP} XP Earned</p>
-          <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
-            <span className="tag" style={{background: 'rgba(255,255,255,0.1)', fontSize: '0.9rem', padding: '4px 12px'}}>Lvl {level}: {title}</span>
-            <span className="tag" style={{background: 'rgba(255,255,255,0.1)', fontSize: '0.9rem', padding: '4px 12px'}}>Target: {currentUserProfile.prepType} {currentUserProfile.targetYear}</span>
-            {isGuest && <span className="tag" style={{background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)'}}>Unsaved Account</span>}
+  const renderProfile = () => {
+    let totalTasksCompleted = 0;
+    subjects.forEach(s => s.tasks.forEach(t => t.subtasks.forEach(st => { if(st.completed) totalTasksCompleted++; })));
+    const totalNotes = Object.keys(videoNotes).filter(k => videoNotes[k]?.notes || videoNotes[k]?.mistakes).length;
+    const totalJournals = journalHistory[journalHistory.length-1]?.date === 'Welcome' ? journalHistory.length - 1 : journalHistory.length;
+    const userPosts = feed.filter(f => f.user === sessionUser);
+    
+    const xpForNextLevel = level * 100;
+    const progressPercent = ((currentXP % 100) / 100) * 100;
+
+    return (
+      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '900px'}}>
+        
+        {/* Profile Header Card */}
+        <div className="glass" style={{padding: 'clamp(1.5rem, 4vw, 3rem)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2rem', background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(16,185,129,0.05))', position: 'relative', overflow: 'hidden'}}>
+          <div style={{position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'var(--accent-physics)', opacity: '0.1', borderRadius: '50%', filter: 'blur(40px)'}}></div>
+          
+          <div style={{width: 'clamp(80px, 15vw, 120px)', height: 'clamp(80px, 15vw, 120px)', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', fontWeight: 'bold', border: '4px solid rgba(255,255,255,0.1)', flexShrink: 0, boxShadow: '0 0 30px rgba(139,92,246,0.3)'}}>
+            {sessionUser.charAt(0).toUpperCase()}
+          </div>
+          
+          <div style={{flex: '1 1 300px'}}>
+            <h1 className="greeting" style={{fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', margin: '0 0 4px', wordBreak: 'break-word'}}>{isGuest ? 'Guest Aspirant' : sessionUser}</h1>
+            <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '1rem'}}>
+              {currentUserProfile?.prepType} Aspirant · Target {currentUserProfile?.targetYear}
+            </p>
+            
+            <div style={{background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                <span style={{fontWeight: 'bold', color: 'var(--accent-success)'}}>Level {level}: {title}</span>
+                <span style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{currentXP} / {xpForNextLevel} XP</span>
+              </div>
+              <div className="progress-bar-bg" style={{height: '10px', background: 'rgba(255,255,255,0.05)'}}>
+                <div className="progress-bar-fill" style={{width: `${progressPercent}%`, background: 'var(--accent-success)'}}></div>
+              </div>
+            </div>
+            
+            {isGuest && (
+              <div style={{marginTop: '1rem'}}>
+                <span className="tag" style={{background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)'}}>Unsaved Account</span>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Stats Grid */}
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem'}}>
+          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
+            <div style={{padding: '12px', background: 'rgba(16,185,129,0.1)', borderRadius: '50%', color: 'var(--accent-success)'}}><Check size={24}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalTasksCompleted}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Tasks Completed</div>
+          </div>
+          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
+            <div style={{padding: '12px', background: 'rgba(139,92,246,0.1)', borderRadius: '50%', color: 'var(--accent-physics)'}}><Video size={24}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{playlist.length}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Lectures Saved</div>
+          </div>
+          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
+            <div style={{padding: '12px', background: 'rgba(236,72,153,0.1)', borderRadius: '50%', color: 'var(--accent-chem)'}}><FileText size={24}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalNotes}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Lecture Notes</div>
+          </div>
+          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
+            <div style={{padding: '12px', background: 'rgba(245,158,11,0.1)', borderRadius: '50%', color: '#f59e0b'}}><BookOpen size={24}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalJournals}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Journal Entries</div>
+          </div>
+        </div>
+
+        {/* Info & Activity Row */}
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem'}}>
+          
+          <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '0.5rem'}}><Target size={20} color="var(--accent-math)"/> Identified Weakness</h2>
+            <div style={{background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', flex: 1}}>
+              <p style={{fontSize: '1.05rem', lineHeight: '1.6', color: 'var(--text-muted)', fontStyle: currentUserProfile?.weakness ? 'normal' : 'italic'}}>
+                {currentUserProfile?.weakness || "You haven't specified a weakness."}
+              </p>
+            </div>
+          </div>
+
+          <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '0.5rem'}}><Flame size={20} color="#ef4444"/> Recent Community Activity</h2>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1}}>
+              {userPosts.length === 0 ? (
+                <p style={{color: 'var(--text-muted)', fontStyle: 'italic', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', textAlign: 'center'}}>No posts yet. Go to Community to share an update!</p>
+              ) : (
+                userPosts.slice(0, 3).map(post => (
+                  <div key={post.id} style={{background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)'}}>
+                    <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px'}}>{post.time}</div>
+                    <div style={{fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.4}}>"{post.action.length > 80 ? post.action.slice(0,80) + '...' : post.action}"</div>
+                    <div style={{marginTop: '8px', fontSize: '0.8rem', color: 'var(--accent-physics)'}}>❤️ {post.likes||0} Likes · 💬 {(post.comments||[]).length} Comments</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+        </div>
+        
+        {/* Actions Row */}
+        <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
+          {isGuest ? (
+            <button onClick={() => { setAuthWallMsg('Create a permanent account to save your XP and profile data.'); setShowAuthWall(true); }} className="btn-primary" style={{padding: '14px 24px'}}>
+              <User size={18} /> Create Permanent Account
+            </button>
+          ) : (
+            <button onClick={handleLogout} className="btn-primary" style={{background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171', padding: '14px 24px'}}>
+              <LogOut size={18} /> Logout
+            </button>
+          )}
+        </div>
+
       </div>
-      <div className="glass" style={{padding: '2rem'}}>
-        <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem'}}><Target size={24} color="var(--accent-math)"/> Identified Weakness</h2>
-        <p style={{fontSize: '1.1rem', lineHeight: '1.6', color: 'var(--text-muted)'}}>{currentUserProfile.weakness || "You haven't specified a weakness."}</p>
-      </div>
-      
-      {isGuest ? (
-        <button onClick={() => { setAuthWallMsg('Create a permanent account to save your XP and profile data.'); setShowAuthWall(true); }} className="btn-primary" style={{alignSelf: 'flex-start', padding: '12px 24px'}}>
-          <User size={18} /> Create Permanent Account
-        </button>
-      ) : (
-        <button onClick={handleLogout} className="btn-primary" style={{background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171', alignSelf: 'flex-start', padding: '12px 24px'}}>
-          <LogOut size={18} /> Logout
-        </button>
-      )}
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="app-layout">
