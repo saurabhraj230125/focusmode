@@ -17,7 +17,7 @@ const MAX_POSTS = 80;
  */
 const fetchPosts = async () => {
   try {
-    const res = await fetch(`${POSTS_PATH}.json?orderBy="createdAt"&limitToLast=80`);
+    const res = await fetch(`${POSTS_PATH}.json`);
     if (!res.ok) return {};
     const data = await res.json();
     return data || {};
