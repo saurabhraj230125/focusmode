@@ -209,19 +209,19 @@ const App = () => {
     if (!doubtText.trim()) return;
     setAiOpen(true);
     setAiInput(doubtText);
-    setTimeout(() => {
+    setTimeout(async () => {
       setAiMessages(prev => [...prev, { role: 'user', text: doubtText }]);
       setAiInput('');
       setAiTyping(true);
+      const response = await getAIAdvice(doubtText, currentUserProfile?.prepType);
       setTimeout(() => {
-        const response = getAIAdvice(doubtText, currentUserProfile?.prepType);
         setAiMessages(prev => [...prev, { role: 'ai', text: response }]);
         setAiTyping(false);
-      }, 1000);
+      }, 500);
     }, 100);
   };
 
-  const getAIAdvice = (text, prepType) => {
+  const getAIAdvice = async (text, prepType) => {
     const t = text.toLowerCase();
     
     // GREETINGS & INTRO
@@ -257,7 +257,25 @@ const App = () => {
     // DIET, NUTRITION, HYDRATION
     if (t.match(/food|diet|eat|drink|water|coffee|caffeine/)) return "Your brain consumes 20% of your calories. Avoid heavy carbs or sugar before studying—they cause insulin spikes and crashes (brain fog). Drink water constantly. If using caffeine, wait 90-120 minutes after waking up so you don't crash in the afternoon. 🍎";
     
-    // FALLBACKS (If no keyword matches)
+    // WIKIPEDIA API FALLBACK FOR GENERAL KNOWLEDGE/ANY QUESTION
+    try {
+      let query = t.replace(/^(what is|who is|tell me about|explain|how does|what are|define|where is)\s+/i, '').trim();
+      query = query.replace(/[?.,!]/g, '');
+      
+      if (query.length > 2) {
+        const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`);
+        if (res.ok) {
+           const data = await res.json();
+           if (data && data.extract) {
+             return `Here is what I found in my global knowledge base:\n\n${data.extract}`;
+           }
+        }
+      }
+    } catch (err) {
+      console.log('Wiki fetch failed', err);
+    }
+
+    // FALLBACKS (If no keyword matches and no wiki page found)
     const fallbacks = [
       "I've scanned my database, and the best approach here is to break this down into smaller pieces. What is the absolute smallest, easiest step you can take on this right now?",
       "That's an interesting challenge. Have you tried logging this in your Learning Journal? Formulating the problem in writing often reveals the solution to your brain automatically.",
@@ -267,7 +285,7 @@ const App = () => {
     return fallbacks[Math.floor(Math.random() * fallbacks.length)];
   };
 
-  const handleAISend = (e) => {
+  const handleAISend = async (e) => {
     if (e) e.preventDefault();
     if (!aiInput.trim()) return;
     const userText = aiInput.trim();
@@ -276,11 +294,11 @@ const App = () => {
     setAiInput('');
     setAiTyping(true);
 
+    const response = await getAIAdvice(userText, currentUserProfile?.prepType);
     setTimeout(() => {
-      const response = getAIAdvice(userText, currentUserProfile?.prepType);
       setAiMessages(prev => [...prev, { role: 'ai', text: response }]);
       setAiTyping(false);
-    }, 1000);
+    }, 500);
   };
 
   // Initialization
