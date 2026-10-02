@@ -7,6 +7,15 @@ import {
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
   Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle
 } from 'lucide-react';
+import {
+  trackSignUp, trackLogin, trackLogout, trackGuestSession,
+  trackOnboarding, trackTabChange,
+  trackTaskAdded, trackSubtaskCompleted, trackModuleCompleted,
+  trackTimerStarted, trackTimerCompleted,
+  trackVideoAdded, trackVideoPlayed, trackNoteDownloaded,
+  trackJournalSaved, trackPostCreated, trackPostLiked, trackCommentPosted,
+  trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned
+} from './analytics.js';
 
 // Default templates for different exams
 const examTemplates = {
@@ -289,7 +298,7 @@ const App = () => {
     if (e) e.preventDefault();
     if (!aiInput.trim()) return;
     const userText = aiInput.trim();
-    
+    trackAIQuestion(userText.length);
     setAiMessages(prev => [...prev, { role: 'user', text: userText }]);
     setAiInput('');
     setAiTyping(true);
@@ -384,6 +393,7 @@ const App = () => {
       interval = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
     } else if (timeLeft === 0) {
       setIsActive(false);
+      trackTimerCompleted(sessionType);
       if (sessionUser) {
         let xpGained = sessionType === 'pomodoro' ? 50 : 10;
         awardXP(xpGained, `Completed ${sessionType === 'pomodoro' ? 'Pomodoro Session' : 'Break'}`);
@@ -433,7 +443,7 @@ const App = () => {
         }
       }
     }));
-    
+    trackXPEarned(amount, reason);
     setToastMsg({ amount, reason });
     setTimeout(() => setToastMsg(null), 3000);
   };
@@ -454,6 +464,7 @@ const App = () => {
       setShowAuthWall(true);
       return;
     }
+    trackTabChange(tab);
     setActiveTab(tab);
   };
 
@@ -467,6 +478,7 @@ const App = () => {
     }
 
     if (authMode === 'register' || (showAuthWall && usersDb[sessionUser]?.profile?.isGuest)) {
+      trackSignUp();
       if (usersDb[authUsername] && authUsername !== sessionUser) {
         setAuthError('Username already exists'); return;
       }
@@ -520,6 +532,7 @@ const App = () => {
       if (!user || user.password !== authPassword) {
         setAuthError('Invalid username or password'); return;
       }
+      trackLogin();
       setSessionUser(authUsername);
       localStorage.setItem('planmaker_session', authUsername);
       localStorage.removeItem('planmaker_explicit_logout');
@@ -529,6 +542,7 @@ const App = () => {
   };
 
   const handleLogout = () => {
+    trackLogout();
     setSessionUser(null);
     setSubjects([]); setJournalHistory([]); setPlaylist([]);
     setActiveTab('dashboard'); setActiveVideo(null);
@@ -539,6 +553,7 @@ const App = () => {
   // Onboarding Functions
   const submitOnboarding = () => {
     if (!onboardPrep || !onboardYear) return;
+    trackOnboarding(onboardPrep, onboardYear);
     setUsersDb(prev => ({
       ...prev, [sessionUser]: { ...prev[sessionUser], profile: { ...prev[sessionUser].profile, prepType: onboardPrep, targetYear: onboardYear, weakness: onboardWeakness } }
     }));
@@ -553,6 +568,7 @@ const App = () => {
   const handleAddTask = (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim() || !newTaskSubject) return;
+    trackTaskAdded(newTaskSubject);
     setSubjects(prev => prev.map(sub => {
       if (sub.id !== newTaskSubject) return sub;
       return {
@@ -594,8 +610,9 @@ const App = () => {
       return updatedSubjects;
     });
 
-    if (taskCompletedJustNow) awardXP(5, 'Completed Subtask');
+    if (taskCompletedJustNow) { trackSubtaskCompleted(subjectId); awardXP(5, 'Completed Subtask'); }
     if (allCompletedNow) {
+       trackModuleCompleted(subjectId);
        awardXP(20, 'Completed Full Module!');
        setFeed(prev => [{ id: Date.now(), user: sessionUser, action: `just finished a full task module! 🚀`, time: 'just now', isChat: false }, ...prev]);
     }
@@ -604,6 +621,7 @@ const App = () => {
   // Journal Functions
   const saveJournalEntry = () => {
     if (!learnedText.trim() && !mistakesText.trim()) return;
+    trackJournalSaved();
     const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     const entry = `Learned: ${learnedText || 'N/A'}\nMistakes: ${mistakesText || 'N/A'}`;
     setJournalHistory(prev => [{ date: dateStr, text: entry }, ...prev]);
@@ -615,6 +633,7 @@ const App = () => {
   const handlePostFeed = (e) => {
     e.preventDefault();
     if (!newPostText.trim()) return;
+    trackPostCreated();
     setFeed(prev => [{
       id: Date.now(),
       user: sessionUser,
@@ -632,6 +651,7 @@ const App = () => {
   };
 
   const toggleLike = (postId) => {
+    trackPostLiked();
     setFeed(prev => prev.map(p => {
       if (p.id !== postId) return p;
       const hasLiked = p.likedBy?.includes(sessionUser);
@@ -645,6 +665,7 @@ const App = () => {
 
   const submitComment = (postId) => {
     if (!commentText.trim()) return;
+    trackCommentPosted();
     setFeed(prev => prev.map(p => {
       if (p.id !== postId) return p;
       return { ...p, comments: [...(p.comments || []), { user: sessionUser, text: commentText, time: 'just now' }] };
@@ -665,6 +686,7 @@ const App = () => {
       return;
     }
 
+    trackVideoAdded(newVideoTitle);
     const newVideo = { id: ytId, title: newVideoTitle, addedAt: new Date().toLocaleDateString() };
     setPlaylist(prev => [newVideo, ...prev]);
     setNewVideoUrl('');
@@ -680,6 +702,7 @@ const App = () => {
 
   // Jitsi Study Connect
   const startJitsiCall = useCallback((roomId) => {
+    trackRoomJoined(roomId);
     setConnectRoom(roomId);
     setInCall(true);
     awardXP(10, 'Joined Study Connect Room');
@@ -771,6 +794,7 @@ const App = () => {
   };
 
   const downloadNote = (video) => {
+    trackNoteDownloaded(video.title);
     const data = videoNotes[video.id] || { notes: '', mistakes: '', lastUpdated: '' };
     const dateStr = data.lastUpdated || new Date().toLocaleDateString();
     let content = `FocusModePlayer — Lecture Notes\n${'='.repeat(40)}\nVideo: ${video.title}\nDate: ${dateStr}\n${'='.repeat(40)}\n\n`;
@@ -796,6 +820,11 @@ const App = () => {
     setIsActive(false);
     setSessionType(type);
     setTimeLeft(type === 'pomodoro' ? 25 * 60 : 5 * 60);
+  };
+
+  const startTimer = () => {
+    if (!isActive) trackTimerStarted(sessionType);
+    setIsActive(prev => !prev);
   };
 
   const getSubjectIcon = (iconStr) => {
@@ -976,7 +1005,7 @@ const App = () => {
           <div className="timer-display">{formatTime(timeLeft)}</div>
           <div style={{fontSize: '0.85rem', color: 'var(--accent-success)', marginBottom: '1rem', fontWeight: 'bold'}}> Reward: +{sessionType === 'pomodoro' ? '50' : '10'} XP </div>
           <div className="timer-controls">
-            <button className="btn-primary" onClick={() => setIsActive(!isActive)}>
+            <button className="btn-primary" onClick={startTimer}>
               {isActive ? <Pause size={18} /> : <Play size={18} />}
               {isActive ? 'Pause' : 'Start'}
             </button>
@@ -1578,7 +1607,7 @@ const App = () => {
         )}
         
         {!aiOpen && (
-          <button onClick={() => setAiOpen(true)} className="btn-primary" style={{width: '60px', height: '60px', borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 25px rgba(168,85,247,0.5)', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))'}}>
+          <button onClick={() => { trackAIOpened(); setAiOpen(true); }} className="btn-primary" style={{width: '60px', height: '60px', borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 25px rgba(168,85,247,0.5)', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))'}}>
             <Bot size={28}/>
           </button>
         )}

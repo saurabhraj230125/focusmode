@@ -8,6 +8,18 @@
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="FocusModePlayer — The ultimate study dashboard for JEE, NEET & UPSC aspirants. Task planning, focus timer, video lectures, and live study rooms." />
     <title>FocusModePlayer</title>
+    <!-- Google Analytics GA4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MB8B9DZ03B"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-MB8B9DZ03B', {
+        page_title: 'FocusModePlayer',
+        send_page_view: true,
+        cookie_flags: 'SameSite=None;Secure'
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

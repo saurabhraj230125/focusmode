@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, Download, Share } from 'lucide-react';
+import { trackPWAInstallPromptShown, trackPWAInstalled, trackPWADismissed } from './analytics.js';
 
 const PWAInstallPrompt = () => {
   const MAX_SHOWS = 3;
@@ -40,7 +41,7 @@ const PWAInstallPrompt = () => {
 
     if (ios) {
       // Show iOS instructions after a short delay
-      setTimeout(() => setShow(true), 2000);
+      setTimeout(() => { setShow(true); trackPWAInstallPromptShown(dismissCount + 1); }, 2000);
       return;
     }
 
@@ -48,7 +49,7 @@ const PWAInstallPrompt = () => {
     const handler = (e) => {
       e.preventDefault();
       setPrompt(e);
-      setTimeout(() => setShow(true), 2000);
+      setTimeout(() => { setShow(true); trackPWAInstallPromptShown(dismissCount + 1); }, 2000);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -64,6 +65,7 @@ const PWAInstallPrompt = () => {
     const { outcome } = await prompt.userChoice;
     if (outcome === 'accepted') {
       // Permanently mark as installed — never show again
+      trackPWAInstalled();
       localStorage.setItem('pwa_installed', 'true');
       setShow(false);
       setDismissed(true);
@@ -73,6 +75,7 @@ const PWAInstallPrompt = () => {
   const dismiss = () => {
     const prev = parseInt(localStorage.getItem('pwa_dismiss_count') || '0', 10);
     const next = prev + 1;
+    trackPWADismissed(next);
     localStorage.setItem('pwa_dismiss_count', String(next));
     setShow(false);
     setDismissed(true);
