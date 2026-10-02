@@ -862,7 +862,7 @@ const App = () => {
 
   return (
     <div className="app-layout">
-      {/* Toast Overlay */}
+      {/* XP Toast */}
       {toastMsg && (
         <div className="xp-toast">
           <Zap size={24} color="var(--accent-success)" />
@@ -875,13 +875,12 @@ const App = () => {
 
       {/* Auth Wall Overlay for Guests */}
       {showAuthWall && (
-        <div style={{position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)'}}>
+        <div style={{position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', padding: '1rem'}}>
           <div className="glass auth-card animate-fade-in" style={{position: 'relative'}}>
             <button onClick={() => setShowAuthWall(false)} style={{position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'white', cursor: 'pointer'}}><X size={24} /></button>
             <Users size={48} color="var(--accent-math)" style={{marginBottom: '1rem'}} />
-            <h2 style={{fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 'bold'}}>Join the Community</h2>
+            <h2 style={{fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 'bold', textAlign: 'center'}}>Join the Community</h2>
             <p className="subtitle" style={{marginBottom: '2rem', textAlign: 'center'}}>{authWallMsg}</p>
-            
             <form className="auth-form" onSubmit={handleAuth}>
               <div className="input-group">
                 <User size={18} className="input-icon" />
@@ -900,16 +899,15 @@ const App = () => {
         </div>
       )}
 
+      {/* Desktop Sidebar */}
       <nav className="app-sidebar">
         <div className="brand"><Headphones size={24} color="var(--accent-physics)" /> FocusModePlayer</div>
-        
         {isFullyOnboarded && (
            <div style={{background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', textAlign: 'center'}}>
              <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Lvl {level}: {title}</div>
              <div style={{fontWeight: 'bold', color: 'var(--accent-success)', fontSize: '1.1rem', marginTop: '4px'}}>{currentXP} XP</div>
            </div>
         )}
-
         <div className="nav-links">
           <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}><LayoutDashboard size={18} /> Today's Plan</div>
           <div className={`nav-item ${activeTab === 'journal' ? 'active' : ''}`} onClick={() => handleTabChange('journal')}><BookOpen size={18} /> Journal & Mistakes</div>
@@ -920,23 +918,30 @@ const App = () => {
         </div>
       </nav>
 
+      {/* Main Content */}
       <main className="main-content">
-        <header className="page-header">
+        {/* Mobile Header */}
+        <div className="mobile-header">
+          <div className="mobile-brand"><Headphones size={20} color="var(--accent-physics)" /> FocusModePlayer</div>
+          {isFullyOnboarded && <div className="mobile-xp-badge">⚡ {currentXP} XP</div>}
+        </div>
+
+        <header className="page-header" style={{paddingTop: '1rem'}}>
           <h1 className="greeting">
             {activeTab === 'dashboard' && `Mission ${currentUserProfile.prepType}`}
-            {activeTab === 'journal' && 'Your Learning Journal'}
+            {activeTab === 'journal' && 'Learning Journal'}
             {activeTab === 'lectures' && 'Ad-Free Lectures'}
             {activeTab === 'connect' && 'Study Connect'}
-            {activeTab === 'community' && 'Aspirant Community'}
-            {activeTab === 'profile' && 'Aspirant Profile'}
+            {activeTab === 'community' && 'Community'}
+            {activeTab === 'profile' && 'My Profile'}
           </h1>
           <p className="subtitle">
-            {activeTab === 'dashboard' && "Add your tasks for today and crush them."}
-            {activeTab === 'journal' && "Log what you learned and the mistakes you won't repeat."}
-            {activeTab === 'lectures' && "Paste YouTube links to watch live or recorded sessions completely ad-free."}
-            {activeTab === 'connect' && "Jump into a live video room with aspirants from around India."}
-            {activeTab === 'community' && "Compete, share, and grow with thousands of top aspirants."}
-            {activeTab === 'profile' && "Review your stats and target goals."}
+            {activeTab === 'dashboard' && "Crush your tasks for today."}
+            {activeTab === 'journal' && "Log your learnings and mistakes."}
+            {activeTab === 'lectures' && "Watch lectures ad-free."}
+            {activeTab === 'connect' && "Video rooms with fellow aspirants."}
+            {activeTab === 'community' && "Compete, share, and grow."}
+            {activeTab === 'profile' && "Your stats and progress."}
           </p>
         </header>
         {activeTab === 'dashboard' && renderDashboard()}
@@ -946,8 +951,31 @@ const App = () => {
         {activeTab === 'community' && renderCommunity()}
         {activeTab === 'profile' && renderProfile()}
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="bottom-nav">
+        <div className={`bottom-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}>
+          <LayoutDashboard size={20} /><span>Plan</span>
+        </div>
+        <div className={`bottom-nav-item ${activeTab === 'journal' ? 'active' : ''}`} onClick={() => handleTabChange('journal')}>
+          <BookOpen size={20} /><span>Journal</span>
+        </div>
+        <div className={`bottom-nav-item ${activeTab === 'lectures' ? 'active' : ''}`} onClick={() => handleTabChange('lectures')}>
+          <MonitorPlay size={20} /><span>Lectures</span>
+        </div>
+        <div className={`bottom-nav-item ${activeTab === 'connect' ? 'active' : ''}`} onClick={() => handleTabChange('connect')}>
+          <PhoneCall size={20} /><span>Connect</span>
+        </div>
+        <div className={`bottom-nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => handleTabChange('community')}>
+          <Users size={20} /><span>Community</span>
+        </div>
+        <div className={`bottom-nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => handleTabChange('profile')}>
+          <User size={20} /><span>Profile</span>
+        </div>
+      </nav>
     </div>
   );
 };
 
 export default App;
+

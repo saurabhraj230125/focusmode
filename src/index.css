@@ -14,6 +14,7 @@
   --accent-glow: rgba(139, 92, 246, 0.2);
   --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.15);
+  --bottom-nav-height: 70px;
 }
 
 * {
@@ -64,22 +65,24 @@ h1, h2, h3, h4, h5, h6 {
 ::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
-/* Layout App container */
+/* ===================== LAYOUT ===================== */
 .app-layout {
   display: flex;
   height: 100vh;
   overflow: hidden;
 }
 
-/* Global Nav Sidebar */
+/* ===================== DESKTOP SIDEBAR ===================== */
 .app-sidebar {
   width: 280px;
+  min-width: 280px;
   background: rgba(0,0,0,0.2);
   border-right: 1px solid var(--card-border);
   padding: 2rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  overflow-y: auto;
 }
 
 .brand {
@@ -114,6 +117,7 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 500;
+  font-size: 0.95rem;
 }
 
 .nav-item:hover {
@@ -127,11 +131,92 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(139, 92, 246, 0.2);
 }
 
-/* Main Content Wrapper */
+/* ===================== MOBILE BOTTOM NAV ===================== */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(15, 16, 21, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--card-border);
+  height: var(--bottom-nav-height);
+  padding: 0 8px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  align-items: center;
+  justify-content: space-around;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.65rem;
+  font-weight: 600;
+  min-width: 52px;
+  text-align: center;
+}
+
+.bottom-nav-item.active {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.bottom-nav-item svg {
+  flex-shrink: 0;
+}
+
+/* Mobile Header Bar */
+.mobile-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--card-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+}
+
+.mobile-brand {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-physics) 0%, var(--accent-chem) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mobile-xp-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-success);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 4px 10px;
+  border-radius: 100px;
+}
+
+/* ===================== MAIN CONTENT ===================== */
 .main-content {
   flex: 1;
   overflow-y: auto;
   padding: 2rem;
+  min-width: 0;
 }
 
 .page-header {
@@ -152,20 +237,14 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 1.1rem;
 }
 
-/* Layout for Dashboard Tab */
+/* ===================== DASHBOARD GRID ===================== */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 350px;
   gap: 2rem;
 }
 
-@media (max-width: 1024px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Progress Section */
+/* ===================== PROGRESS SECTION ===================== */
 .progress-section {
   padding: 1.5rem;
   margin-bottom: 2rem;
@@ -205,17 +284,19 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-glow);
 }
 
-/* Add Task Form */
+/* ===================== ADD TASK FORM ===================== */
 .add-task-form {
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .input-field {
   flex: 1;
+  min-width: 120px;
   background: rgba(0,0,0,0.2);
   border: 1px solid var(--card-border);
   border-radius: 12px;
@@ -224,6 +305,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s;
+  font-size: 1rem;
 }
 
 .input-field:focus {
@@ -231,7 +313,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 select.input-field {
-  flex: 0 0 150px;
+  flex: 0 0 auto;
+  min-width: 130px;
 }
 
 .btn-primary {
@@ -249,6 +332,8 @@ select.input-field {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: var(--shadow-glow);
+  white-space: nowrap;
+  font-size: 0.95rem;
 }
 
 .btn-primary:hover {
@@ -256,7 +341,11 @@ select.input-field {
   filter: brightness(1.1);
 }
 
-/* Checkbox */
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* ===================== CHECKBOX ===================== */
 .checkbox-wrapper {
   position: relative;
   display: flex;
@@ -266,26 +355,23 @@ select.input-field {
   user-select: none;
 }
 .checkbox-wrapper input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
-.checkmark { width: 22px; height: 22px; background-color: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
+.checkmark { width: 22px; height: 22px; min-width: 22px; background-color: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
 .checkbox-wrapper:hover input ~ .checkmark { background-color: rgba(255, 255, 255, 0.1); }
 .checkbox-wrapper input:checked ~ .checkmark { background-color: var(--accent-success); border-color: var(--accent-success); box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
 .checkmark svg { color: white; width: 14px; height: 14px; opacity: 0; transform: scale(0.5); transition: all 0.2s ease; }
 .checkbox-wrapper input:checked ~ .checkmark svg { opacity: 1; transform: scale(1); }
-.checkbox-text { font-size: 1rem; transition: all 0.2s ease; flex: 1; }
+.checkbox-text { font-size: 1rem; transition: all 0.2s ease; flex: 1; min-width: 0; }
 .checkbox-wrapper input:checked ~ .checkbox-text { color: var(--text-muted); text-decoration: line-through; }
 
-/* Subject/Tasks List */
+/* ===================== SUBJECTS/TASKS ===================== */
 .subjects-grid { display: flex; flex-direction: column; gap: 1.5rem; }
 .subject-card { padding: 1.5rem; }
 .subject-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin-bottom: 1rem; }
 .subject-info { display: flex; align-items: center; gap: 12px; }
-.subject-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-.icon-physics { background: rgba(139, 92, 246, 0.1); color: var(--accent-physics); border: 1px solid rgba(139, 92, 246, 0.2); }
-.icon-chem { background: rgba(236, 72, 153, 0.1); color: var(--accent-chem); border: 1px solid rgba(236, 72, 153, 0.2); }
-.icon-math { background: rgba(59, 130, 246, 0.1); color: var(--accent-math); border: 1px solid rgba(59, 130, 246, 0.2); }
+.subject-icon { width: 40px; height: 40px; min-width: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
 .subject-title { font-size: 1.25rem; font-weight: 600; }
 .subject-stats { font-size: 0.875rem; color: var(--text-muted); }
-.toggle-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 8px; transition: all 0.2s ease; }
+.toggle-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 8px; transition: all 0.2s ease; flex-shrink: 0; }
 .toggle-btn:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
 .toggle-btn.expanded { transform: rotate(180deg); }
 
@@ -295,7 +381,7 @@ select.input-field {
 
 .tag { font-size: 0.75rem; padding: 2px 8px; border-radius: 100px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; margin-left: 8px; }
 
-/* Right Sidebar (Timer etc) */
+/* ===================== TIMER ===================== */
 .right-sidebar { display: flex; flex-direction: column; gap: 2rem; }
 .timer-card { padding: 2rem; text-align: center; }
 .timer-display { font-family: 'Space Grotesk', monospace; font-size: 4rem; font-weight: 700; line-height: 1; margin: 1.5rem 0; background: linear-gradient(135deg, var(--accent-physics), var(--accent-chem)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.3)); }
@@ -304,14 +390,11 @@ select.input-field {
 .btn-icon { display: inline-flex; align-items: center; justify-content: center; padding: 10px; background: rgba(255, 255, 255, 0.1); border: 1px solid var(--card-border); border-radius: 12px; color: white; cursor: pointer; transition: all 0.2s ease; }
 .btn-icon:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-1px); }
 
-/* Journal & Mistakes Section */
+/* ===================== JOURNAL ===================== */
 .journal-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
-}
-@media (max-width: 768px) {
-  .journal-layout { grid-template-columns: 1fr; }
 }
 
 .journal-card { padding: 2rem; display: flex; flex-direction: column; gap: 1rem; }
@@ -335,11 +418,8 @@ select.input-field {
 .history-date { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem; }
 .history-text { font-size: 0.95rem; line-height: 1.6; }
 
-/* Community Section */
+/* ===================== COMMUNITY ===================== */
 .community-layout { display: grid; grid-template-columns: 1fr 300px; gap: 2rem; }
-@media (max-width: 968px) {
-  .community-layout { grid-template-columns: 1fr; }
-}
 
 .feed-card { padding: 1.5rem; }
 .feed-item {
@@ -350,13 +430,13 @@ select.input-field {
 }
 .feed-item:last-child { border-bottom: none; }
 .feed-avatar {
-  width: 40px; height: 40px;
+  width: 40px; height: 40px; min-width: 40px;
   border-radius: 50%;
   background: var(--accent-physics);
   display: flex; align-items: center; justify-content: center;
   font-weight: bold;
 }
-.feed-content h4 { font-size: 1rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;}
+.feed-content h4 { font-size: 1rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .feed-time { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; }
 .feed-action { color: #cbd5e1; font-size: 0.95rem; }
 
@@ -370,16 +450,16 @@ select.input-field {
 .rank-1 { color: #fbbf24; }
 .rank-2 { color: #94a3b8; }
 .rank-3 { color: #b45309; }
-.leaderboard-name { flex: 1; font-weight: 500; }
-.leaderboard-score { font-family: monospace; color: var(--accent-success); font-weight: 600; }
+.leaderboard-name { flex: 1; font-weight: 500; font-size: 0.9rem; }
+.leaderboard-score { font-family: monospace; color: var(--accent-success); font-weight: 600; font-size: 0.9rem; }
 
-/* Auth & Onboarding Wrapper */
+/* ===================== AUTH & ONBOARDING ===================== */
 .auth-wrapper, .onboarding-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 .auth-card, .onboarding-card {
@@ -431,6 +511,7 @@ select.input-field {
   margin-top: 1.5rem;
   color: var(--text-muted);
   font-size: 0.95rem;
+  text-align: center;
 }
 
 .auth-toggle span {
@@ -481,7 +562,7 @@ select.input-field {
   font-size: 1.1rem;
   font-weight: 600;
   width: calc(33.333% - 1rem);
-  min-width: 150px;
+  min-width: 120px;
 }
 
 .exam-btn:hover {
@@ -496,11 +577,11 @@ select.input-field {
   box-shadow: var(--shadow-glow);
 }
 
-/* XP Toast Notification */
+/* ===================== XP TOAST ===================== */
 .xp-toast {
   position: fixed;
   bottom: 30px;
-  right: 30px;
+  right: 20px;
   background: rgba(16, 185, 129, 0.15);
   border: 1px solid rgba(16, 185, 129, 0.3);
   backdrop-filter: blur(10px);
@@ -513,6 +594,7 @@ select.input-field {
   z-index: 9999;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 15px rgba(16, 185, 129, 0.2);
   animation: slideInUp 0.3s ease-out forwards;
+  max-width: calc(100vw - 40px);
 }
 
 .xp-amount {
@@ -536,3 +618,132 @@ select.input-field {
   50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
 }
 
+/* ===================== RESPONSIVE BREAKPOINTS ===================== */
+
+/* Large tablets */
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr 300px;
+  }
+}
+
+/* Tablets */
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .community-layout {
+    grid-template-columns: 1fr;
+  }
+  .journal-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile - switch to bottom nav */
+@media (max-width: 768px) {
+  /* Hide desktop sidebar, show mobile elements */
+  .app-sidebar { display: none; }
+  .bottom-nav { display: flex; }
+  .mobile-header { display: flex; }
+
+  /* Layout adjustments */
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .main-content {
+    padding: 1rem;
+    padding-bottom: calc(var(--bottom-nav-height) + 1rem);
+  }
+
+  /* Greeting */
+  .greeting {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+  }
+
+  .page-header {
+    margin-bottom: 1.25rem;
+  }
+
+  /* Add task form - stack on small screens */
+  .add-task-form {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-task-form .input-field,
+  .add-task-form select.input-field {
+    width: 100%;
+    flex: unset;
+  }
+
+  .add-task-form .btn-primary {
+    width: 100%;
+    padding: 14px;
+  }
+
+  /* Subject cards */
+  .subject-card { padding: 1rem; }
+  .tasks-list { padding-left: 20px; }
+
+  /* Timer */
+  .timer-display { font-size: 3rem; }
+  .timer-card { padding: 1.25rem; }
+
+  /* Auth cards */
+  .auth-card, .onboarding-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .onboarding-card {
+    max-width: 100%;
+  }
+
+  /* Exam buttons */
+  .exam-btn {
+    width: calc(50% - 0.75rem);
+    padding: 1.25rem;
+  }
+
+  /* Community feed */
+  .feed-card { padding: 1rem; }
+  .feed-item { padding: 1rem; }
+
+  /* XP toast above bottom nav */
+  .xp-toast {
+    bottom: calc(var(--bottom-nav-height) + 12px);
+    right: 12px;
+  }
+
+  /* Study connect grid: 1 column */
+  .connect-rooms-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Progress section */
+  .progress-section { padding: 1rem; }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  .greeting { font-size: 1.5rem; }
+  .exam-btn { width: 100%; }
+  .timer-display { font-size: 2.5rem; }
+
+  .btn-primary {
+    padding: 11px 16px;
+    font-size: 0.9rem;
+  }
+
+  .subject-title { font-size: 1.1rem; }
+
+  .auth-card {
+    padding: 1.75rem 1.25rem;
+  }
+}
