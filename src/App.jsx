@@ -17,6 +17,7 @@ import {
   trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned
 } from './analytics.js';
 import { useCommunity } from './useCommunity.js';
+import { useEvents } from './useEvents.js';
 
 // Default templates for different exams
 const examTemplates = {
@@ -112,6 +113,12 @@ const App = () => {
     addComment: gunAddComment,
   } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
 
+  // ── Scheduled Events (Firebase) ──────────────────────────────────────────
+  const { events: studyEvents, createEvent, joinEvent } = useEvents(sessionUser);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventTime, setNewEventTime] = useState('');
+
   // Auth Form State
   const [authMode, setAuthMode] = useState('login'); 
   const [authUsername, setAuthUsername] = useState('');
@@ -138,6 +145,7 @@ const App = () => {
   const [learnedText, setLearnedText] = useState('');
   const [mistakesText, setMistakesText] = useState('');
   const [journalHistory, setJournalHistory] = useState([]);
+  const [todayMood, setTodayMood] = useState('😐'); // Default mood
 
   // Lectures State
   const [playlist, setPlaylist] = useState([]);
@@ -787,9 +795,10 @@ const App = () => {
     if (!learnedText.trim() && !mistakesText.trim()) return;
     trackJournalSaved();
     const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    const entry = `Learned: ${learnedText || 'N/A'}\nMistakes: ${mistakesText || 'N/A'}`;
+    const entry = `Mood: ${todayMood}\nLearned: ${learnedText || 'N/A'}\nMistakes: ${mistakesText || 'N/A'}`;
     setJournalHistory(prev => [{ date: dateStr, text: entry }, ...prev]);
     setLearnedText(''); setMistakesText('');
+    setTodayMood('😐');
     awardXP(15, 'Logged Daily Journal');
   };
 
@@ -808,11 +817,27 @@ const App = () => {
     }
 
     trackVideoAdded(newVideoTitle);
-    const newVideo = { id: ytId, title: newVideoTitle, addedAt: new Date().toLocaleDateString() };
+    const newVideo = { id: ytId, title: newVideoTitle, addedAt: new Date().toLocaleDateString(), watched: false };
     setPlaylist(prev => [newVideo, ...prev]);
     setNewVideoUrl('');
     setNewVideoTitle('');
     awardXP(5, 'Added Lecture to Playlist');
+  };
+
+  const toggleVideoWatched = (e, videoId) => {
+    e.stopPropagation();
+    setPlaylist(prev => {
+      let awarded = false;
+      const updated = prev.map(v => {
+        if (v.id === videoId) {
+          if (!v.watched) awarded = true;
+          return { ...v, watched: !v.watched };
+        }
+        return v;
+      });
+      if (awarded) awardXP(10, 'Finished Watching a Lecture!');
+      return updated;
+    });
   };
 
   const removeVideo = (id, e) => {
@@ -1165,6 +1190,14 @@ const App = () => {
   const renderJournal = () => (
     <div className="journal-layout animate-fade-in">
       <div>
+        <div className="glass journal-card" style={{marginBottom: '2rem'}}>
+          <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem'}}>😌 How was your study mood today?</h3>
+          <div style={{display: 'flex', gap: '1rem', justifyContent: 'center'}}>
+            {['😭','😢','😐','🙂','🔥'].map(emoji => (
+               <button key={emoji} onClick={() => setTodayMood(emoji)} style={{fontSize: '2rem', padding: '10px', background: todayMood === emoji ? 'rgba(255,255,255,0.1)' : 'transparent', border: todayMood === emoji ? '2px solid var(--accent-success)' : '2px solid transparent', borderRadius: '50%', cursor: 'pointer', transition: 'all 0.2s', filter: todayMood === emoji ? 'drop-shadow(0 0 10px rgba(16,185,129,0.5))' : 'grayscale(0.5)'}}>{emoji}</button>
+            ))}
+          </div>
+        </div>
         <div className="glass journal-card">
           <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px'}}><BookHeart size={20} color="var(--accent-chem)" /> What I Learned Today</h3>
           <textarea className="journal-textarea" placeholder="Summarize the core concepts you grasped today..." value={learnedText} onChange={(e) => setLearnedText(e.target.value)}></textarea>
@@ -1419,6 +1452,37 @@ const App = () => {
             <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} style={{flex: '0 0 auto', whiteSpace: 'nowrap'}}><PhoneCall size={16}/> Start Private Call</button>
           </div>
         </div>
+
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem'}}>
+           <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>🗓️ Live Scheduled Study Events</h3>
+           <button className="btn-primary" onClick={() => setShowEventModal(true)}>+ Schedule Event</button>
+        </div>
+        
+        {showEventModal && (
+          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--accent-physics)'}}>
+             <h4 style={{fontSize: '1.1rem', fontWeight: 'bold'}}>Create Study Event</h4>
+             <input className="input-field" placeholder="Event Title (e.g. Solving HC Verma Vectors)" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} />
+             <input className="input-field" placeholder="Time (e.g. Tonight at 9:00 PM)" value={newEventTime} onChange={e => setNewEventTime(e.target.value)} />
+             <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
+                <button className="btn-secondary" onClick={() => setShowEventModal(false)}>Cancel</button>
+                <button className="btn-primary" onClick={() => { createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime); setShowEventModal(false); setNewEventTitle(''); setNewEventTime(''); awardXP(15, 'Scheduled a Community Event'); }}>Post Event</button>
+             </div>
+          </div>
+        )}
+
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem'}}>
+          {studyEvents.length === 0 ? <p style={{color: 'var(--text-muted)'}}>No upcoming events. Be the first to schedule one!</p> : studyEvents.map(e => (
+            <div key={e.id} className="glass" style={{padding: '1.5rem', borderRadius: '16px'}}>
+               <h4 style={{fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem'}}>{e.title}</h4>
+               <p style={{fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem'}}>Host: {e.host}</p>
+               <p style={{fontSize: '0.85rem', color: 'var(--accent-physics)', marginBottom: '1rem', fontWeight: 'bold'}}>⏰ {e.scheduledTime}</p>
+               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                 <span style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>{e.participants?.length || 1} joined</span>
+                 <button className="btn-primary" onClick={() => { joinEvent(e.id); setConnectRoom(e.id); setInCall(true); awardXP(10, 'Joined a Scheduled Event'); }} style={{padding: '6px 12px', fontSize: '0.85rem'}}>Join Room</button>
+               </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
@@ -1508,7 +1572,7 @@ const App = () => {
               </div>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                 <div>
-                  <h4 style={{fontWeight: 600, fontSize: '1.05rem', marginBottom: '6px', lineHeight: 1.3}}>{video.title}</h4>
+                  <h4 style={{fontWeight: 600, fontSize: '1.05rem', marginBottom: '6px', lineHeight: 1.3, textDecoration: video.watched ? 'line-through' : 'none', color: video.watched ? 'var(--text-muted)' : 'white'}}>{video.title}</h4>
                   <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
                     <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{video.addedAt}</span>
                     {(videoNotes[video.id]?.notes || videoNotes[video.id]?.mistakes) && (
@@ -1516,7 +1580,13 @@ const App = () => {
                     )}
                   </div>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); removeVideo(video.id, e); }} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex'}}><Trash2 size={16}/></button>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end'}}>
+                   <button onClick={(e) => { e.stopPropagation(); removeVideo(video.id, e); }} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex'}}><Trash2 size={16}/></button>
+                   <label style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: video.watched ? 'var(--accent-success)' : 'var(--text-muted)', cursor: 'pointer'}} onClick={e => e.stopPropagation()}>
+                     <input type="checkbox" checked={!!video.watched} onChange={(e) => toggleVideoWatched(e, video.id)} />
+                     {video.watched ? 'Watched' : 'Mark'}
+                   </label>
+                </div>
               </div>
             </div>
           ))}
