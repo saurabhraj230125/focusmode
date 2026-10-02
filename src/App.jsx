@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Check, ChevronDown, BookOpen, FlaskConical, Calculator, 
-  Play, Pause, RotateCcw, BrainCircuit, Target, Plus, 
+  Play, Pause, RotateCcw, BrainCircuit, Target, Plus, Clock,
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
