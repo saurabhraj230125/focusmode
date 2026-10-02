@@ -164,35 +164,53 @@ const App = () => {
     }
   }, [aiMessages, aiOpen, aiTyping]);
 
-  const handleAISend = (e) => {
+  const handleAISend = async (e) => {
     if (e) e.preventDefault();
     if (!aiInput.trim()) return;
     const userText = aiInput.trim();
+    
+    if (userText.startsWith('AIza')) {
+       localStorage.setItem('gemini_api_key', userText);
+       setAiMessages(prev => [...prev, { role: 'user', text: "Provided API Key" }, { role: 'ai', text: "Awesome! My full AI brain is now online. What do you need help with today?" }]);
+       setAiInput('');
+       return;
+    }
+
     setAiMessages(prev => [...prev, { role: 'user', text: userText }]);
     setAiInput('');
     setAiTyping(true);
 
-    setTimeout(() => {
-      let response = "I hear you. The most important thing is consistency. Break your tasks into smaller chunks and tackle them one Pomodoro at a time!";
-      const lower = userText.toLowerCase();
-      
-      if (lower.includes('stress') || lower.includes('tired') || lower.includes('sleep') || lower.includes('burnout')) {
-        response = "It sounds like you're experiencing burnout. Remember that resting is just as important as studying. If you don't sleep, your brain literally cannot consolidate what you've learned. Take a 20-minute break right now, hydrate, and step away from the screen.";
-      } else if (lower.includes('physics') || lower.includes('math') || lower.includes('numerical')) {
-        response = "For analytical subjects like Physics and Math, reading theory isn't enough. You need active problem-solving. If a question stumps you for more than 10 minutes, look at the solution, understand the *first step* they took, hide it, and try again.";
-      } else if (lower.includes('memorize') || lower.includes('forget') || lower.includes('biology') || lower.includes('chemistry')) {
-        response = "Memory is all about Active Recall and Spaced Repetition. Don't just re-read your notes. Close the book, take a blank sheet of paper, and write down everything you remember. Whatever you missed is your weak point.";
-      } else if (lower.includes('distracted') || lower.includes('phone') || lower.includes('focus')) {
-        response = "Distractions are the enemy of Deep Work. Put your phone in another room. Right now. Use the Pomodoro timer on your dashboard—just commit to 25 minutes. Once you start, the friction disappears.";
-      } else if (lower.includes('plan') || lower.includes('schedule') || lower.includes('time')) {
-        response = "A good plan is realistic. Don't try to study 14 hours a day. Aim for 6-8 hours of highly focused, distraction-free studying. Use the Dashboard to outline your most important tasks the night before.";
-      } else if (lower.includes('hi') || lower.includes('hello')) {
-        response = "Hello! I'm here to help you crush your exams. What's on your mind today? Are you stuck on a topic or just need some motivation?";
-      }
+    const apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) {
+      setTimeout(() => {
+        setAiMessages(prev => [...prev, { role: 'ai', text: "I am currently running in offline mode. To unlock my full conversational AI, please paste a free Gemini API key below. You can get one for free at aistudio.google.com! (Your key starts with 'AIza...')" }]);
+        setAiTyping(false);
+      }, 800);
+      return;
+    }
 
-      setAiMessages(prev => [...prev, { role: 'ai', text: response }]);
-      setAiTyping(false);
-    }, 1200);
+    try {
+      const systemContext = `You are FocusBot, an expert AI Study Advisor built into the FocusModePlayer website. Context: FocusModePlayer is a productivity app for students preparing for exams like JEE, NEET, UPSC, SAT, etc. It has a Dashboard, Journal, Ad-Free YouTube Lectures, and Study Connect video rooms. The current student's username is ${sessionUser} and they are studying for ${currentUserProfile?.prepType || 'their exams'}. Be concise, highly motivational, friendly, and give direct actionable advice. Use emojis. Do not use markdown headers, just plain text and bullet points.`;
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${systemContext}\n\nStudent says: ${userText}` }] }]
+        })
+      });
+      
+      const data = await response.json();
+      if (data.error) {
+        setAiMessages(prev => [...prev, { role: 'ai', text: `API Error: ${data.error.message}` }]);
+      } else {
+        const textResponse = data.candidates[0].content.parts[0].text;
+        setAiMessages(prev => [...prev, { role: 'ai', text: textResponse }]);
+      }
+    } catch (err) {
+      setAiMessages(prev => [...prev, { role: 'ai', text: "Sorry, I couldn't connect to the AI server. Please check your internet connection or API key." }]);
+    }
+    setAiTyping(false);
   };
 
   // Initialization
