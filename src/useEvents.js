@@ -97,7 +97,7 @@ export const useEvents = (sessionUser) => {
     return () => es.close();
   }, []);
 
-  const createEvent = useCallback(async (title, topic, scheduledTimeStr) => {
+  const createEvent = useCallback(async (title, topic, scheduledTimeStr, durationStr) => {
     if (!title?.trim()) return;
     const id = `event_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const newEvent = {
@@ -105,7 +105,8 @@ export const useEvents = (sessionUser) => {
       topic: topic || 'General Study',
       host: sessionUser,
       createdAt: Date.now(),
-      scheduledTime: scheduledTimeStr || 'Now', // e.g. "Today at 8:00 PM" or "Live Now"
+      scheduledTime: scheduledTimeStr || 'Now', // e.g. "Today at 8:00 PM"
+      duration: durationStr || '1 hr',
       participants: [sessionUser],
     };
     
@@ -134,5 +135,12 @@ export const useEvents = (sessionUser) => {
     } catch (e) { console.error(e); }
   }, [sessionUser]);
 
-  return { events, createEvent, joinEvent };
+  const deleteEvent = useCallback(async (eventId) => {
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+    try {
+      await fetch(`${EVENTS_PATH}/${eventId}.json`, { method: 'DELETE' });
+    } catch (e) { console.error(e); }
+  }, []);
+
+  return { events, createEvent, joinEvent, deleteEvent };
 };

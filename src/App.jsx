@@ -114,10 +114,11 @@ const App = () => {
   } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
 
   // ── Scheduled Events (Firebase) ──────────────────────────────────────────
-  const { events: studyEvents, createEvent, joinEvent } = useEvents(sessionUser);
+  const { events: studyEvents, createEvent, joinEvent, deleteEvent } = useEvents(sessionUser);
   const [showEventModal, setShowEventModal] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventTime, setNewEventTime] = useState('');
+  const [newEventDuration, setNewEventDuration] = useState('');
 
   // Auth Form State
   const [authMode, setAuthMode] = useState('login'); 
@@ -1472,30 +1473,37 @@ const App = () => {
         
         {showEventModal && (
           <div className="animate-fade-in" style={{background: 'rgba(0,0,0,0.8)', position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)'}}>
-            <div className="glass" style={{padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid rgba(139,92,246,0.3)', width: '90%', maxWidth: '450px', borderRadius: '24px', position: 'relative', overflow: 'hidden'}}>
+            <div style={{background: '#0f172a', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid #334155', width: '90%', maxWidth: '450px', borderRadius: '24px', position: 'relative', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'}}>
                <div style={{position: 'absolute', top: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-math)', filter: 'blur(80px)', opacity: 0.3, zIndex: 0}}></div>
                
-               <h4 style={{fontSize: '1.5rem', fontWeight: 800, position: 'relative', zIndex: 1}}>Schedule a Drop-in</h4>
-               <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', position: 'relative', zIndex: 1, marginTop: '-10px'}}>Host a study session and let the community join you.</p>
+               <h4 style={{fontSize: '1.5rem', fontWeight: 800, position: 'relative', zIndex: 1, color: 'white'}}>Schedule a Drop-in</h4>
+               <p style={{color: '#94a3b8', fontSize: '0.9rem', position: 'relative', zIndex: 1, marginTop: '-10px'}}>Host a study session and let the community join you.</p>
                
                <div style={{display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', zIndex: 1}}>
                  <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Event Title</label>
-                 <input className="input-field" placeholder="e.g. 2hr HC Verma Grind 🚀" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} style={{background: 'rgba(0,0,0,0.3)', fontSize: '1rem', padding: '12px 16px'}} />
+                 <input className="input-field" placeholder="e.g. 2hr HC Verma Grind 🚀" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} style={{background: '#1e293b', fontSize: '1rem', padding: '12px 16px', border: '1px solid #334155'}} />
                </div>
                
-               <div style={{display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', zIndex: 1}}>
-                 <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Time</label>
-                 <input className="input-field" placeholder="e.g. Tonight @ 9PM IST" value={newEventTime} onChange={e => setNewEventTime(e.target.value)} style={{background: 'rgba(0,0,0,0.3)', fontSize: '1rem', padding: '12px 16px'}} />
+               <div style={{display: 'flex', gap: '1rem', position: 'relative', zIndex: 1}}>
+                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1}}>
+                   <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Time</label>
+                   <input className="input-field" placeholder="e.g. Tonight @ 9PM" value={newEventTime} onChange={e => setNewEventTime(e.target.value)} style={{background: '#1e293b', fontSize: '1rem', padding: '12px 16px', border: '1px solid #334155'}} />
+                 </div>
+                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1}}>
+                   <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Duration</label>
+                   <input className="input-field" placeholder="e.g. 2 hours" value={newEventDuration} onChange={e => setNewEventDuration(e.target.value)} style={{background: '#1e293b', fontSize: '1rem', padding: '12px 16px', border: '1px solid #334155'}} />
+                 </div>
                </div>
                
                <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem', position: 'relative', zIndex: 1}}>
-                  <button className="btn-secondary" style={{borderRadius: '100px', padding: '10px 24px'}} onClick={() => setShowEventModal(false)}>Cancel</button>
+                  <button className="btn-secondary" style={{borderRadius: '100px', padding: '10px 24px', background: '#334155', border: 'none', color: 'white'}} onClick={() => setShowEventModal(false)}>Cancel</button>
                   <button className="btn-primary" style={{borderRadius: '100px', padding: '10px 24px', background: 'white', color: 'black', fontWeight: 800}} onClick={() => { 
-                    createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime); 
+                    createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime, newEventDuration); 
                     gunPostMessage(`Hey everyone! I just scheduled a live study event: "${newEventTitle}" for ${newEventTime}! Jump into the Study Connect tab to join me! 🚀`);
                     setShowEventModal(false); 
                     setNewEventTitle(''); 
                     setNewEventTime(''); 
+                    setNewEventDuration('');
                     awardXP(15, 'Scheduled a Community Event');
                     setActiveTab('community'); // Redirect to community to see the autopost
                   }}>🚀 Publish</button>
@@ -1515,9 +1523,16 @@ const App = () => {
                  <p style={{fontSize: '0.9rem', color: 'var(--text-muted)'}}>{e.host || 'Guest'}</p>
                </div>
                
-               <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '8px', width: 'fit-content'}}>
-                 <Clock size={14} color="var(--accent-math)" />
-                 <p style={{fontSize: '0.85rem', color: 'var(--accent-math)', fontWeight: 700}}>{e.scheduledTime}</p>
+               <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1.5rem', flexWrap: 'wrap'}}>
+                 <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '8px'}}>
+                   <Clock size={14} color="var(--accent-math)" />
+                   <p style={{fontSize: '0.85rem', color: 'var(--accent-math)', fontWeight: 700}}>{e.scheduledTime}</p>
+                 </div>
+                 {e.duration && (
+                   <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '8px'}}>
+                     <span style={{fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 600}}>⏳ {e.duration}</span>
+                   </div>
+                 )}
                </div>
                
                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem'}}>
@@ -1525,7 +1540,12 @@ const App = () => {
                    <Users size={16} color="var(--text-muted)" />
                    <span style={{fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600}}>{e.participants?.length || 1} joined</span>
                  </div>
-                 <button className="btn-primary" onClick={() => { joinEvent(e.id); setConnectRoom(e.id); setInCall(true); awardXP(10, 'Joined a Scheduled Event'); }} style={{padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: 700, background: 'rgba(255,255,255,0.1)', color: 'white'}}>Join</button>
+                 <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                   {e.host === sessionUser && (
+                     <button onClick={() => deleteEvent(e.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '50%', transition: 'all 0.2s'}} onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(239,68,68,0.1)'} onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'} title="Delete Event"><Trash2 size={16} /></button>
+                   )}
+                   <button className="btn-primary" onClick={() => { joinEvent(e.id); setConnectRoom(e.id); setInCall(true); awardXP(10, 'Joined a Scheduled Event'); }} style={{padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: 700, background: 'rgba(255,255,255,0.1)', color: 'white'}}>Join</button>
+                 </div>
                </div>
             </div>
           ))}
