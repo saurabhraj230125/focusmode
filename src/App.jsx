@@ -198,6 +198,26 @@ const App = () => {
   const [aiTyping, setAiTyping] = useState(false);
   const aiEndRef = useRef(null);
 
+  // Deep Linking for Study Rooms
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      setConnectRoom(roomParam);
+      setInCall(true);
+      setActiveTab('connect');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  const shareToWhatsApp = (roomId, eventTitle = null) => {
+    const url = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomId)}`;
+    const text = eventTitle 
+      ? `Join my live study event "${eventTitle}" on Student Mesh! 🚀\n\nClick here to join the live video call: ${url}`
+      : `Join my private Study Connect room on Student Mesh! 🚀\n\nClick here to join the live video call: ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   useEffect(() => {
     if (aiOpen && aiEndRef.current) {
       aiEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -1553,6 +1573,7 @@ const App = () => {
                  </div>
                  <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
                    <button onClick={() => deleteEvent(e.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '50%', transition: 'all 0.2s'}} onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(239,68,68,0.1)'} onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'} title="Delete Event"><Trash2 size={16} /></button>
+                   <button onClick={() => shareToWhatsApp(e.id, e.title)} style={{background: 'transparent', border: 'none', color: '#10b981', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '50%', transition: 'all 0.2s'}} onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(16,185,129,0.1)'} onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'} title="Share on WhatsApp"><Send size={16} /></button>
                    <button className="btn-primary" onClick={() => { joinEvent(e.id); setConnectRoom(e.id); setInCall(true); awardXP(10, 'Joined a Scheduled Event'); }} style={{padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: 700, background: 'rgba(255,255,255,0.1)', color: 'white'}}>Join</button>
                  </div>
                </div>
@@ -1577,6 +1598,7 @@ const App = () => {
           <p style={{color: 'var(--text-muted)', fontSize: '0.95rem'}}>Create a private room with a custom name and share it with a friend to study 1-on-1.</p>
           <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
             <input type="text" className="input-field" placeholder="Enter a custom room name (e.g. JEECrack-Batch2025)" value={customRoomName} onChange={e => setCustomRoomName(e.target.value)} style={{flex: '1 1 200px'}} />
+            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { shareToWhatsApp(customRoomName.trim()); } }} style={{flex: '0 0 auto', whiteSpace: 'nowrap', background: '#10b981', color: 'white'}} disabled={!customRoomName.trim()}><Send size={16}/> Share Invite</button>
             <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} style={{flex: '0 0 auto', whiteSpace: 'nowrap'}}><PhoneCall size={16}/> Start Private Call</button>
           </div>
         </div>
