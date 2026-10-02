@@ -16,6 +16,7 @@ import {
   trackJournalSaved, trackPostCreated, trackPostLiked, trackCommentPosted,
   trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned
 } from './analytics.js';
+import { useCommunity } from './useCommunity.js';
 
 // Default templates for different exams
 const examTemplates = {
@@ -133,8 +134,7 @@ const App = () => {
   const [newVideoTitle, setNewVideoTitle] = useState('');
   const [lectureViewMode, setLectureViewMode] = useState('horizontal');
 
-  // Community State
-  const [feed, setFeed] = useState(defaultCommunityFeed);
+  // Community State (real-time feed is wired via useCommunity hook after render)
   const [newPostText, setNewPostText] = useState('');
   const [viewingProfile, setViewingProfile] = useState(null);
   const [commentingOn, setCommentingOn] = useState(null);
@@ -484,9 +484,6 @@ const App = () => {
       localStorage.setItem('planmaker_users', JSON.stringify(db));
       localStorage.setItem('planmaker_visits', '1');
     }
-
-    const savedFeed = localStorage.getItem('planmaker_feed');
-    if (savedFeed) setFeed(JSON.parse(savedFeed));
   }, []);
 
   // Sync users database
@@ -515,12 +512,7 @@ const App = () => {
     }
   }, [playlist, sessionUser]);
 
-  // Sync community feed
-  useEffect(() => {
-    if (feed !== defaultCommunityFeed) {
-      localStorage.setItem('planmaker_feed', JSON.stringify(feed));
-    }
-  }, [feed]);
+  // Sync community feed — REMOVED: now handled by real-time Gun.js hook
 
   useEffect(() => {
     calculateProgress();
@@ -769,51 +761,8 @@ const App = () => {
     awardXP(15, 'Logged Daily Journal');
   };
 
-  // Community Functions
-  const handlePostFeed = (e) => {
-    e.preventDefault();
-    if (!newPostText.trim()) return;
-    trackPostCreated();
-    setFeed(prev => [{
-      id: Date.now(),
-      user: sessionUser,
-      prep: currentUserProfile?.prepType,
-      xp: currentXP,
-      action: newPostText,
-      time: 'just now',
-      isChat: true,
-      likes: 0,
-      likedBy: [],
-      comments: [],
-    }, ...prev]);
-    setNewPostText('');
-    awardXP(2, 'Community Post');
-  };
-
-  const toggleLike = (postId) => {
-    trackPostLiked();
-    setFeed(prev => prev.map(p => {
-      if (p.id !== postId) return p;
-      const hasLiked = p.likedBy?.includes(sessionUser);
-      return {
-        ...p,
-        likes: hasLiked ? (p.likes - 1) : (p.likes + 1),
-        likedBy: hasLiked ? p.likedBy.filter(u => u !== sessionUser) : [...(p.likedBy || []), sessionUser],
-      };
-    }));
-  };
-
-  const submitComment = (postId) => {
-    if (!commentText.trim()) return;
-    trackCommentPosted();
-    setFeed(prev => prev.map(p => {
-      if (p.id !== postId) return p;
-      return { ...p, comments: [...(p.comments || []), { user: sessionUser, text: commentText, time: 'just now' }] };
-    }));
-    setCommentText('');
-    setCommentingOn(null);
-    awardXP(1, 'Commented on a Post');
-  };
+  // Community Functions — delegated to real-time Gun.js (see useCommunity hook)
+  // gunPostMessage, gunToggleLike, gunAddComment are injected below after hook call
 
   // Lecture Functions
   const handleAddVideo = (e) => {
@@ -1021,6 +970,37 @@ const App = () => {
   const isGuest = currentUserProfile?.isGuest;
   const currentXP = currentUserProfile?.xp || 0;
   const { level, title } = getLevelData(currentXP);
+
+  // ── Real-time Community (Gun.js) ──────────────────────────────────────────
+  const {
+    posts: feed,
+    postMessage: gunPostMessage,
+    toggleLike: gunToggleLike,
+    addComment: gunAddComment,
+  } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
+
+  const handlePostFeed = (e) => {
+    e.preventDefault();
+    if (!newPostText.trim()) return;
+    trackPostCreated();
+    gunPostMessage(newPostText);
+    setNewPostText('');
+    awardXP(2, 'Community Post');
+  };
+
+  const toggleLike = (postId) => {
+    trackPostLiked();
+    gunToggleLike(postId);
+  };
+
+  const submitComment = (postId) => {
+    if (!commentText.trim()) return;
+    trackCommentPosted();
+    gunAddComment(postId, commentText);
+    setCommentText('');
+    setCommentingOn(null);
+    awardXP(1, 'Commented on a Post');
+  };
 
   if (!isFullyOnboarded) {
     return (
@@ -1294,6 +1274,15 @@ const App = () => {
 
         {/* Feed Column */}
         <div className="community-feed-col">
+          {/* Live badge */}
+          <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'0.75rem', padding:'0 4px'}}>
+            <span style={{display:'flex', alignItems:'center', gap:'6px', fontSize:'0.8rem', color:'#10b981', fontWeight:700}}>
+              <span style={{width:'8px', height:'8px', borderRadius:'50%', background:'#10b981', boxShadow:'0 0 8px #10b981', animation:'pulse 1.5s infinite', display:'inline-block'}}></span>
+              LIVE · Real-time
+            </span>
+            <span style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>— {feed.length} posts from all users worldwide</span>
+          </div>
+
           <div className="tweet-compose glass">
             <div style={{display:'flex', gap:'12px'}}>
               <div className="tweet-avatar" style={{background:getAvatarColor(sessionUser), flexShrink:0}}>{sessionUser.charAt(0).toUpperCase()}</div>
@@ -1306,7 +1295,16 @@ const App = () => {
               </form>
             </div>
           </div>
-          <div style={{display:'flex', flexDirection:'column'}}>{feed.map(item => renderPostCard(item))}</div>
+
+          {feed.length === 0 ? (
+            <div style={{textAlign:'center', padding:'3rem 1rem', color:'var(--text-muted)'}}>
+              <span style={{fontSize:'2rem'}}>🌍</span>
+              <p style={{marginTop:'0.75rem', fontWeight:600}}>No posts yet — be the first!</p>
+              <p style={{fontSize:'0.85rem', marginTop:'0.25rem'}}>Your post will be visible to every user on the site in real-time.</p>
+            </div>
+          ) : (
+            <div style={{display:'flex', flexDirection:'column'}}>{feed.map(item => renderPostCard(item))}</div>
+          )}
         </div>
 
         {/* Sidebar Column */}
