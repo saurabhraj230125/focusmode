@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
-  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles
+  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle
 } from 'lucide-react';
 
 // Default templates for different exams
@@ -122,6 +122,7 @@ const App = () => {
   const [activeVideo, setActiveVideo] = useState(null);
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoTitle, setNewVideoTitle] = useState('');
+  const [lectureViewMode, setLectureViewMode] = useState('horizontal');
 
   // Community State
   const [feed, setFeed] = useState(defaultCommunityFeed);
@@ -163,6 +164,57 @@ const App = () => {
       aiEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [aiMessages, aiOpen, aiTyping]);
+
+  // AI Drag State
+  const [aiPosition, setAiPosition] = useState({ x: 0, y: 0 });
+  const aiDragStart = useRef(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!aiDragStart.current) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      setAiPosition({
+        x: clientX - aiDragStart.current.startX,
+        y: clientY - aiDragStart.current.startY
+      });
+    };
+    const handleMouseUp = () => { aiDragStart.current = null; };
+    if (aiOpen) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleMouseMove, { passive: false });
+      window.addEventListener('touchend', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleMouseMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  }, [aiOpen]);
+
+  const handleAiDragStart = (e) => {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    aiDragStart.current = { startX: clientX - aiPosition.x, startY: clientY - aiPosition.y };
+  };
+
+  const askAIDoubt = (doubtText) => {
+    if (!doubtText.trim()) return;
+    setAiOpen(true);
+    setAiInput(doubtText);
+    setTimeout(() => {
+      setAiMessages(prev => [...prev, { role: 'user', text: doubtText }]);
+      setAiInput('');
+      setAiTyping(true);
+      setTimeout(() => {
+        const response = getAIAdvice(doubtText, currentUserProfile?.prepType);
+        setAiMessages(prev => [...prev, { role: 'ai', text: response }]);
+        setAiTyping(false);
+      }, 1000);
+    }, 100);
+  };
 
   const getAIAdvice = (text, prepType) => {
     const t = text.toLowerCase();
@@ -1162,18 +1214,27 @@ const App = () => {
   const renderLectures = () => {
     const activeVideoObj = playlist.find(v => v.id === activeVideo);
     const activeData = videoNotes[activeVideo] || { notes: '', mistakes: '' };
+    
+    const isHorizontal = lectureViewMode === 'horizontal';
 
     return (
       <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
         {activeVideo ? (
-          <div className="lectures-main-grid" style={{display: 'grid', gap: '1.5rem', alignItems: 'start'}}>
+          <div style={{display: 'grid', gap: '1.5rem', alignItems: 'start', gridTemplateColumns: `repeat(auto-fit, minmax(${isHorizontal ? '400px' : '100%'}, 1fr))`}}>
             <div className="glass" style={{padding: '1rem', background: '#000', borderRadius: '20px', overflow: 'hidden'}}>
               <div style={{position: 'relative', paddingBottom: '56.25%', height: 0}}>
                 <iframe src={`https://www.youtube-nocookie.com/embed/${activeVideo}?autoplay=1&rel=0&modestbranding=1`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px'}}></iframe>
               </div>
+              <div style={{display: 'flex', justifyContent: 'space-between', padding: '10px 10px 0', color: '#fff', flexWrap: 'wrap', gap: '10px'}}>
+                <span style={{fontWeight: 'bold', fontSize: '1.1rem'}}>{activeVideoObj?.title}</span>
+                <div style={{display: 'flex', gap: '10px'}}>
+                  <button onClick={() => setLectureViewMode('horizontal')} style={{background: isHorizontal ? 'var(--accent-physics)' : 'rgba(255,255,255,0.1)', border: 'none', padding: '6px', borderRadius: '8px', color: 'white', cursor: 'pointer'}} title="Side-by-side view"><Columns size={16}/></button>
+                  <button onClick={() => setLectureViewMode('vertical')} style={{background: !isHorizontal ? 'var(--accent-physics)' : 'rgba(255,255,255,0.1)', border: 'none', padding: '6px', borderRadius: '8px', color: 'white', cursor: 'pointer'}} title="Stacked view"><Rows size={16}/></button>
+                </div>
+              </div>
             </div>
             
-            <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', maxHeight: '600px'}}>
+            <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', maxHeight: isHorizontal ? '600px' : 'auto'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                 <h3 style={{fontSize: '1.1rem', fontWeight: 'bold'}}>Lecture Notes</h3>
                 <button className="btn-primary" onClick={() => downloadNote(activeVideoObj)} style={{padding: '6px 12px', fontSize: '0.8rem'}}><Download size={14}/> Export</button>
@@ -1193,11 +1254,14 @@ const App = () => {
                   />
                 </div>
                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1}}>
-                  <label style={{fontSize: '0.85rem', color: '#f87171', fontWeight: 'bold'}}>⚠️ Mistakes & Doubts</label>
+                  <label style={{fontSize: '0.85rem', color: '#f87171', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <span>⚠️ Mistakes & Doubts</span>
+                    <button className="btn-icon" onClick={() => askAIDoubt(activeData.mistakes)} title="Solve doubt with AI" style={{color: '#f87171', padding: '4px 8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}><HelpCircle size={14} /> Ask AI</button>
+                  </label>
                   <textarea 
                     className="input-field" 
                     style={{flex: 1, minHeight: '100px', resize: 'vertical', fontSize: '0.9rem', lineHeight: 1.5, background: 'rgba(239, 68, 68, 0.05)', borderColor: 'rgba(239, 68, 68, 0.2)'}} 
-                    placeholder="Log mistakes you made during practice or questions you have..."
+                    placeholder="Log mistakes or paste a doubt here, then click 'Ask AI'..."
                     value={activeData.mistakes}
                     onChange={(e) => saveVideoNote(activeVideo, 'mistakes', e.target.value)}
                   />
@@ -1459,11 +1523,12 @@ const App = () => {
       </main>
 
       {/* Floating AI Assistant */}
-      <div style={{position: 'fixed', bottom: '80px', right: '20px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
+      <div style={{position: 'fixed', bottom: '80px', right: '20px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', transform: `translate(${aiPosition.x}px, ${aiPosition.y}px)`, transition: aiDragStart.current ? 'none' : 'transform 0.2s ease'}}>
         {aiOpen && (
           <div className="animate-fade-in" style={{width: 'clamp(300px, 90vw, 360px)', height: '450px', marginBottom: '16px', borderRadius: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.8)', border: '1px solid rgba(168,85,247,0.5)', background: '#0f172a'}}>
-            <div style={{background: 'linear-gradient(90deg, var(--accent-physics), var(--accent-chem))', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <div onMouseDown={handleAiDragStart} onTouchStart={handleAiDragStart} style={{background: 'linear-gradient(90deg, var(--accent-physics), var(--accent-chem))', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'grab', userSelect: 'none'}}>
               <div style={{display: 'flex', alignItems: 'center', gap: '8px', color: 'white'}}>
+                <Move size={16} style={{opacity: 0.7}}/>
                 <Bot size={24}/>
                 <span style={{fontWeight: 'bold', fontSize: '1.1rem'}}>AI Advisor</span>
               </div>
