@@ -86,50 +86,64 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     const es = new EventSource(url);
     sseRef.current = es;
 
-    es.addEventListener('put', (event) => {
+    const handleEvent = (event) => {
       try {
         const payload = JSON.parse(event.data);
-        if (payload.data) {
-          // Full snapshot (initial or replace)
-          setPosts(parsePostsMap(payload.data));
-        }
-      } catch {}
-    });
+        if (payload.data === undefined) return;
+        const path = payload.path;
 
-    es.addEventListener('patch', (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.data) {
-          // Incremental update — merge into current state
-          setPosts(prev => {
-            const map = {};
-            prev.forEach(p => { map[p.id] = p; });
-            Object.entries(payload.data).forEach(([key, val]) => {
-              if (val === null) {
-                delete map[key];
+        setPosts(prev => {
+          const map = {};
+          prev.forEach(p => { map[p.id] = p; });
+
+          if (path === '/') {
+            if (payload.data && typeof payload.data === 'object') {
+              Object.entries(payload.data).forEach(([key, val]) => {
+                if (val === null) delete map[key];
+                else map[key] = { ...map[key], ...val, id: key };
+              });
+            } else if (payload.data === null) {
+              return [];
+            }
+          } else {
+            const segments = path.split('/').filter(Boolean);
+            const postId = segments[0];
+
+            if (segments.length === 1) {
+              if (payload.data === null) {
+                delete map[postId];
               } else {
-                map[key] = {
-                  id: key,
-                  user: val.user || 'Anonymous',
-                  prep: val.prep || '',
-                  xp: val.xp || 0,
-                  action: val.action || '',
-                  time: val.time || 'just now',
-                  createdAt: val.createdAt || 0,
-                  likes: val.likes || 0,
-                  likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
-                  comments: Array.isArray(val.comments) ? val.comments : [],
-                };
+                map[postId] = { ...map[postId], ...payload.data, id: postId };
               }
-            });
-            return Object.values(map)
-              .filter(p => p.action)
-              .sort((a, b) => b.createdAt - a.createdAt)
-              .slice(0, MAX_POSTS);
-          });
-        }
+            } else if (segments.length > 1 && map[postId]) {
+               const field = segments[1];
+               map[postId][field] = payload.data;
+            }
+          }
+
+          // Format all mapped posts safely
+          return Object.values(map)
+            .map(val => ({
+              id: val.id,
+              user: val.user || 'Anonymous',
+              prep: val.prep || '',
+              xp: val.xp || 0,
+              action: val.action || '',
+              time: val.time || 'just now',
+              createdAt: val.createdAt || 0,
+              likes: val.likes || 0,
+              likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
+              comments: Array.isArray(val.comments) ? val.comments : [],
+            }))
+            .filter(p => p.action)
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .slice(0, MAX_POSTS);
+        });
       } catch {}
-    });
+    };
+
+    es.addEventListener('put', handleEvent);
+    es.addEventListener('patch', handleEvent);
 
     return () => {
       es.close();
