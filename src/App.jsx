@@ -908,21 +908,22 @@ const App = () => {
           const totalLikes = userPosts.reduce((s,p) => s+(p.likes||0), 0);
           return (
             <div style={{position:'fixed', inset:0, zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.8)', backdropFilter:'blur(10px)', padding:'1rem'}} onClick={() => setViewingProfile(null)}>
-              <div className="glass" style={{maxWidth:'400px', width:'100%', padding:'2rem', borderRadius:'24px', position:'relative'}} onClick={e => e.stopPropagation()}>
-                <button onClick={() => setViewingProfile(null)} style={{position:'absolute', top:'16px', right:'16px', background:'transparent', border:'none', color:'var(--text-muted)', cursor:'pointer'}}><X size={20}/></button>
+              <div className="glass" style={{maxWidth:'400px', width:'100%', padding:'clamp(1.25rem, 5vw, 2rem)', borderRadius:'24px', position:'relative', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
+                <button onClick={() => setViewingProfile(null)} style={{position:'absolute', top:'16px', right:'16px', background:'transparent', border:'none', color:'var(--text-muted)', cursor:'pointer', zIndex: 10}}><X size={20}/></button>
                 <div style={{height:'80px', borderRadius:'14px 14px 0 0', marginBottom:'-30px', background:`linear-gradient(135deg, ${getAvatarColor(viewingProfile)}, #1a1c29)`, marginLeft:'-2rem', marginRight:'-2rem', marginTop:'-2rem'}}></div>
                 <div style={{width:'68px', height:'68px', borderRadius:'50%', background:getAvatarColor(viewingProfile), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem', fontWeight:'bold', border:'3px solid #0f1015', position:'relative', zIndex:1}}>{viewingProfile.charAt(0).toUpperCase()}</div>
-                <h2 style={{fontSize:'1.25rem', fontWeight:800, marginTop:'8px'}}>{viewingProfile}</h2>
+                <h2 style={{fontSize:'1.25rem', fontWeight:800, marginTop:'8px', wordBreak: 'break-word'}}>{viewingProfile}</h2>
                 <p style={{color:'var(--accent-success)', fontSize:'0.88rem', fontWeight:600, marginBottom:'12px'}}>⚡ Lvl {pL} · {pT}</p>
                 <div style={{display:'flex', gap:'0.75rem', flexWrap:'wrap', marginBottom:'1.25rem'}}>
                   {prof?.prepType && <span style={{background:'rgba(139,92,246,0.15)', color:'var(--accent-physics)', border:'1px solid rgba(139,92,246,0.3)', padding:'3px 12px', borderRadius:'100px', fontSize:'0.8rem', fontWeight:600}}>{prof.prepType}</span>}
                   {prof?.targetYear && <span style={{background:'rgba(255,255,255,0.05)', color:'var(--text-muted)', padding:'3px 12px', borderRadius:'100px', fontSize:'0.8rem'}}>Target {prof.targetYear}</span>}
                 </div>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'1rem', textAlign:'center', padding:'1rem', background:'rgba(255,255,255,0.03)', borderRadius:'14px', marginBottom:'1rem'}}>
+                <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(70px, 1fr))', gap:'1rem', textAlign:'center', padding:'1rem', background:'rgba(255,255,255,0.03)', borderRadius:'14px', marginBottom:'1rem'}}>
                   <div><div style={{fontWeight:800, fontSize:'1.2rem', color:'var(--accent-success)'}}>{prof?.xp||0}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>XP</div></div>
                   <div><div style={{fontWeight:800, fontSize:'1.2rem'}}>{userPosts.length}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Posts</div></div>
                   <div><div style={{fontWeight:800, fontSize:'1.2rem', color:'#f87171'}}>{totalLikes}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Likes</div></div>
                 </div>
+
                 {userPosts.slice(0,2).map(p => (
                   <p key={p.id} style={{fontSize:'0.85rem', color:'#cbd5e1', padding:'8px 12px', background:'rgba(255,255,255,0.03)', borderRadius:'10px', marginBottom:'6px', lineHeight:1.4}}>"{p.action.slice(0,100)}{p.action.length>100?'...':''}"</p>
                 ))}
@@ -1014,13 +1015,13 @@ const App = () => {
           <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto'}}>Jump into a live video room with other aspirants preparing for the same exam. Camera + mic enabled — totally free.</p>
         </div>
         <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>Join an Exam Study Room</h3>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem'}}>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem'}}>
           {examRooms.map(room => (
-            <div key={room.id} className="glass subject-card" style={{textAlign: 'center', padding: '2.5rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', cursor: 'pointer', borderColor: room.id === currentUserProfile.prepType ? room.color : '', transition: 'all 0.25s ease'}} onClick={() => { setConnectRoom(room.id); setInCall(true); awardXP(10, 'Joined Study Connect Room'); }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 12px 40px ${room.color}33`; }} onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
+            <div key={room.id} className="glass subject-card" style={{textAlign: 'center', padding: '2.5rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', cursor: 'pointer', borderColor: room.id === currentUserProfile?.prepType ? room.color : '', transition: 'all 0.25s ease'}} onClick={() => { setConnectRoom(room.id); setInCall(true); awardXP(10, 'Joined Study Connect Room'); }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 12px 40px ${room.color}33`; }} onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
               <div style={{color: room.color, background: `${room.color}22`, border: `1px solid ${room.color}44`, borderRadius: '16px', padding: '16px'}}>{room.icon}</div>
               <h3 style={{fontSize: '1.25rem', fontWeight: 700}}>{room.label}</h3>
               <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{room.desc}</p>
-              {room.id === currentUserProfile.prepType && <span style={{background: `${room.color}33`, color: room.color, border: `1px solid ${room.color}55`, padding: '2px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 600}}>Your Exam ⭐</span>}
+              {room.id === currentUserProfile?.prepType && <span style={{background: `${room.color}33`, color: room.color, border: `1px solid ${room.color}55`, padding: '2px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 600}}>Your Exam ⭐</span>}
               <button className="btn-primary" style={{width: '100%', background: `${room.color}22`, borderColor: `${room.color}55`, color: room.color}}><PhoneCall size={16}/> Join Room</button>
             </div>
           ))}
@@ -1028,9 +1029,9 @@ const App = () => {
         <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
           <h3 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem'}}><Wifi size={20} color="var(--accent-success)"/> Private Study Room</h3>
           <p style={{color: 'var(--text-muted)', fontSize: '0.95rem'}}>Create a private room with a custom name and share it with a friend to study 1-on-1.</p>
-          <div style={{display: 'flex', gap: '1rem'}}>
-            <input type="text" className="input-field" placeholder="Enter a custom room name (e.g. JEECrack-Batch2025)" value={customRoomName} onChange={e => setCustomRoomName(e.target.value)} />
-            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} style={{whiteSpace: 'nowrap'}}><PhoneCall size={16}/> Start Private Call</button>
+          <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
+            <input type="text" className="input-field" placeholder="Enter a custom room name (e.g. JEECrack-Batch2025)" value={customRoomName} onChange={e => setCustomRoomName(e.target.value)} style={{flex: '1 1 200px'}} />
+            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} style={{flex: '0 0 auto', whiteSpace: 'nowrap'}}><PhoneCall size={16}/> Start Private Call</button>
           </div>
         </div>
       </div>
