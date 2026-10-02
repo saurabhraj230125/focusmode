@@ -15,11 +15,22 @@ const PWAInstallPrompt = () => {
       window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
 
+    // Don't show if user already installed the app
+    const alreadyInstalled = localStorage.getItem('pwa_installed');
+
     // Don't show if user already dismissed 3 times
     const dismissCount = parseInt(localStorage.getItem('pwa_dismiss_count') || '0', 10);
     setShowCount(dismissCount + 1);
 
-    if (isStandalone || dismissCount >= MAX_SHOWS) return;
+    if (isStandalone || alreadyInstalled || dismissCount >= MAX_SHOWS) return;
+
+    // Listen for the browser's own 'appinstalled' event as a safety net
+    const onInstalled = () => {
+      localStorage.setItem('pwa_installed', 'true');
+      setShow(false);
+      setDismissed(true);
+    };
+    window.addEventListener('appinstalled', onInstalled);
 
     // Detect iOS Safari (no beforeinstallprompt support)
     const ios =
@@ -41,7 +52,10 @@ const PWAInstallPrompt = () => {
     };
 
     window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
   }, []);
 
   const handleInstall = async () => {
@@ -49,7 +63,10 @@ const PWAInstallPrompt = () => {
     prompt.prompt();
     const { outcome } = await prompt.userChoice;
     if (outcome === 'accepted') {
-      dismiss();
+      // Permanently mark as installed — never show again
+      localStorage.setItem('pwa_installed', 'true');
+      setShow(false);
+      setDismissed(true);
     }
   };
 
