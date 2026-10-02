@@ -167,25 +167,45 @@ const App = () => {
   const getAIAdvice = (text, prepType) => {
     const t = text.toLowerCase();
     
-    if (t.match(/\b(hi|hello|hey|yo)\b/)) return `Hello! I'm your deeply trained AI Advisor. Since you're studying for ${prepType || 'your exams'}, how can I help you optimize your focus today?`;
+    // GREETINGS & INTRO
+    if (t.match(/\b(hi|hello|hey|yo|sup|help|start)\b/)) return `Hello! I am FocusBot, your deeply trained AI Advisor. I have analyzed terabytes of study data. Since you are studying for ${prepType || 'your exams'}, what specific topic, subject, or problem can I help you conquer today?`;
     
-    if (t.match(/distract|phone|reel|tiktok|instagram|focus|procrastinat|can't study/)) return "Distraction is just your brain craving cheap dopamine. Solution: Put your phone in another room right now. Then, start a 25-minute Pomodoro timer on your Dashboard. Tell yourself you only have to study for 25 minutes. Usually, getting started is the only hard part. Go do it! 🚀";
+    // PROCRASTINATION, DISTRACTION, PHONE
+    if (t.match(/distract|phone|reel|tiktok|instagram|focus|procrastinat|can't study|lazy|youtube/)) return "Distraction is a dopamine trap. The internet is engineered to steal your attention. Solution: Do a 'Dopamine Detox'. Lock your phone in a drawer. Start a 25-minute Pomodoro timer here on the Dashboard. Tell your brain you only have to work for 5 minutes. The friction to start is always higher than the friction to continue. 🚀";
     
-    if (t.match(/stress|anxi|nervous|burnout|tired|exhaust|sleep|depress/)) return "Listen to me: your mental health is more important than any exam. If you are burned out, your brain physically cannot retain information. Take a mandatory 2-hour break, go for a walk without your phone, and get at least 7.5 hours of sleep tonight. You will study 2x better tomorrow. 💙";
+    // BURNOUT, TIRED, SLEEP, STRESS
+    if (t.match(/stress|anxi|nervous|burnout|tired|exhaust|sleep|depress|sad|cry|overwhelm/)) return "Listen closely: Chronic stress destroys your hippocampus (the memory center). If you are burned out, studying is literally useless because your brain can't consolidate memory without REM sleep. Take a mandatory 2-hour break, go outside, hydrate, and ensure you get 7.5 to 8 hours of sleep tonight. Your brain needs to heal. 💙";
     
-    if (t.match(/memor|forget|remember|biology|history|retain/)) return "Reading notes doesn't build memory—Active Recall does. Close your book and try to write down everything you remember on a blank page. Then, check what you missed. Also, use Spaced Repetition: review the topic today, tomorrow, in 3 days, and in a week. 🧠";
+    // MEMORY, ACTIVE RECALL, BIOLOGY, HISTORY
+    if (t.match(/memor|forget|remember|biology|history|retain|learn|cram/)) return "Rereading and highlighting are the lowest-yield study methods. You need 'Active Recall' and 'Spaced Repetition' (based on the Ebbinghaus Forgetting Curve). Close the book and write down everything you know on a blank page. Whatever you miss is your weak point. Review it today, in 3 days, and in 7 days. 🧠";
     
-    if (t.match(/physics|math|numerical|quant|solve|hard problem/)) return "For analytical subjects, reading solutions is a trap. If you get stuck on a problem for 15 minutes, look at ONLY the first step of the solution. Then hide it and try to finish it yourself. This builds true neural pathways for problem-solving. ⚡";
+    // PROBLEM SOLVING, MATH, PHYSICS, QUANT
+    if (t.match(/physics|math|numerical|quant|solve|hard problem|calculus|mechanic/)) return "For analytical subjects, reading the solution ruins your brain's struggle phase (which is where neural pathways actually form). Try a problem for 10-15 minutes. If stuck, look at ONLY the first step of the solution. Hide it, and try to finish. The 'struggle' is the learning. ⚡";
     
-    if (t.match(/plan|timetable|schedule|routine|time|late/)) return "The best timetable is a flexible one. Don't schedule every minute. Instead, pick 3 'Non-Negotiable' tasks for the day and put them in your Dashboard. Complete them first thing in the morning. Everything else is a bonus. 📅";
+    // CHEMISTRY (ORGANIC / INORGANIC)
+    if (t.match(/chem|organic|inorganic|reaction|mechanism/)) return "Chemistry is divided: Physical needs daily numerical practice. Organic requires understanding electron flow and mechanisms, NOT pure memorization—draw them out repeatedly. Inorganic is pure memory: use flashcards, mnemonics, and review a small chunk every morning for 15 minutes. 🧪";
     
-    if (t.match(/motivat|give up|hard|tough|fail|demotivat/)) return `Motivation is a myth; Discipline is reality. You are studying for ${prepType || 'your future'}. Every time you sit down to study when you don't feel like it, you are beating 90% of your competition. Take a deep breath, pick your easiest task, and just start. You've got this! 🔥`;
+    // MOCK TESTS, PYQS, PREVIOUS YEAR QUESTIONS
+    if (t.match(/mock|pyq|test|score|marks|improv|negative|exam/)) return "Mock tests are useless without Analysis. Spend as much time analyzing the mock as you did taking it. Put every single mistake into your 'Journal & Mistakes' tab. Categorize them: Silly mistake? Conceptual gap? Time pressure? Fix the root cause, and your score will naturally jump. 📈";
     
+    // UNDERSTANDING CONCEPTS / FEYNMAN TECHNIQUE
+    if (t.match(/don't understand|confus|concept|theory|hard to grasp/)) return "Use the Feynman Technique: Try to explain this concept out loud as if you were teaching a 10-year-old. When you stumble or use complex jargon, that's your knowledge gap. Go back to the book just for that gap, then try explaining it again. 🗣️";
+    
+    // TIME MANAGEMENT, ROUTINE, TIMETABLE
+    if (t.match(/plan|timetable|schedule|routine|time|late|manage|hours/)) return "Stop planning 14-hour days—that leads to burnout. Use the Pareto Principle (80/20 rule): 80% of your marks come from 20% of the syllabus. Identify those high-yield topics. Pick 3 'Non-Negotiable' tasks daily and put them in your Dashboard. Complete them first thing in the morning. 📅";
+    
+    // MOTIVATION, DISCIPLINE, FEELING LIKE GIVING UP
+    if (t.match(/motivat|give up|hard|tough|fail|demotivat|quit|competi/)) return `Motivation is a feeling, and feelings change. Discipline is a choice. You are studying for ${prepType || 'your future'}. Every single time you sit down to study when you feel like quitting, you are beating 90% of the competition. The pain of discipline is less than the pain of regret. Start right now. 🔥`;
+    
+    // DIET, NUTRITION, HYDRATION
+    if (t.match(/food|diet|eat|drink|water|coffee|caffeine/)) return "Your brain consumes 20% of your calories. Avoid heavy carbs or sugar before studying—they cause insulin spikes and crashes (brain fog). Drink water constantly. If using caffeine, wait 90-120 minutes after waking up so you don't crash in the afternoon. 🍎";
+    
+    // FALLBACKS (If no keyword matches)
     const fallbacks = [
-      "That's a great point. The key to mastering this is breaking it down into smaller pieces. What's the smallest step you can take right now?",
-      "Interesting. Have you tried logging this in your Learning Journal? Writing down exactly where you get stuck helps your brain process it better.",
-      "I see. My best advice here is to stay consistent. Small daily efforts compound massively over time.",
-      "Got it. Whenever I feel stuck there, I jump into a Study Connect room to co-work silently with others. It forces accountability!"
+      "I've scanned my database, and the best approach here is to break this down into smaller pieces. What is the absolute smallest, easiest step you can take on this right now?",
+      "That's an interesting challenge. Have you tried logging this in your Learning Journal? Formulating the problem in writing often reveals the solution to your brain automatically.",
+      "Based on top performers' data, my best advice here is consistency. Don't look for a magic bullet; just put in 45 minutes of deep, uninterrupted work right now.",
+      "Got it. Whenever you feel stuck like this, I highly recommend jumping into a Study Connect room. Co-working silently with others triggers 'body doubling', which massively boosts focus!"
     ];
     return fallbacks[Math.floor(Math.random() * fallbacks.length)];
   };
