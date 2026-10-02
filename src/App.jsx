@@ -459,6 +459,12 @@ const App = () => {
     return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const setTimer = (type) => {
+    setIsActive(false);
+    setSessionType(type);
+    setTimeLeft(type === 'pomodoro' ? 25 * 60 : 5 * 60);
+  };
+
   const getSubjectIcon = (iconStr) => {
     switch(iconStr) {
       case 'physics': return <BrainCircuit size={20} />;
@@ -735,7 +741,12 @@ const App = () => {
             </button>
           </div>
           <div className="glass" style={{padding: '0', overflow: 'hidden', borderRadius: '20px', height: '75vh'}}>
-            <iframe src={`https://meet.jit.si/${jitsiRoom}#userInfo.displayName=${encodeURIComponent(sessionUser)}&config.startWithVideoMuted=false&config.startWithAudioMuted=false&config.toolbarButtons=["microphone","camera","closedcaptions","desktop","chat","hangup","tileview"]`} style={{width: '100%', height: '100%', border: 'none'}} allow="camera; microphone; fullscreen; display-capture; autoplay" title="Study Connect Room" />
+            <iframe
+              src={`https://meet.jit.si/${jitsiRoom}#userInfo.displayName=${encodeURIComponent(sessionUser)}`}
+              style={{width: '100%', height: '100%', border: 'none'}}
+              allow="camera; microphone; fullscreen; display-capture; autoplay"
+              title="Study Connect Room"
+            />
           </div>
         </div>
       );
