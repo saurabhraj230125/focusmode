@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
-  Wifi, VideoOff, PhoneCall, Globe
+  Wifi, VideoOff, PhoneCall, Globe, X
 } from 'lucide-react';
 
 // Default templates for different exams
@@ -69,6 +69,10 @@ const App = () => {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
+  // Auth Wall State (For upgrading guests)
+  const [showAuthWall, setShowAuthWall] = useState(false);
+  const [authWallMsg, setAuthWallMsg] = useState('');
+
   // Onboarding State
   const [onboardPrep, setOnboardPrep] = useState('');
   const [onboardYear, setOnboardYear] = useState('');
@@ -96,8 +100,8 @@ const App = () => {
   const [feed, setFeed] = useState(defaultCommunityFeed);
   const [newPostText, setNewPostText] = useState('');
 
-  // Study Connect (Video Call) State
-  const [connectRoom, setConnectRoom] = useState(null); // null = lobby, 'JEE'/'NEET'/'UPSC'/'private'
+  // Study Connect State
+  const [connectRoom, setConnectRoom] = useState(null);
   const [customRoomName, setCustomRoomName] = useState('');
   const [inCall, setInCall] = useState(false);
 
@@ -111,13 +115,37 @@ const App = () => {
 
   // Initialization
   useEffect(() => {
-    const savedUsers = localStorage.getItem('planmaker_users');
-    if (savedUsers) setUsersDb(JSON.parse(savedUsers));
+    let savedUsersStr = localStorage.getItem('planmaker_users');
+    let db = savedUsersStr ? JSON.parse(savedUsersStr) : {};
+    if (savedUsersStr) setUsersDb(db);
 
     const activeSession = localStorage.getItem('planmaker_session');
-    if (activeSession) {
+    const explicitLogout = localStorage.getItem('planmaker_explicit_logout');
+
+    if (activeSession && db[activeSession]) {
       setSessionUser(activeSession);
       loadUserData(activeSession);
+      
+      // If they are a guest returning, maybe prompt them to save (optional)
+      let visits = parseInt(localStorage.getItem('planmaker_visits') || '0');
+      visits++;
+      localStorage.setItem('planmaker_visits', visits.toString());
+
+    } else if (!explicitLogout) {
+      // Auto-create a Guest Session for first-timers
+      const guestName = `Guest_${Math.floor(Math.random() * 90000 + 10000)}`;
+      db = {
+        ...db,
+        [guestName]: {
+          password: '',
+          profile: { isGuest: true, prepType: '', targetYear: '', weakness: '', xp: 0, joined: new Date().toLocaleDateString() }
+        }
+      };
+      setUsersDb(db);
+      setSessionUser(guestName);
+      localStorage.setItem('planmaker_session', guestName);
+      localStorage.setItem('planmaker_users', JSON.stringify(db));
+      localStorage.setItem('planmaker_visits', '1');
     }
 
     const savedFeed = localStorage.getItem('planmaker_feed');
@@ -228,6 +256,17 @@ const App = () => {
     setProgress(total === 0 ? 0 : Math.round((completed / total) * 100));
   };
 
+  const handleTabChange = (tab) => {
+    const isGuest = usersDb[sessionUser]?.profile?.isGuest;
+    if ((tab === 'community' || tab === 'connect') && isGuest) {
+      setAuthMode('register');
+      setAuthWallMsg(`You need to create a free account to access ${tab === 'community' ? 'the Community' : 'Study Connect'}.`);
+      setShowAuthWall(true);
+      return;
+    }
+    setActiveTab(tab);
+  };
+
   // Auth Functions
   const handleAuth = (e) => {
     e.preventDefault();
@@ -237,26 +276,63 @@ const App = () => {
       return;
     }
 
-    if (authMode === 'register') {
-      if (usersDb[authUsername]) {
+    if (authMode === 'register' || (showAuthWall && usersDb[sessionUser]?.profile?.isGuest)) {
+      if (usersDb[authUsername] && authUsername !== sessionUser) {
         setAuthError('Username already exists'); return;
       }
-      setUsersDb(prev => ({
-        ...prev,
-        [authUsername]: { 
-          password: authPassword, 
-          profile: { prepType: '', targetYear: '', weakness: '', xp: 0, joined: new Date().toLocaleDateString() } 
-        }
-      }));
-      setSessionUser(authUsername);
-      localStorage.setItem('planmaker_session', authUsername);
+
+      if (showAuthWall && usersDb[sessionUser]?.profile?.isGuest) {
+        // Upgrade Guest to Real User
+        setUsersDb(prev => {
+          const newDb = { ...prev };
+          const guestData = newDb[sessionUser];
+          delete newDb[sessionUser];
+          newDb[authUsername] = {
+            password: authPassword,
+            profile: { ...guestData.profile, isGuest: false }
+          };
+          return newDb;
+        });
+
+        // Migrate local storage keys
+        const pSub = localStorage.getItem(`pm_sub_${sessionUser}`);
+        const pJour = localStorage.getItem(`pm_jour_${sessionUser}`);
+        const pPlay = localStorage.getItem(`pm_playlist_${sessionUser}`);
+        
+        if(pSub) localStorage.setItem(`pm_sub_${authUsername}`, pSub);
+        if(pJour) localStorage.setItem(`pm_jour_${authUsername}`, pJour);
+        if(pPlay) localStorage.setItem(`pm_playlist_${authUsername}`, pPlay);
+        
+        localStorage.removeItem(`pm_sub_${sessionUser}`);
+        localStorage.removeItem(`pm_jour_${sessionUser}`);
+        localStorage.removeItem(`pm_playlist_${sessionUser}`);
+
+        setSessionUser(authUsername);
+        localStorage.setItem('planmaker_session', authUsername);
+        setShowAuthWall(false);
+        setToastMsg({ amount: 50, reason: 'Account Created Successfully!' });
+      } else {
+        // Normal register (e.g. they explicitly logged out and are creating a new account)
+        setUsersDb(prev => ({
+          ...prev,
+          [authUsername]: { 
+            password: authPassword, 
+            profile: { isGuest: false, prepType: '', targetYear: '', weakness: '', xp: 0, joined: new Date().toLocaleDateString() } 
+          }
+        }));
+        setSessionUser(authUsername);
+        localStorage.setItem('planmaker_session', authUsername);
+        localStorage.removeItem('planmaker_explicit_logout');
+      }
     } else {
+      // Normal Login
       const user = usersDb[authUsername];
       if (!user || user.password !== authPassword) {
         setAuthError('Invalid username or password'); return;
       }
       setSessionUser(authUsername);
       localStorage.setItem('planmaker_session', authUsername);
+      localStorage.removeItem('planmaker_explicit_logout');
       loadUserData(authUsername);
     }
     setAuthUsername(''); setAuthPassword('');
@@ -267,6 +343,7 @@ const App = () => {
     setSubjects([]); setJournalHistory([]); setPlaylist([]);
     setActiveTab('dashboard'); setActiveVideo(null);
     localStorage.removeItem('planmaker_session');
+    localStorage.setItem('planmaker_explicit_logout', 'true');
   };
 
   // Onboarding Functions
@@ -403,7 +480,7 @@ const App = () => {
         <div className="glass auth-card animate-fade-in">
           <Headphones size={48} color="var(--accent-physics)" style={{marginBottom: '1rem'}} />
           <h1 className="greeting" style={{fontSize: '2rem'}}>FocusModePlayer</h1>
-          <p className="subtitle" style={{marginBottom: '2rem', textAlign: 'center'}}>The ultimate dashboard for serious aspirants.</p>
+          <p className="subtitle" style={{marginBottom: '2rem', textAlign: 'center'}}>Welcome back to your dashboard.</p>
           
           <form className="auth-form" onSubmit={handleAuth}>
             <div className="input-group">
@@ -416,7 +493,7 @@ const App = () => {
             </div>
             {authError && <p className="auth-error">{authError}</p>}
             <button type="submit" className="btn-primary" style={{width: '100%', padding: '14px', marginTop: '10px'}}>
-              {authMode === 'login' ? 'Enter Dashboard' : 'Create Account'}
+              {authMode === 'login' ? 'Login' : 'Create Account'}
             </button>
           </form>
 
@@ -433,6 +510,7 @@ const App = () => {
 
   const currentUserProfile = usersDb[sessionUser]?.profile;
   const isFullyOnboarded = !!currentUserProfile?.prepType;
+  const isGuest = currentUserProfile?.isGuest;
   const currentXP = currentUserProfile?.xp || 0;
   const { level, title } = getLevelData(currentXP);
 
@@ -455,7 +533,6 @@ const App = () => {
                 ))}
               </div>
             </div>
-
             <div className="onboard-step">
               <h3>2. What is your target year?</h3>
               <div className="input-group">
@@ -463,7 +540,6 @@ const App = () => {
                 <input type="number" placeholder="e.g. 2025" value={onboardYear} onChange={e => setOnboardYear(e.target.value)} className="input-field with-icon" />
               </div>
             </div>
-
             <div className="onboard-step">
               <h3>3. What is your biggest weakness right now?</h3>
               <textarea className="journal-textarea" style={{minHeight: '80px', marginTop: '10px'}} placeholder="e.g. Silly calculation mistakes in Physics, or struggling with Organic Chem memorization..." value={onboardWeakness} onChange={e => setOnboardWeakness(e.target.value)} />
@@ -494,7 +570,6 @@ const App = () => {
             <div className="progress-bar-fill" style={{ width: `${progress}%` }}></div>
           </div>
         </section>
-
         <form className="glass add-task-form" onSubmit={handleAddTask}>
           <select className="input-field" value={newTaskSubject} onChange={(e) => setNewTaskSubject(e.target.value)}>
             {subjects.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
@@ -502,7 +577,6 @@ const App = () => {
           <input type="text" className="input-field" placeholder="E.g., Complete Chapter 4 Practice Qs" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
           <button type="submit" className="btn-primary"><Plus size={18} /> Add</button>
         </form>
-
         <div className="subjects-grid">
           {subjects.map(subject => {
             const isExpanded = expandedSubjects.includes(subject.id);
@@ -558,11 +632,7 @@ const App = () => {
             <button style={{padding: '4px 12px', borderRadius: '100px', background: sessionType === 'shortBreak' ? 'rgba(255,255,255,0.1)' : 'transparent', color: sessionType === 'shortBreak' ? 'white' : '#94a3b8', border: 'none', cursor: 'pointer'}} onClick={() => setTimer('shortBreak')}>Break</button>
           </div>
           <div className="timer-display">{formatTime(timeLeft)}</div>
-          
-          <div style={{fontSize: '0.85rem', color: 'var(--accent-success)', marginBottom: '1rem', fontWeight: 'bold'}}>
-             Reward: +{sessionType === 'pomodoro' ? '50' : '10'} XP
-          </div>
-
+          <div style={{fontSize: '0.85rem', color: 'var(--accent-success)', marginBottom: '1rem', fontWeight: 'bold'}}> Reward: +{sessionType === 'pomodoro' ? '50' : '10'} XP </div>
           <div className="timer-controls">
             <button className="btn-primary" onClick={() => setIsActive(!isActive)}>
               {isActive ? <Pause size={18} /> : <Play size={18} />}
@@ -571,7 +641,6 @@ const App = () => {
             <button className="btn-icon" onClick={() => setTimer(sessionType)}><RotateCcw size={18} /></button>
           </div>
         </div>
-        
         <div className="glass" style={{padding: '1.5rem'}}>
           <h3 style={{fontSize: '1rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '0.5rem'}}>Daily Motivation</h3>
           <p style={{fontStyle: 'italic', fontSize: '0.95rem'}}>"Discipline is choosing between what you want now, and what you want most."</p>
@@ -646,19 +715,69 @@ const App = () => {
     </div>
   );
 
+  const renderStudyConnect = () => {
+    const examRooms = [
+      { id: 'JEE', label: 'JEE Aspirants', color: 'var(--accent-physics)', desc: 'Physics · Chemistry · Maths', icon: <Calculator size={28}/> },
+      { id: 'NEET', label: 'NEET Aspirants', color: 'var(--accent-chem)', desc: 'Physics · Chemistry · Biology', icon: <Stethoscope size={28}/> },
+      { id: 'UPSC', label: 'UPSC Aspirants', color: 'var(--accent-math)', desc: 'History · Polity · Geography', icon: <Landmark size={28}/> },
+    ];
+    const buildJitsiRoom = (roomId) => `FocusModePlayer-${roomId}-Study-${sessionUser.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+    if (inCall && connectRoom) {
+      const jitsiRoom = buildJitsiRoom(connectRoom);
+      return (
+        <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+            <div style={{width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981', animation: 'pulse 1.5s infinite'}}></div>
+            <span style={{color: '#10b981', fontWeight: 'bold'}}>Live — {connectRoom} Room</span>
+            <button onClick={() => { setInCall(false); setConnectRoom(null); }} className="btn-primary" style={{marginLeft: 'auto', background: 'rgba(239,68,68,0.2)', borderColor: 'rgba(239,68,68,0.3)', color: '#f87171', padding: '8px 20px'}}>
+              <VideoOff size={16}/> Leave Room
+            </button>
+          </div>
+          <div className="glass" style={{padding: '0', overflow: 'hidden', borderRadius: '20px', height: '75vh'}}>
+            <iframe src={`https://meet.jit.si/${jitsiRoom}#userInfo.displayName=${encodeURIComponent(sessionUser)}&config.startWithVideoMuted=false&config.startWithAudioMuted=false&config.toolbarButtons=["microphone","camera","closedcaptions","desktop","chat","hangup","tileview"]`} style={{width: '100%', height: '100%', border: 'none'}} allow="camera; microphone; fullscreen; display-capture; autoplay" title="Study Connect Room" />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '900px'}}>
+        <div className="glass" style={{padding: '3rem', textAlign: 'center', background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%)', borderColor: 'rgba(139,92,246,0.3)'}}>
+          <Globe size={56} color="var(--accent-physics)" style={{marginBottom: '1rem', filter: 'drop-shadow(0 0 15px rgba(139,92,246,0.5))'}} />
+          <h2 style={{fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem'}}>Study Connect</h2>
+          <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto'}}>Jump into a live video room with other aspirants preparing for the same exam. Camera + mic enabled — totally free.</p>
+        </div>
+        <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>Join an Exam Study Room</h3>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem'}}>
+          {examRooms.map(room => (
+            <div key={room.id} className="glass subject-card" style={{textAlign: 'center', padding: '2.5rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', cursor: 'pointer', borderColor: room.id === currentUserProfile.prepType ? room.color : '', transition: 'all 0.25s ease'}} onClick={() => { setConnectRoom(room.id); setInCall(true); awardXP(10, 'Joined Study Connect Room'); }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 12px 40px ${room.color}33`; }} onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
+              <div style={{color: room.color, background: `${room.color}22`, border: `1px solid ${room.color}44`, borderRadius: '16px', padding: '16px'}}>{room.icon}</div>
+              <h3 style={{fontSize: '1.25rem', fontWeight: 700}}>{room.label}</h3>
+              <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{room.desc}</p>
+              {room.id === currentUserProfile.prepType && <span style={{background: `${room.color}33`, color: room.color, border: `1px solid ${room.color}55`, padding: '2px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 600}}>Your Exam ⭐</span>}
+              <button className="btn-primary" style={{width: '100%', background: `${room.color}22`, borderColor: `${room.color}55`, color: room.color}}><PhoneCall size={16}/> Join Room</button>
+            </div>
+          ))}
+        </div>
+        <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+          <h3 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem'}}><Wifi size={20} color="var(--accent-success)"/> Private Study Room</h3>
+          <p style={{color: 'var(--text-muted)', fontSize: '0.95rem'}}>Create a private room with a custom name and share it with a friend to study 1-on-1.</p>
+          <div style={{display: 'flex', gap: '1rem'}}>
+            <input type="text" className="input-field" placeholder="Enter a custom room name (e.g. JEECrack-Batch2025)" value={customRoomName} onChange={e => setCustomRoomName(e.target.value)} />
+            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} style={{whiteSpace: 'nowrap'}}><PhoneCall size={16}/> Start Private Call</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderLectures = () => (
     <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
-      {/* Video Player */}
       {activeVideo ? (
         <div className="glass" style={{padding: '1rem', background: '#000', borderRadius: '20px', overflow: 'hidden'}}>
           <div style={{position: 'relative', paddingBottom: '56.25%', height: 0}}>
-            <iframe 
-              src={`https://www.youtube-nocookie.com/embed/${activeVideo}?autoplay=1&rel=0&modestbranding=1`} 
-              frameBorder="0" 
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-              allowFullScreen
-              style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px'}}
-            ></iframe>
+            <iframe src={`https://www.youtube-nocookie.com/embed/${activeVideo}?autoplay=1&rel=0&modestbranding=1`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px'}}></iframe>
           </div>
         </div>
       ) : (
@@ -667,20 +786,14 @@ const App = () => {
           <p>Select a video from your playlist or add a new one to start watching ad-free.</p>
         </div>
       )}
-
-      {/* Add Video Form */}
       <form className="glass" style={{padding: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center'}} onSubmit={handleAddVideo}>
         <div className="input-group" style={{flex: 1}}>
           <Video size={18} className="input-icon" />
           <input type="text" className="input-field with-icon" placeholder="Paste YouTube Link (Normal or Live)..." value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} />
         </div>
         <input type="text" className="input-field" placeholder="Video Title (e.g. Thermodynamics Part 1)" value={newVideoTitle} onChange={e => setNewVideoTitle(e.target.value)} style={{flex: 1}} />
-        <button type="submit" className="btn-primary" style={{whiteSpace: 'nowrap'}}>
-          <Plus size={18} /> Add to Playlist (+5 XP)
-        </button>
+        <button type="submit" className="btn-primary" style={{whiteSpace: 'nowrap'}}><Plus size={18} /> Add to Playlist (+5 XP)</button>
       </form>
-
-      {/* Playlist Grid */}
       <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem'}}>
         {playlist.map(video => (
           <div key={video.id} className="glass subject-card" style={{display: 'flex', flexDirection: 'column', gap: '1rem', cursor: 'pointer', border: activeVideo === video.id ? '1px solid var(--accent-physics)' : ''}} onClick={() => { setActiveVideo(video.id); awardXP(10, 'Started a Lecture'); }}>
@@ -710,11 +823,12 @@ const App = () => {
           {sessionUser.charAt(0).toUpperCase()}
         </div>
         <div>
-          <h1 className="greeting" style={{fontSize: '2.5rem', margin: 0}}>{sessionUser}</h1>
+          <h1 className="greeting" style={{fontSize: '2.5rem', margin: 0}}>{isGuest ? 'Guest Aspirant' : sessionUser}</h1>
           <p style={{color: 'var(--accent-success)', fontWeight: 'bold', fontSize: '1.2rem'}}>{currentXP} XP Earned</p>
           <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
             <span className="tag" style={{background: 'rgba(255,255,255,0.1)', fontSize: '0.9rem', padding: '4px 12px'}}>Lvl {level}: {title}</span>
             <span className="tag" style={{background: 'rgba(255,255,255,0.1)', fontSize: '0.9rem', padding: '4px 12px'}}>Target: {currentUserProfile.prepType} {currentUserProfile.targetYear}</span>
+            {isGuest && <span className="tag" style={{background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)'}}>Unsaved Account</span>}
           </div>
         </div>
       </div>
@@ -722,123 +836,55 @@ const App = () => {
         <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem'}}><Target size={24} color="var(--accent-math)"/> Identified Weakness</h2>
         <p style={{fontSize: '1.1rem', lineHeight: '1.6', color: 'var(--text-muted)'}}>{currentUserProfile.weakness || "You haven't specified a weakness."}</p>
       </div>
-      <button onClick={handleLogout} className="btn-primary" style={{background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171', alignSelf: 'flex-start', padding: '12px 24px'}}>
-        <LogOut size={18} /> Logout
-      </button>
+      
+      {isGuest ? (
+        <button onClick={() => { setAuthWallMsg('Create a permanent account to save your XP and profile data.'); setShowAuthWall(true); }} className="btn-primary" style={{alignSelf: 'flex-start', padding: '12px 24px'}}>
+          <User size={18} /> Create Permanent Account
+        </button>
+      ) : (
+        <button onClick={handleLogout} className="btn-primary" style={{background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171', alignSelf: 'flex-start', padding: '12px 24px'}}>
+          <LogOut size={18} /> Logout
+        </button>
+      )}
     </div>
   );
 
-  const renderStudyConnect = () => {
-    const examRooms = [
-      { id: 'JEE', label: 'JEE Aspirants', color: 'var(--accent-physics)', desc: 'Physics · Chemistry · Maths', icon: <Calculator size={28}/> },
-      { id: 'NEET', label: 'NEET Aspirants', color: 'var(--accent-chem)', desc: 'Physics · Chemistry · Biology', icon: <Stethoscope size={28}/> },
-      { id: 'UPSC', label: 'UPSC Aspirants', color: 'var(--accent-math)', desc: 'History · Polity · Geography', icon: <Landmark size={28}/> },
-    ];
-
-    const buildJitsiRoom = (roomId) => {
-      const safeRoom = `FocusModePlayer-${roomId}-Study-${sessionUser.replace(/[^a-zA-Z0-9]/g, '')}`;
-      return safeRoom;
-    };
-
-    if (inCall && connectRoom) {
-      const jitsiRoom = buildJitsiRoom(connectRoom);
-      return (
-        <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-            <div style={{width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981', animation: 'pulse 1.5s infinite'}}></div>
-            <span style={{color: '#10b981', fontWeight: 'bold'}}>Live — {connectRoom} Room</span>
-            <button onClick={() => { setInCall(false); setConnectRoom(null); }} className="btn-primary" style={{marginLeft: 'auto', background: 'rgba(239,68,68,0.2)', borderColor: 'rgba(239,68,68,0.3)', color: '#f87171', padding: '8px 20px'}}>
-              <VideoOff size={16}/> Leave Room
-            </button>
-          </div>
-          <div className="glass" style={{padding: '0', overflow: 'hidden', borderRadius: '20px', height: '75vh'}}>
-            <iframe
-              src={`https://meet.jit.si/${jitsiRoom}#userInfo.displayName=${encodeURIComponent(sessionUser)}&config.startWithVideoMuted=false&config.startWithAudioMuted=false&config.toolbarButtons=["microphone","camera","closedcaptions","desktop","chat","hangup","tileview"]`}
-              style={{width: '100%', height: '100%', border: 'none'}}
-              allow="camera; microphone; fullscreen; display-capture; autoplay"
-              title="Study Connect Room"
-            />
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '900px'}}>
-        {/* Hero Banner */}
-        <div className="glass" style={{padding: '3rem', textAlign: 'center', background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%)', borderColor: 'rgba(139,92,246,0.3)'}}>
-          <Globe size={56} color="var(--accent-physics)" style={{marginBottom: '1rem', filter: 'drop-shadow(0 0 15px rgba(139,92,246,0.5))'}} />
-          <h2 style={{fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem'}}>Study Connect</h2>
-          <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto'}}>Jump into a live video room with other aspirants preparing for the same exam. Camera + mic enabled — totally free.</p>
-        </div>
-
-        {/* Exam Rooms */}
-        <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>Join an Exam Study Room</h3>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem'}}>
-          {examRooms.map(room => (
-            <div key={room.id} className="glass subject-card" style={{textAlign: 'center', padding: '2.5rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', cursor: 'pointer', borderColor: room.id === currentUserProfile.prepType ? room.color : '', transition: 'all 0.25s ease'}}
-              onClick={() => { setConnectRoom(room.id); setInCall(true); awardXP(10, 'Joined Study Connect Room'); }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 12px 40px ${room.color}33`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
-            >
-              <div style={{color: room.color, background: `${room.color}22`, border: `1px solid ${room.color}44`, borderRadius: '16px', padding: '16px'}}>{room.icon}</div>
-              <h3 style={{fontSize: '1.25rem', fontWeight: 700}}>{room.label}</h3>
-              <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{room.desc}</p>
-              {room.id === currentUserProfile.prepType && (
-                <span style={{background: `${room.color}33`, color: room.color, border: `1px solid ${room.color}55`, padding: '2px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 600}}>Your Exam ⭐</span>
-              )}
-              <button className="btn-primary" style={{width: '100%', background: `${room.color}22`, borderColor: `${room.color}55`, color: room.color}}>
-                <PhoneCall size={16}/> Join Room
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Private Room */}
-        <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-          <h3 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem'}}><Wifi size={20} color="var(--accent-success)"/> Private Study Room</h3>
-          <p style={{color: 'var(--text-muted)', fontSize: '0.95rem'}}>Create a private room with a custom name and share it with a friend to study 1-on-1.</p>
-          <div style={{display: 'flex', gap: '1rem'}}>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Enter a custom room name (e.g. JEECrack-Batch2025)"
-              value={customRoomName}
-              onChange={e => setCustomRoomName(e.target.value)}
-            />
-            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} style={{whiteSpace: 'nowrap'}}>
-              <PhoneCall size={16}/> Start Private Call
-            </button>
-          </div>
-        </div>
-
-        {/* Tips */}
-        <div className="glass" style={{padding: '1.5rem', display: 'flex', gap: '2rem', flexWrap: 'wrap'}}>
-          {[
-            { emoji: '🎥', text: 'Your camera & mic will be requested when you join.' },
-            { emoji: '💬', text: 'In-room chat lets you share notes in real-time.' },
-            { emoji: '🔒', text: 'Rooms are private — only FocusModePlayer users know your room name.' },
-            { emoji: '⚡', text: 'Earn +10 XP every time you join a study session.' },
-          ].map((tip, i) => (
-            <div key={i} style={{display: 'flex', alignItems: 'flex-start', gap: '12px', flex: '1 1 200px'}}>
-              <span style={{fontSize: '1.5rem'}}>{tip.emoji}</span>
-              <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.5}}>{tip.text}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-
   return (
     <div className="app-layout">
+      {/* Toast Overlay */}
       {toastMsg && (
         <div className="xp-toast">
           <Zap size={24} color="var(--accent-success)" />
           <div>
             <div className="xp-amount">+{toastMsg.amount} XP</div>
             <div className="xp-reason">{toastMsg.reason}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Wall Overlay for Guests */}
+      {showAuthWall && (
+        <div style={{position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)'}}>
+          <div className="glass auth-card animate-fade-in" style={{position: 'relative'}}>
+            <button onClick={() => setShowAuthWall(false)} style={{position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'white', cursor: 'pointer'}}><X size={24} /></button>
+            <Users size={48} color="var(--accent-math)" style={{marginBottom: '1rem'}} />
+            <h2 style={{fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 'bold'}}>Join the Community</h2>
+            <p className="subtitle" style={{marginBottom: '2rem', textAlign: 'center'}}>{authWallMsg}</p>
+            
+            <form className="auth-form" onSubmit={handleAuth}>
+              <div className="input-group">
+                <User size={18} className="input-icon" />
+                <input type="text" placeholder="Choose a Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="input-field with-icon" />
+              </div>
+              <div className="input-group">
+                <Lock size={18} className="input-icon" />
+                <input type="password" placeholder="Create a Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="input-field with-icon" />
+              </div>
+              {authError && <p className="auth-error">{authError}</p>}
+              <button type="submit" className="btn-primary" style={{width: '100%', padding: '14px', marginTop: '10px'}}>
+                Create Account & Save Progress
+              </button>
+            </form>
           </div>
         </div>
       )}
@@ -854,12 +900,12 @@ const App = () => {
         )}
 
         <div className="nav-links">
-          <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}><LayoutDashboard size={18} /> Today's Plan</div>
-          <div className={`nav-item ${activeTab === 'journal' ? 'active' : ''}`} onClick={() => setActiveTab('journal')}><BookOpen size={18} /> Journal & Mistakes</div>
-          <div className={`nav-item ${activeTab === 'lectures' ? 'active' : ''}`} onClick={() => setActiveTab('lectures')}><MonitorPlay size={18} /> Video Lectures</div>
-          <div className={`nav-item ${activeTab === 'connect' ? 'active' : ''}`} onClick={() => setActiveTab('connect')}><PhoneCall size={18} /> Study Connect</div>
-          <div className={`nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => setActiveTab('community')}><Users size={18} /> Community</div>
-          <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><User size={18} /> My Profile</div>
+          <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}><LayoutDashboard size={18} /> Today's Plan</div>
+          <div className={`nav-item ${activeTab === 'journal' ? 'active' : ''}`} onClick={() => handleTabChange('journal')}><BookOpen size={18} /> Journal & Mistakes</div>
+          <div className={`nav-item ${activeTab === 'lectures' ? 'active' : ''}`} onClick={() => handleTabChange('lectures')}><MonitorPlay size={18} /> Video Lectures</div>
+          <div className={`nav-item ${activeTab === 'connect' ? 'active' : ''}`} onClick={() => handleTabChange('connect')}><PhoneCall size={18} /> Study Connect</div>
+          <div className={`nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => handleTabChange('community')}><Users size={18} /> Community</div>
+          <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => handleTabChange('profile')}><User size={18} /> My Profile</div>
         </div>
       </nav>
 
