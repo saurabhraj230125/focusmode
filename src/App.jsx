@@ -29,10 +29,11 @@ const examTemplates = {
 };
 
 const defaultCommunityFeed = [
-  { id: 1, user: 'AmanRaj_07', action: 'completed a 4-hour study streak.', time: '10m ago', isChat: false },
-  { id: 2, user: 'Sneha_24', action: 'scored in the top 1% of a mock test.', time: '1h ago', isChat: false },
-  { id: 3, user: 'Rohan_Prep', action: 'cleared their daily backlog.', time: '3h ago', isChat: false },
-  { id: 4, user: 'Priya_M', action: 'Does anyone have short notes for Organic Chem?', time: '4h ago', isChat: true }
+  { id: 1, user: 'AmanRaj_07', prep: 'JEE', xp: 980, action: 'Just scored 95% in the JEE mock! Electrostatics finally clicked after 3 days of struggle. Keep going everyone 🔥 #JEE2025 #Physics', time: '10m ago', isChat: true, likes: 24, likedBy: [], comments: [] },
+  { id: 2, user: 'Sneha_24', prep: 'NEET', xp: 1320, action: 'NEET tip: For Organic Chemistry, do reaction mechanisms first, not name reactions. Changed everything for me. #NEET2025 #OrganicChem', time: '1h ago', isChat: true, likes: 47, likedBy: [], comments: [] },
+  { id: 3, user: 'Rohan_Prep', prep: 'JEE', xp: 760, action: 'Cleared entire Rotational Motion backlog today! Used the Pomodoro timer here — 6 sessions straight 💪 #JEE #StudyTips', time: '3h ago', isChat: true, likes: 15, likedBy: [], comments: [] },
+  { id: 4, user: 'Priya_M', prep: 'UPSC', xp: 540, action: 'Does anyone have short notes for Indian Polity? Specifically Art. 52-78. Would really appreciate! #UPSC2025', time: '4h ago', isChat: true, likes: 9, likedBy: [], comments: [{user: 'AmanRaj_07', text: 'Check Laxmikant Chapter 17!', time: '3h ago'}] },
+  { id: 5, user: 'Vikram_Singh', prep: 'JEE', xp: 1450, action: '200 days to JEE. No phone after 9pm. No excuses. Who is with me? Drop a 🔥 below! #Discipline #JEE2025', time: '6h ago', isChat: true, likes: 89, likedBy: [], comments: [] },
 ];
 
 const mockLeaderboard = [
@@ -99,6 +100,9 @@ const App = () => {
   // Community State
   const [feed, setFeed] = useState(defaultCommunityFeed);
   const [newPostText, setNewPostText] = useState('');
+  const [viewingProfile, setViewingProfile] = useState(null);
+  const [commentingOn, setCommentingOn] = useState(null);
+  const [commentText, setCommentText] = useState('');
 
   // Study Connect State
   const [connectRoom, setConnectRoom] = useState(null);
@@ -433,9 +437,43 @@ const App = () => {
   const handlePostFeed = (e) => {
     e.preventDefault();
     if (!newPostText.trim()) return;
-    setFeed(prev => [{ id: Date.now(), user: sessionUser, action: newPostText, time: 'just now', isChat: true }, ...prev]);
+    setFeed(prev => [{
+      id: Date.now(),
+      user: sessionUser,
+      prep: currentUserProfile?.prepType,
+      xp: currentXP,
+      action: newPostText,
+      time: 'just now',
+      isChat: true,
+      likes: 0,
+      likedBy: [],
+      comments: [],
+    }, ...prev]);
     setNewPostText('');
     awardXP(2, 'Community Post');
+  };
+
+  const toggleLike = (postId) => {
+    setFeed(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      const hasLiked = p.likedBy?.includes(sessionUser);
+      return {
+        ...p,
+        likes: hasLiked ? (p.likes - 1) : (p.likes + 1),
+        likedBy: hasLiked ? p.likedBy.filter(u => u !== sessionUser) : [...(p.likedBy || []), sessionUser],
+      };
+    }));
+  };
+
+  const submitComment = (postId) => {
+    if (!commentText.trim()) return;
+    setFeed(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      return { ...p, comments: [...(p.comments || []), { user: sessionUser, text: commentText, time: 'just now' }] };
+    }));
+    setCommentText('');
+    setCommentingOn(null);
+    awardXP(1, 'Commented on a Post');
   };
 
   // Lecture Functions
@@ -789,44 +827,153 @@ const App = () => {
     </div>
   );
 
-  const renderCommunity = () => (
-    <div className="community-layout animate-fade-in">
-      <div className="glass feed-card" style={{display: 'flex', flexDirection: 'column', maxHeight: '80vh'}}>
-        <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem'}}>
-          <Flame size={20} color="var(--accent-success)" /> Live Study Feed
-        </h3>
-        <form onSubmit={handlePostFeed} style={{display: 'flex', gap: '10px', marginBottom: '1.5rem'}}>
-          <input type="text" className="input-field" placeholder="Share an update or ask a question (+2 XP)..." value={newPostText} onChange={(e) => setNewPostText(e.target.value)} />
-          <button type="submit" className="btn-primary" style={{padding: '12px'}}><Send size={18}/></button>
-        </form>
-        <div style={{overflowY: 'auto', paddingRight: '10px', flex: 1}}>
-          {feed.map(item => (
-            <div key={item.id} className="feed-item" style={{background: item.isChat ? 'rgba(255,255,255,0.02)' : 'transparent', borderRadius: '8px'}}>
-              <div className="feed-avatar" style={{background: item.isChat ? 'var(--accent-chem)' : 'var(--accent-physics)'}}>{item.user.charAt(0).toUpperCase()}</div>
-              <div className="feed-content">
-                <h4>{item.user} <span className="feed-time">{item.time}</span></h4>
-                <p className="feed-action" style={{color: item.isChat ? 'white' : '#cbd5e1'}}>{item.action}</p>
+  const renderCommunity = () => {
+    const trendingTags = ['#JEE2025','#NEET2025','#UPSC2025','#StudyTips','#OrganicChem','#Physics','#Discipline','#MockTest'];
+    const tagCounts = [312, 284, 201, 178, 143, 129, 98, 87];
+    const avatarColors = ['var(--accent-physics)','var(--accent-chem)','var(--accent-math)','var(--accent-success)','#f59e0b','#06b6d4'];
+    const getAvatarColor = (name) => { let h = 0; for (let c of name) h = c.charCodeAt(0) + ((h<<5)-h); return avatarColors[Math.abs(h)%avatarColors.length]; };
+    const getProfileData = (username) => {
+      if (usersDb[username]) return usersDb[username].profile;
+      const post = feed.find(f => f.user === username);
+      return { prepType: post?.prep || 'JEE', xp: post?.xp || 0 };
+    };
+
+    const renderPostCard = (item) => {
+      const hasLiked = item.likedBy?.includes(sessionUser);
+      const { level: pLvl, title: pTitle } = getLevelData(item.xp || 0);
+      return (
+        <div key={item.id} className="tweet-card">
+          <div style={{display:'flex', gap:'12px', alignItems:'flex-start'}}>
+            <div className="tweet-avatar" style={{background: getAvatarColor(item.user), cursor:'pointer', flexShrink:0}} onClick={() => setViewingProfile(item.user)}>
+              {item.user.charAt(0).toUpperCase()}
+            </div>
+            <div style={{flex:1, minWidth:0}}>
+              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'2px'}}>
+                <span className="tweet-username" onClick={() => setViewingProfile(item.user)}>{item.user}</span>
+                {item.prep && <span style={{fontSize:'0.7rem', padding:'1px 8px', borderRadius:'100px', background:'rgba(139,92,246,0.15)', color:'var(--accent-physics)', border:'1px solid rgba(139,92,246,0.25)', fontWeight:700}}>{item.prep}</span>}
+                <span style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>{item.time}</span>
+              </div>
+              {item.xp > 0 && <p style={{fontSize:'0.72rem', color:'var(--accent-success)', marginBottom:'8px'}}>⚡ Lvl {pLvl} · {pTitle}</p>}
+              <p className="tweet-body">
+                {(item.action||'').split(/(#\w+)/).map((part, i) =>
+                  part.startsWith('#')
+                    ? <span key={i} style={{color:'var(--accent-physics)', cursor:'pointer', fontWeight:600}} onClick={() => setNewPostText(part)}>{part}</span>
+                    : part
+                )}
+              </p>
+              <div className="tweet-actions">
+                <button className={`tweet-action-btn${hasLiked?' liked':''}`} onClick={() => toggleLike(item.id)}>
+                  <span>{hasLiked ? '❤️' : '🤍'}</span><span>{item.likes||0}</span>
+                </button>
+                <button className="tweet-action-btn" onClick={() => setCommentingOn(commentingOn===item.id ? null : item.id)}>
+                  <span>💬</span><span>{(item.comments||[]).length}</span>
+                </button>
+                <button className="tweet-action-btn" onClick={() => { navigator.clipboard?.writeText(item.action); setToastMsg({amount:0, reason:'📋 Copied!'}); setTimeout(()=>setToastMsg(null),2000); }}>
+                  <span>🔁</span><span>Share</span>
+                </button>
+              </div>
+              {(item.comments||[]).length > 0 && (
+                <div style={{borderTop:'1px solid var(--card-border)', paddingTop:'10px', display:'flex', flexDirection:'column', gap:'8px', marginTop:'8px'}}>
+                  {item.comments.map((c,i) => (
+                    <div key={i} style={{display:'flex', gap:'8px'}}>
+                      <div style={{width:'26px', height:'26px', minWidth:'26px', borderRadius:'50%', background:getAvatarColor(c.user), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold'}}>{c.user.charAt(0).toUpperCase()}</div>
+                      <div style={{background:'rgba(255,255,255,0.04)', borderRadius:'10px', padding:'6px 10px', flex:1}}>
+                        <span style={{fontWeight:700, fontSize:'0.82rem', color:'var(--accent-physics)'}}>{c.user}</span>
+                        <span style={{fontSize:'0.72rem', color:'var(--text-muted)', marginLeft:'6px'}}>{c.time}</span>
+                        <p style={{fontSize:'0.88rem', marginTop:'2px'}}>{c.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {commentingOn === item.id && (
+                <div style={{display:'flex', gap:'8px', marginTop:'10px'}}>
+                  <input autoFocus className="input-field" placeholder="Write a reply..." value={commentText} onChange={e => setCommentText(e.target.value)} onKeyDown={e => e.key==='Enter' && submitComment(item.id)} style={{flex:1, padding:'8px 14px', fontSize:'0.88rem'}} />
+                  <button className="btn-primary" style={{padding:'8px 14px'}} onClick={() => submitComment(item.id)}><Send size={14}/></button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="community-twitter-layout animate-fade-in">
+        {/* Profile Modal */}
+        {viewingProfile && (() => {
+          const prof = getProfileData(viewingProfile);
+          const { level: pL, title: pT } = getLevelData(prof?.xp || 0);
+          const userPosts = feed.filter(f => f.user === viewingProfile);
+          const totalLikes = userPosts.reduce((s,p) => s+(p.likes||0), 0);
+          return (
+            <div style={{position:'fixed', inset:0, zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.8)', backdropFilter:'blur(10px)', padding:'1rem'}} onClick={() => setViewingProfile(null)}>
+              <div className="glass" style={{maxWidth:'400px', width:'100%', padding:'2rem', borderRadius:'24px', position:'relative'}} onClick={e => e.stopPropagation()}>
+                <button onClick={() => setViewingProfile(null)} style={{position:'absolute', top:'16px', right:'16px', background:'transparent', border:'none', color:'var(--text-muted)', cursor:'pointer'}}><X size={20}/></button>
+                <div style={{height:'80px', borderRadius:'14px 14px 0 0', marginBottom:'-30px', background:`linear-gradient(135deg, ${getAvatarColor(viewingProfile)}, #1a1c29)`, marginLeft:'-2rem', marginRight:'-2rem', marginTop:'-2rem'}}></div>
+                <div style={{width:'68px', height:'68px', borderRadius:'50%', background:getAvatarColor(viewingProfile), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem', fontWeight:'bold', border:'3px solid #0f1015', position:'relative', zIndex:1}}>{viewingProfile.charAt(0).toUpperCase()}</div>
+                <h2 style={{fontSize:'1.25rem', fontWeight:800, marginTop:'8px'}}>{viewingProfile}</h2>
+                <p style={{color:'var(--accent-success)', fontSize:'0.88rem', fontWeight:600, marginBottom:'12px'}}>⚡ Lvl {pL} · {pT}</p>
+                <div style={{display:'flex', gap:'0.75rem', flexWrap:'wrap', marginBottom:'1.25rem'}}>
+                  {prof?.prepType && <span style={{background:'rgba(139,92,246,0.15)', color:'var(--accent-physics)', border:'1px solid rgba(139,92,246,0.3)', padding:'3px 12px', borderRadius:'100px', fontSize:'0.8rem', fontWeight:600}}>{prof.prepType}</span>}
+                  {prof?.targetYear && <span style={{background:'rgba(255,255,255,0.05)', color:'var(--text-muted)', padding:'3px 12px', borderRadius:'100px', fontSize:'0.8rem'}}>Target {prof.targetYear}</span>}
+                </div>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'1rem', textAlign:'center', padding:'1rem', background:'rgba(255,255,255,0.03)', borderRadius:'14px', marginBottom:'1rem'}}>
+                  <div><div style={{fontWeight:800, fontSize:'1.2rem', color:'var(--accent-success)'}}>{prof?.xp||0}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>XP</div></div>
+                  <div><div style={{fontWeight:800, fontSize:'1.2rem'}}>{userPosts.length}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Posts</div></div>
+                  <div><div style={{fontWeight:800, fontSize:'1.2rem', color:'#f87171'}}>{totalLikes}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Likes</div></div>
+                </div>
+                {userPosts.slice(0,2).map(p => (
+                  <p key={p.id} style={{fontSize:'0.85rem', color:'#cbd5e1', padding:'8px 12px', background:'rgba(255,255,255,0.03)', borderRadius:'10px', marginBottom:'6px', lineHeight:1.4}}>"{p.action.slice(0,100)}{p.action.length>100?'...':''}"</p>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="glass leaderboard-card">
-        <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px'}}>
-          <Trophy size={20} color="#fbbf24" /> Leaderboard (Weekly)
-        </h3>
-        <div className="leaderboard-list">
-          {combinedLeaderboard.slice(0, 10).map(lb => (
-            <div key={lb.name} className="leaderboard-item">
-              <span className={`rank rank-${lb.rank}`}>#{lb.rank}</span>
-              <span className="leaderboard-name" style={{color: lb.name.includes('(You)') ? 'white' : 'inherit'}}>{lb.name}</span>
-              <span className="leaderboard-score">{lb.score} XP</span>
+          );
+        })()}
+
+        {/* Feed Column */}
+        <div className="community-feed-col">
+          <div className="tweet-compose glass">
+            <div style={{display:'flex', gap:'12px'}}>
+              <div className="tweet-avatar" style={{background:getAvatarColor(sessionUser), flexShrink:0}}>{sessionUser.charAt(0).toUpperCase()}</div>
+              <form onSubmit={handlePostFeed} style={{flex:1, display:'flex', flexDirection:'column', gap:'10px'}}>
+                <textarea className="tweet-compose-input" placeholder="What's on your study grind? Share tips, wins, questions... #JEE2025" value={newPostText} onChange={e=>setNewPostText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))handlePostFeed(e);}} rows={3} maxLength={280} />
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                  <span style={{fontSize:'0.8rem', color:newPostText.length>240?'#ef4444':'var(--text-muted)'}}>{newPostText.length}/280</span>
+                  <button type="submit" className="btn-primary" style={{padding:'8px 18px'}} disabled={!newPostText.trim()}><Send size={14}/> Post (+2 XP)</button>
+                </div>
+              </form>
             </div>
-          ))}
+          </div>
+          <div style={{display:'flex', flexDirection:'column'}}>{feed.map(item => renderPostCard(item))}</div>
+        </div>
+
+        {/* Sidebar Column */}
+        <div className="community-sidebar-col">
+          <div className="glass" style={{padding:'1.5rem', borderRadius:'20px'}}>
+            <h3 style={{fontSize:'1rem', fontWeight:800, marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:'8px'}}><Flame size={16} color="var(--accent-chem)"/> Trending Topics</h3>
+            {trendingTags.map((tag, i) => (
+              <div key={tag} style={{padding:'10px 0', borderBottom: i<trendingTags.length-1?'1px solid var(--card-border)':'none', cursor:'pointer'}} onClick={()=>setNewPostText(p=>p+(p?' ':'')+tag)}>
+                <p style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Aspirant Community · Trending</p>
+                <p style={{fontWeight:700, color:'var(--accent-physics)', fontSize:'0.9rem'}}>{tag}</p>
+                <p style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>{tagCounts[i]} posts</p>
+              </div>
+            ))}
+          </div>
+          <div className="glass leaderboard-card" style={{borderRadius:'20px'}}>
+            <h3 style={{fontSize:'1rem', fontWeight:'bold', display:'flex', alignItems:'center', gap:'8px', marginBottom:'1rem'}}><Trophy size={16} color="#fbbf24"/> Top Scorers</h3>
+            {combinedLeaderboard.slice(0,5).map(lb => (
+              <div key={lb.name} className="leaderboard-item" style={{cursor:'pointer'}} onClick={()=>setViewingProfile(lb.name.replace(' (You)',''))}>
+                <span className={`rank rank-${lb.rank}`}>#{lb.rank}</span>
+                <span className="leaderboard-name" style={{color:lb.name.includes('(You)')?'white':'inherit'}}>{lb.name}</span>
+                <span className="leaderboard-score">{lb.score} XP</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderStudyConnect = () => {
     const examRooms = [

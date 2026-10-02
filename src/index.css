@@ -618,6 +618,136 @@ select.input-field {
   50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
 }
 
+/* ===================== TWITTER-STYLE COMMUNITY ===================== */
+.community-twitter-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.community-feed-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.community-sidebar-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.tweet-compose {
+  padding: 1.25rem 1.5rem;
+  border-radius: 0;
+  border-bottom: none;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  margin-bottom: 0;
+}
+
+.tweet-compose-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: white;
+  font-family: inherit;
+  font-size: 1rem;
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+  placeholder-color: var(--text-muted);
+}
+
+.tweet-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-top: none;
+  padding: 1.25rem 1.5rem;
+  transition: background 0.15s ease;
+}
+
+.tweet-card:first-child {
+  border-top: 1px solid var(--card-border);
+}
+
+.tweet-card:last-child {
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+.tweet-card:hover {
+  background: rgba(255,255,255,0.025);
+}
+
+.tweet-avatar {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: white;
+  transition: opacity 0.2s;
+}
+
+.tweet-avatar:hover { opacity: 0.85; }
+
+.tweet-username {
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: white;
+  transition: color 0.2s;
+}
+
+.tweet-username:hover { color: var(--accent-physics); }
+
+.tweet-body {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #e2e8f0;
+  margin: 8px 0 10px;
+  word-break: break-word;
+}
+
+.tweet-actions {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 4px;
+}
+
+.tweet-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.tweet-action-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: white;
+}
+
+.tweet-action-btn.liked {
+  color: #f87171;
+}
+
 /* ===================== LECTURES ===================== */
 .lectures-main-grid {
   grid-template-columns: minmax(0, 1fr) 340px;
@@ -729,6 +859,14 @@ select.input-field {
   /* Study connect grid: 1 column */
   .connect-rooms-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  /* Community: stack sidebar below feed */
+  .community-twitter-layout {
+    grid-template-columns: 1fr;
+  }
+  .community-sidebar-col {
+    position: static;
   }
 
   /* Lectures: stack notes below player */
