@@ -618,6 +618,11 @@ select.input-field {
   50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
 }
 
+/* ===================== LECTURES ===================== */
+.lectures-main-grid {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
 /* ===================== RESPONSIVE BREAKPOINTS ===================== */
 
 /* Large tablets */
@@ -723,6 +728,11 @@ select.input-field {
 
   /* Study connect grid: 1 column */
   .connect-rooms-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Lectures: stack notes below player */
+  .lectures-main-grid {
     grid-template-columns: 1fr !important;
   }
 

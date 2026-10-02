@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Check, ChevronDown, BookOpen, FlaskConical, Calculator, 
   Play, Pause, RotateCcw, BrainCircuit, Target, Plus, 
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
-  Wifi, VideoOff, PhoneCall, Globe, X
+  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save
 } from 'lucide-react';
 
 // Default templates for different exams
@@ -104,6 +104,12 @@ const App = () => {
   const [connectRoom, setConnectRoom] = useState(null);
   const [customRoomName, setCustomRoomName] = useState('');
   const [inCall, setInCall] = useState(false);
+  const jitsiContainerRef = useRef(null);
+  const jitsiApiRef = useRef(null);
+
+  // Video Notes State
+  const [videoNotes, setVideoNotes] = useState({}); // { videoId: noteText }
+  const [activeNoteVideoId, setActiveNoteVideoId] = useState(null);
 
   // Timer State
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -230,6 +236,8 @@ const App = () => {
     if (savedPlaylist) {
       setPlaylist(JSON.parse(savedPlaylist));
     }
+    const savedNotes = localStorage.getItem(`pm_notes_${username}`);
+    if (savedNotes) setVideoNotes(JSON.parse(savedNotes));
   };
 
   const awardXP = (amount, reason) => {
@@ -452,6 +460,105 @@ const App = () => {
     e.stopPropagation();
     setPlaylist(prev => prev.filter(vid => vid.id !== id));
     if (activeVideo === id) setActiveVideo(null);
+  };
+
+  // Jitsi Study Connect
+  const startJitsiCall = useCallback((roomId) => {
+    setConnectRoom(roomId);
+    setInCall(true);
+    awardXP(10, 'Joined Study Connect Room');
+  }, []);
+
+  const leaveJitsiCall = useCallback(() => {
+    if (jitsiApiRef.current) {
+      try { jitsiApiRef.current.dispose(); } catch(e) {}
+      jitsiApiRef.current = null;
+    }
+    setInCall(false);
+    setConnectRoom(null);
+  }, []);
+
+  useEffect(() => {
+    if (!inCall || !connectRoom || !jitsiContainerRef.current) return;
+    if (jitsiApiRef.current) return; // already initialized
+
+    const roomName = `FocusModePlayer-${connectRoom}-Study`.replace(/[^a-zA-Z0-9-]/g, '');
+
+    const loadJitsi = () => {
+      if (!window.JitsiMeetExternalAPI) {
+        const script = document.createElement('script');
+        script.src = 'https://meet.jit.si/external_api.js';
+        script.async = true;
+        script.onload = () => initJitsi(roomName);
+        document.body.appendChild(script);
+      } else {
+        initJitsi(roomName);
+      }
+    };
+
+    const initJitsi = (room) => {
+      if (!jitsiContainerRef.current) return;
+      const api = new window.JitsiMeetExternalAPI('meet.jit.si', {
+        roomName: room,
+        parentNode: jitsiContainerRef.current,
+        width: '100%',
+        height: '100%',
+        configOverwrite: {
+          startWithVideoMuted: false,
+          startWithAudioMuted: false,
+          disableDeepLinking: true,
+          prejoinPageEnabled: false,
+          enableWelcomePage: false,
+          disableModeratorIndicator: true,
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          DEFAULT_REMOTE_DISPLAY_NAME: 'Aspirant',
+          TOOLBAR_BUTTONS: ['microphone', 'camera', 'chat', 'desktop', 'tileview', 'hangup'],
+          DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
+          filmStripOnly: false,
+        },
+        userInfo: {
+          displayName: sessionUser,
+        },
+      });
+
+      api.addEventListeners({
+        readyToClose: leaveJitsiCall,
+        videoConferenceLeft: leaveJitsiCall,
+      });
+
+      jitsiApiRef.current = api;
+    };
+
+    loadJitsi();
+
+    return () => {
+      if (jitsiApiRef.current) {
+        try { jitsiApiRef.current.dispose(); } catch(e) {}
+        jitsiApiRef.current = null;
+      }
+    };
+  }, [inCall, connectRoom]);
+
+  // Video Notes
+  const saveVideoNote = (videoId, text) => {
+    const updated = { ...videoNotes, [videoId]: text };
+    setVideoNotes(updated);
+    if (sessionUser) localStorage.setItem(`pm_notes_${sessionUser}`, JSON.stringify(updated));
+  };
+
+  const downloadNote = (video) => {
+    const text = videoNotes[video.id] || '';
+    const content = `FocusModePlayer — Lecture Notes\n${'='.repeat(40)}\nVideo: ${video.title}\nDate: ${new Date().toLocaleDateString()}\n${'='.repeat(40)}\n\n${text || 'No notes written yet.'}`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notes-${video.title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const formatTime = (seconds) => {
