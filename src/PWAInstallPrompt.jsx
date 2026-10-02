@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { X, Download, Share } from 'lucide-react';
 
 const PWAInstallPrompt = () => {
+  const MAX_SHOWS = 3;
   const [prompt, setPrompt] = useState(null); // beforeinstallprompt event
   const [show, setShow] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [showCount, setShowCount] = useState(1);
 
   useEffect(() => {
     // Don't show if already installed (running in standalone/fullscreen mode)
@@ -13,10 +15,11 @@ const PWAInstallPrompt = () => {
       window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
 
-    // Don't show if user already dismissed once
-    const alreadyDismissed = localStorage.getItem('pwa_install_dismissed');
+    // Don't show if user already dismissed 3 times
+    const dismissCount = parseInt(localStorage.getItem('pwa_dismiss_count') || '0', 10);
+    setShowCount(dismissCount + 1);
 
-    if (isStandalone || alreadyDismissed) return;
+    if (isStandalone || dismissCount >= MAX_SHOWS) return;
 
     // Detect iOS Safari (no beforeinstallprompt support)
     const ios =
@@ -51,9 +54,11 @@ const PWAInstallPrompt = () => {
   };
 
   const dismiss = () => {
+    const prev = parseInt(localStorage.getItem('pwa_dismiss_count') || '0', 10);
+    const next = prev + 1;
+    localStorage.setItem('pwa_dismiss_count', String(next));
     setShow(false);
     setDismissed(true);
-    localStorage.setItem('pwa_install_dismissed', 'true');
   };
 
   if (!show || dismissed) return null;
@@ -80,6 +85,7 @@ const PWAInstallPrompt = () => {
             <div className="pwa-app-text">
               <h3 className="pwa-app-name">FocusModePlayer</h3>
               <p className="pwa-app-desc">Install as an app for the best experience</p>
+              <p className="pwa-remind-count">Reminder {showCount} of {MAX_SHOWS}</p>
               <div className="pwa-badges">
                 <span className="pwa-badge">📴 Works Offline</span>
                 <span className="pwa-badge">⚡ Fast</span>
