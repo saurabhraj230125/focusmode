@@ -87,6 +87,7 @@ const App = () => {
   // Tasks/Journal
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskSubject, setNewTaskSubject] = useState('');
+  const [newTaskVideo, setNewTaskVideo] = useState('');
   const [learnedText, setLearnedText] = useState('');
   const [mistakesText, setMistakesText] = useState('');
   const [journalHistory, setJournalHistory] = useState([]);
@@ -380,12 +381,13 @@ const App = () => {
       return {
         ...sub,
         tasks: [...sub.tasks, {
-          id: Date.now().toString(), title: newTaskTitle,
+          id: Date.now().toString(), title: newTaskTitle, videoId: newTaskVideo || null,
           subtasks: [ { id: Date.now() + '1', title: 'Theory / Notes', completed: false }, { id: Date.now() + '2', title: 'Practice Qs / PYQs', completed: false } ]
         }]
       };
     }));
     setNewTaskTitle('');
+    setNewTaskVideo('');
   };
 
   const toggleSubtask = (subjectId, taskId, subtaskId) => {
@@ -581,15 +583,25 @@ const App = () => {
   }, [inCall, connectRoom]);
 
   // Video Notes
-  const saveVideoNote = (videoId, text) => {
-    const updated = { ...videoNotes, [videoId]: text };
+  // Video Notes
+  const saveVideoNote = (videoId, type, text) => {
+    const current = videoNotes[videoId] || { notes: '', mistakes: '', lastUpdated: '' };
+    const updated = { 
+      ...videoNotes, 
+      [videoId]: { ...current, [type]: text, lastUpdated: new Date().toLocaleDateString() } 
+    };
     setVideoNotes(updated);
     if (sessionUser) localStorage.setItem(`pm_notes_${sessionUser}`, JSON.stringify(updated));
   };
 
   const downloadNote = (video) => {
-    const text = videoNotes[video.id] || '';
-    const content = `FocusModePlayer — Lecture Notes\n${'='.repeat(40)}\nVideo: ${video.title}\nDate: ${new Date().toLocaleDateString()}\n${'='.repeat(40)}\n\n${text || 'No notes written yet.'}`;
+    const data = videoNotes[video.id] || { notes: '', mistakes: '', lastUpdated: '' };
+    const dateStr = data.lastUpdated || new Date().toLocaleDateString();
+    let content = `FocusModePlayer — Lecture Notes\n${'='.repeat(40)}\nVideo: ${video.title}\nDate: ${dateStr}\n${'='.repeat(40)}\n\n`;
+    if (data.notes) content += `[📝 NOTES]\n${data.notes}\n\n`;
+    if (data.mistakes) content += `[⚠️ MISTAKES & DOUBTS]\n${data.mistakes}\n\n`;
+    if (!data.notes && !data.mistakes) content += 'No notes written yet.';
+    
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -721,12 +733,16 @@ const App = () => {
             <div className="progress-bar-fill" style={{ width: `${progress}%` }}></div>
           </div>
         </section>
-        <form className="glass add-task-form" onSubmit={handleAddTask}>
-          <select className="input-field" value={newTaskSubject} onChange={(e) => setNewTaskSubject(e.target.value)}>
+        <form className="glass add-task-form" onSubmit={handleAddTask} style={{display: 'flex', flexWrap: 'wrap', gap: '1rem'}}>
+          <select className="input-field" value={newTaskSubject} onChange={(e) => setNewTaskSubject(e.target.value)} style={{flex: '1 1 200px'}}>
             {subjects.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
           </select>
-          <input type="text" className="input-field" placeholder="E.g., Complete Chapter 4 Practice Qs" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
-          <button type="submit" className="btn-primary"><Plus size={18} /> Add</button>
+          <input type="text" className="input-field" placeholder="E.g., Complete Chapter 4 Practice Qs" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} style={{flex: '2 1 300px'}} />
+          <select className="input-field" value={newTaskVideo} onChange={(e) => setNewTaskVideo(e.target.value)} style={{flex: '1 1 200px'}}>
+            <option value="">No Lecture Attached</option>
+            {playlist.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
+          </select>
+          <button type="submit" className="btn-primary" style={{flex: '0 0 auto'}}><Plus size={18} /> Add Module</button>
         </form>
         <div className="subjects-grid">
           {subjects.map(subject => {
@@ -752,7 +768,14 @@ const App = () => {
                     {subject.tasks.length === 0 && <p className="text-muted" style={{color: '#94a3b8', fontSize: '0.9rem'}}>No tasks added yet.</p>}
                     {subject.tasks.map(task => (
                       <div key={task.id} className="task-item">
-                        <div style={{fontWeight: 500, marginBottom: '8px'}}>{task.title}</div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
+                          <div style={{fontWeight: 500}}>{task.title}</div>
+                          {task.videoId && (
+                            <button className="btn-primary" style={{padding: '4px 12px', fontSize: '0.75rem', background: 'rgba(139,92,246,0.15)', color: 'var(--accent-physics)', borderColor: 'rgba(139,92,246,0.3)'}} onClick={() => { setActiveTab('lectures'); setActiveVideo(task.videoId); }}>
+                              <MonitorPlay size={14}/> Watch Lecture
+                            </button>
+                          )}
+                        </div>
                         <div style={{display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px'}}>
                           {task.subtasks.map(subtask => (
                             <label key={subtask.id} className="checkbox-wrapper">
@@ -1038,49 +1061,95 @@ const App = () => {
     );
   };
 
-  const renderLectures = () => (
-    <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
-      {activeVideo ? (
-        <div className="glass" style={{padding: '1rem', background: '#000', borderRadius: '20px', overflow: 'hidden'}}>
-          <div style={{position: 'relative', paddingBottom: '56.25%', height: 0}}>
-            <iframe src={`https://www.youtube-nocookie.com/embed/${activeVideo}?autoplay=1&rel=0&modestbranding=1`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px'}}></iframe>
-          </div>
-        </div>
-      ) : (
-        <div className="glass" style={{padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', color: 'var(--text-muted)'}}>
-          <MonitorPlay size={64} style={{opacity: 0.5}} />
-          <p>Select a video from your playlist or add a new one to start watching ad-free.</p>
-        </div>
-      )}
-      <form className="glass" style={{padding: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center'}} onSubmit={handleAddVideo}>
-        <div className="input-group" style={{flex: 1}}>
-          <Video size={18} className="input-icon" />
-          <input type="text" className="input-field with-icon" placeholder="Paste YouTube Link (Normal or Live)..." value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} />
-        </div>
-        <input type="text" className="input-field" placeholder="Video Title (e.g. Thermodynamics Part 1)" value={newVideoTitle} onChange={e => setNewVideoTitle(e.target.value)} style={{flex: 1}} />
-        <button type="submit" className="btn-primary" style={{whiteSpace: 'nowrap'}}><Plus size={18} /> Add to Playlist (+5 XP)</button>
-      </form>
-      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem'}}>
-        {playlist.map(video => (
-          <div key={video.id} className="glass subject-card" style={{display: 'flex', flexDirection: 'column', gap: '1rem', cursor: 'pointer', border: activeVideo === video.id ? '1px solid var(--accent-physics)' : ''}} onClick={() => { setActiveVideo(video.id); awardXP(10, 'Started a Lecture'); }}>
-            <div style={{position: 'relative', paddingBottom: '56.25%', borderRadius: '10px', overflow: 'hidden', background: '#111'}}>
-              <img src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`} alt="thumbnail" style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8}} />
-              <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                <div style={{background: 'rgba(0,0,0,0.6)', padding: '12px', borderRadius: '50%', color: 'white'}}><Play size={24} fill="white" /></div>
+  const renderLectures = () => {
+    const activeVideoObj = playlist.find(v => v.id === activeVideo);
+    const activeData = videoNotes[activeVideo] || { notes: '', mistakes: '' };
+
+    return (
+      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
+        {activeVideo ? (
+          <div className="lectures-main-grid" style={{display: 'grid', gap: '1.5rem', alignItems: 'start'}}>
+            <div className="glass" style={{padding: '1rem', background: '#000', borderRadius: '20px', overflow: 'hidden'}}>
+              <div style={{position: 'relative', paddingBottom: '56.25%', height: 0}}>
+                <iframe src={`https://www.youtube-nocookie.com/embed/${activeVideo}?autoplay=1&rel=0&modestbranding=1`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px'}}></iframe>
               </div>
             </div>
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-              <div>
-                <h4 style={{fontWeight: 600, fontSize: '1.1rem', marginBottom: '4px', lineHeight: 1.3}}>{video.title}</h4>
-                <p style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Added {video.addedAt}</p>
+            
+            <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', maxHeight: '600px'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <h3 style={{fontSize: '1.1rem', fontWeight: 'bold'}}>Lecture Notes</h3>
+                <button className="btn-primary" onClick={() => downloadNote(activeVideoObj)} style={{padding: '6px 12px', fontSize: '0.8rem'}}><Download size={14}/> Export</button>
               </div>
-              <button onClick={(e) => removeVideo(video.id, e)} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px'}}><Trash2 size={18}/></button>
+              <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, overflowY: 'auto', paddingRight: '5px'}}>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1}}>
+                  <label style={{fontSize: '0.85rem', color: 'var(--accent-physics)', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between'}}>
+                    <span>📝 Key Notes</span>
+                    {activeData.lastUpdated && <span style={{color: 'var(--text-muted)', fontWeight: 'normal'}}>{activeData.lastUpdated}</span>}
+                  </label>
+                  <textarea 
+                    className="input-field" 
+                    style={{flex: 1, minHeight: '120px', resize: 'vertical', fontSize: '0.9rem', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)'}} 
+                    placeholder="Jot down important formulas, concepts..."
+                    value={activeData.notes}
+                    onChange={(e) => saveVideoNote(activeVideo, 'notes', e.target.value)}
+                  />
+                </div>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1}}>
+                  <label style={{fontSize: '0.85rem', color: '#f87171', fontWeight: 'bold'}}>⚠️ Mistakes & Doubts</label>
+                  <textarea 
+                    className="input-field" 
+                    style={{flex: 1, minHeight: '100px', resize: 'vertical', fontSize: '0.9rem', lineHeight: 1.5, background: 'rgba(239, 68, 68, 0.05)', borderColor: 'rgba(239, 68, 68, 0.2)'}} 
+                    placeholder="Log mistakes you made during practice or questions you have..."
+                    value={activeData.mistakes}
+                    onChange={(e) => saveVideoNote(activeVideo, 'mistakes', e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        ))}
+        ) : (
+          <div className="glass" style={{padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', color: 'var(--text-muted)'}}>
+            <MonitorPlay size={64} style={{opacity: 0.5}} />
+            <p>Select a video from your playlist or add a new one to start watching ad-free.</p>
+          </div>
+        )}
+        
+        <form className="glass" style={{padding: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center'}} onSubmit={handleAddVideo}>
+          <div className="input-group" style={{flex: '1 1 250px'}}>
+            <Video size={18} className="input-icon" />
+            <input type="text" className="input-field with-icon" placeholder="Paste YouTube Link (Normal or Live)..." value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} style={{width: '100%'}} />
+          </div>
+          <input type="text" className="input-field" placeholder="Video Title (e.g. Thermodynamics Part 1)" value={newVideoTitle} onChange={e => setNewVideoTitle(e.target.value)} style={{flex: '1 1 200px'}} />
+          <button type="submit" className="btn-primary" style={{flex: '0 0 auto', whiteSpace: 'nowrap'}}><Plus size={18} /> Add to Playlist (+5 XP)</button>
+        </form>
+        
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem'}}>
+          {playlist.map(video => (
+            <div key={video.id} className="glass subject-card" style={{display: 'flex', flexDirection: 'column', gap: '1rem', cursor: 'pointer', border: activeVideo === video.id ? '2px solid var(--accent-physics)' : ''}} onClick={() => { setActiveVideo(video.id); awardXP(10, 'Started a Lecture'); }}>
+              <div style={{position: 'relative', paddingBottom: '56.25%', borderRadius: '10px', overflow: 'hidden', background: '#111'}}>
+                <img src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`} alt="thumbnail" style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8}} />
+                <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                  <div style={{background: 'rgba(0,0,0,0.6)', padding: '12px', borderRadius: '50%', color: 'white', backdropFilter: 'blur(4px)'}}><Play size={24} fill="white" /></div>
+                </div>
+              </div>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                <div>
+                  <h4 style={{fontWeight: 600, fontSize: '1.05rem', marginBottom: '6px', lineHeight: 1.3}}>{video.title}</h4>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                    <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{video.addedAt}</span>
+                    {(videoNotes[video.id]?.notes || videoNotes[video.id]?.mistakes) && (
+                      <span style={{fontSize: '0.7rem', padding: '2px 6px', background: 'rgba(139,92,246,0.15)', color: 'var(--accent-physics)', borderRadius: '100px', fontWeight: 'bold'}}>Has Notes</span>
+                    )}
+                  </div>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); removeVideo(video.id, e); }} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex'}}><Trash2 size={16}/></button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderProfile = () => (
     <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '800px'}}>
