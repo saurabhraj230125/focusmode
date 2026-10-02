@@ -1452,7 +1452,7 @@ const App = () => {
       { id: 'GRE', label: 'GRE / GMAT', color: '#f59e0b', desc: 'Grad School Admissions', icon: <BrainCircuit size={28}/> },
       { id: 'IB', label: 'IB / AP', color: '#ec4899', desc: 'Global High School Curriculum', icon: <Globe size={28}/> },
     ];
-    const buildJitsiRoom = (roomId) => `FocusModePlayer-${roomId}-Study-${sessionUser.replace(/[^a-zA-Z0-9]/g, '')}`;
+    const buildJitsiRoom = (roomId) => `FocusModePlayer-${roomId}-Study`;
 
     if (inCall && connectRoom) {
       const jitsiRoom = buildJitsiRoom(connectRoom);
