@@ -153,7 +153,7 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
   const postMessage = useCallback(async (text) => {
     if (!text?.trim() || !FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
     const id = `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    await writePost(id, {
+    const newPost = {
       user: sessionUser,
       prep: prepType || '',
       xp: currentXP || 0,
@@ -163,14 +163,31 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
       likes: 0,
       likedBy: [],
       comments: [],
-    });
+    };
+    
+    // Optimistic UI update
+    setPosts(prev => [{ ...newPost, id }, ...prev].slice(0, MAX_POSTS));
+
+    try {
+      await writePost(id, newPost);
+    } catch (err) {
+      console.error("Failed to post message (Check Firebase Rules):", err);
+    }
     return id;
   }, [sessionUser, currentXP, prepType]);
 
   const toggleLike = useCallback(async (postId) => {
-    // Read current likedBy, then patch
+    // Optimistic UI update
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      const hasLiked = p.likedBy.includes(sessionUser);
+      const newLikedBy = hasLiked ? p.likedBy.filter(u => u !== sessionUser) : [...p.likedBy, sessionUser];
+      return { ...p, likes: newLikedBy.length, likedBy: newLikedBy };
+    }));
+
     try {
       const res = await fetch(`${POSTS_PATH}/${postId}.json`);
+      if (!res.ok) throw new Error('Database read failed');
       const data = await res.json();
       const likedBy = Array.isArray(data?.likedBy) ? data.likedBy : [];
       const hasLiked = likedBy.includes(sessionUser);
@@ -178,21 +195,30 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
         ? likedBy.filter(u => u !== sessionUser)
         : [...likedBy, sessionUser];
       await patchPost(postId, { likes: newLikedBy.length, likedBy: newLikedBy });
-    } catch {}
+    } catch (err) {
+      console.error("Failed to like post (Check Firebase Rules):", err);
+    }
   }, [sessionUser]);
 
   const addComment = useCallback(async (postId, text) => {
     if (!text?.trim()) return;
+    
+    // Optimistic UI update
+    const newComment = { user: sessionUser, text: text.trim(), time: 'just now', ts: Date.now() };
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      return { ...p, comments: [...(p.comments || []), newComment] };
+    }));
+
     try {
       const res = await fetch(`${POSTS_PATH}/${postId}.json`);
+      if (!res.ok) throw new Error('Database read failed');
       const data = await res.json();
       const comments = Array.isArray(data?.comments) ? data.comments : [];
-      const newComments = [
-        ...comments,
-        { user: sessionUser, text: text.trim(), time: 'just now', ts: Date.now() },
-      ];
-      await patchPost(postId, { comments: newComments });
-    } catch {}
+      await patchPost(postId, { comments: [...comments, newComment] });
+    } catch (err) {
+      console.error("Failed to add comment (Check Firebase Rules):", err);
+    }
   }, [sessionUser]);
 
   return { posts, postMessage, toggleLike, addComment };
