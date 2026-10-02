@@ -167,6 +167,7 @@ const App = () => {
 
   // AI Drag State
   const [aiPosition, setAiPosition] = useState({ x: 0, y: 0 });
+  const [isAiDragging, setIsAiDragging] = useState(false);
   const aiDragStart = useRef(null);
 
   useEffect(() => {
@@ -179,7 +180,10 @@ const App = () => {
         y: clientY - aiDragStart.current.startY
       });
     };
-    const handleMouseUp = () => { aiDragStart.current = null; };
+    const handleMouseUp = () => { 
+      aiDragStart.current = null; 
+      setIsAiDragging(false);
+    };
     if (aiOpen) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
@@ -198,6 +202,7 @@ const App = () => {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     aiDragStart.current = { startX: clientX - aiPosition.x, startY: clientY - aiPosition.y };
+    setIsAiDragging(true);
   };
 
   const askAIDoubt = (doubtText) => {
@@ -1523,7 +1528,7 @@ const App = () => {
       </main>
 
       {/* Floating AI Assistant */}
-      <div style={{position: 'fixed', bottom: '80px', right: '20px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', transform: `translate(${aiPosition.x}px, ${aiPosition.y}px)`, transition: aiDragStart.current ? 'none' : 'transform 0.2s ease'}}>
+      <div style={{position: 'fixed', bottom: '80px', right: '20px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', transform: `translate(${aiPosition.x}px, ${aiPosition.y}px)`, transition: isAiDragging ? 'none' : 'transform 0.2s ease'}}>
         {aiOpen && (
           <div className="animate-fade-in" style={{width: 'clamp(300px, 90vw, 360px)', height: '450px', marginBottom: '16px', borderRadius: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.8)', border: '1px solid rgba(168,85,247,0.5)', background: '#0f172a'}}>
             <div onMouseDown={handleAiDragStart} onTouchStart={handleAiDragStart} style={{background: 'linear-gradient(90deg, var(--accent-physics), var(--accent-chem))', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'grab', userSelect: 'none'}}>
