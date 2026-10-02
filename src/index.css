@@ -895,3 +895,7 @@ select.input-field {
     padding: 1.75rem 1.25rem;
   }
 }
+
+@keyframes spinSlow { 100% { transform: rotate(360deg); } }
+.spin-slow { animation: spinSlow 3s linear infinite; }
+

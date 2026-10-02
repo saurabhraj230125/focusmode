@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
-  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save
+  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles
 } from 'lucide-react';
 
 // Default templates for different exams
@@ -148,6 +148,52 @@ const App = () => {
 
   // UI Toast State
   const [toastMsg, setToastMsg] = useState(null);
+
+  // AI Assistant State
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiInput, setAiInput] = useState('');
+  const [aiMessages, setAiMessages] = useState([
+    { role: 'ai', text: "Hey! I am your AI Advisor. Struggling with a topic, feeling stressed, or need a study strategy? Let's talk!" }
+  ]);
+  const [aiTyping, setAiTyping] = useState(false);
+  const aiEndRef = useRef(null);
+
+  useEffect(() => {
+    if (aiOpen && aiEndRef.current) {
+      aiEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [aiMessages, aiOpen, aiTyping]);
+
+  const handleAISend = (e) => {
+    if (e) e.preventDefault();
+    if (!aiInput.trim()) return;
+    const userText = aiInput.trim();
+    setAiMessages(prev => [...prev, { role: 'user', text: userText }]);
+    setAiInput('');
+    setAiTyping(true);
+
+    setTimeout(() => {
+      let response = "I hear you. The most important thing is consistency. Break your tasks into smaller chunks and tackle them one Pomodoro at a time!";
+      const lower = userText.toLowerCase();
+      
+      if (lower.includes('stress') || lower.includes('tired') || lower.includes('sleep') || lower.includes('burnout')) {
+        response = "It sounds like you're experiencing burnout. Remember that resting is just as important as studying. If you don't sleep, your brain literally cannot consolidate what you've learned. Take a 20-minute break right now, hydrate, and step away from the screen.";
+      } else if (lower.includes('physics') || lower.includes('math') || lower.includes('numerical')) {
+        response = "For analytical subjects like Physics and Math, reading theory isn't enough. You need active problem-solving. If a question stumps you for more than 10 minutes, look at the solution, understand the *first step* they took, hide it, and try again.";
+      } else if (lower.includes('memorize') || lower.includes('forget') || lower.includes('biology') || lower.includes('chemistry')) {
+        response = "Memory is all about Active Recall and Spaced Repetition. Don't just re-read your notes. Close the book, take a blank sheet of paper, and write down everything you remember. Whatever you missed is your weak point.";
+      } else if (lower.includes('distracted') || lower.includes('phone') || lower.includes('focus')) {
+        response = "Distractions are the enemy of Deep Work. Put your phone in another room. Right now. Use the Pomodoro timer on your dashboard—just commit to 25 minutes. Once you start, the friction disappears.";
+      } else if (lower.includes('plan') || lower.includes('schedule') || lower.includes('time')) {
+        response = "A good plan is realistic. Don't try to study 14 hours a day. Aim for 6-8 hours of highly focused, distraction-free studying. Use the Dashboard to outline your most important tasks the night before.";
+      } else if (lower.includes('hi') || lower.includes('hello')) {
+        response = "Hello! I'm here to help you crush your exams. What's on your mind today? Are you stuck on a topic or just need some motivation?";
+      }
+
+      setAiMessages(prev => [...prev, { role: 'ai', text: response }]);
+      setAiTyping(false);
+    }, 1200);
+  };
 
   // Initialization
   useEffect(() => {
@@ -1380,6 +1426,44 @@ const App = () => {
         {activeTab === 'community' && renderCommunity()}
         {activeTab === 'profile' && renderProfile()}
       </main>
+
+      {/* Floating AI Assistant */}
+      <div style={{position: 'fixed', bottom: '80px', right: '20px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
+        {aiOpen && (
+          <div className="glass animate-fade-in" style={{width: 'clamp(300px, 90vw, 360px)', height: '450px', marginBottom: '16px', borderRadius: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '1px solid rgba(168,85,247,0.4)'}}>
+            <div style={{background: 'linear-gradient(90deg, var(--accent-physics), var(--accent-chem))', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '8px', color: 'white'}}>
+                <Bot size={24}/>
+                <span style={{fontWeight: 'bold', fontSize: '1.1rem'}}>AI Advisor</span>
+              </div>
+              <button onClick={() => setAiOpen(false)} style={{background: 'rgba(0,0,0,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}><X size={16}/></button>
+            </div>
+            <div style={{flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px'}}>
+              {aiMessages.map((msg, i) => (
+                <div key={i} style={{alignSelf: msg.role === 'ai' ? 'flex-start' : 'flex-end', background: msg.role === 'ai' ? 'rgba(255,255,255,0.1)' : 'var(--accent-physics)', padding: '12px 16px', borderRadius: msg.role === 'ai' ? '16px 16px 16px 4px' : '16px 16px 4px 16px', maxWidth: '85%', fontSize: '0.95rem', lineHeight: '1.5', color: 'white', border: msg.role === 'ai' ? '1px solid rgba(255,255,255,0.05)' : 'none'}}>
+                  {msg.text}
+                </div>
+              ))}
+              {aiTyping && (
+                <div style={{alignSelf: 'flex-start', background: 'rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '16px 16px 16px 4px', color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', gap: '8px', alignItems: 'center'}}>
+                  <Sparkles size={14} className="spin-slow"/> Thinking...
+                </div>
+              )}
+              <div ref={aiEndRef} />
+            </div>
+            <form onSubmit={handleAISend} style={{padding: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.2)'}}>
+              <input type="text" className="input-field" placeholder="Ask for advice..." value={aiInput} onChange={e => setAiInput(e.target.value)} style={{flex: 1, padding: '10px 16px', borderRadius: '100px'}} />
+              <button type="submit" className="btn-primary" style={{borderRadius: '50%', width: '42px', height: '42px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}} disabled={!aiInput.trim() || aiTyping}><Send size={18}/></button>
+            </form>
+          </div>
+        )}
+        
+        {!aiOpen && (
+          <button onClick={() => setAiOpen(true)} className="btn-primary" style={{width: '60px', height: '60px', borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 25px rgba(168,85,247,0.5)', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))'}}>
+            <Bot size={28}/>
+          </button>
+        )}
+      </div>
 
       {/* Mobile Bottom Navigation */}
       <nav className="bottom-nav">
