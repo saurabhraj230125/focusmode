@@ -87,7 +87,6 @@ const App = () => {
   // Tasks/Journal
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskSubject, setNewTaskSubject] = useState('');
-  const [newTaskVideo, setNewTaskVideo] = useState('');
   const [learnedText, setLearnedText] = useState('');
   const [mistakesText, setMistakesText] = useState('');
   const [journalHistory, setJournalHistory] = useState([]);
@@ -381,13 +380,12 @@ const App = () => {
       return {
         ...sub,
         tasks: [...sub.tasks, {
-          id: Date.now().toString(), title: newTaskTitle, videoId: newTaskVideo || null,
+          id: Date.now().toString(), title: newTaskTitle,
           subtasks: [ { id: Date.now() + '1', title: 'Theory / Notes', completed: false }, { id: Date.now() + '2', title: 'Practice Qs / PYQs', completed: false } ]
         }]
       };
     }));
     setNewTaskTitle('');
-    setNewTaskVideo('');
   };
 
   const toggleSubtask = (subjectId, taskId, subtaskId) => {
@@ -733,16 +731,12 @@ const App = () => {
             <div className="progress-bar-fill" style={{ width: `${progress}%` }}></div>
           </div>
         </section>
-        <form className="glass add-task-form" onSubmit={handleAddTask} style={{display: 'flex', flexWrap: 'wrap', gap: '1rem'}}>
-          <select className="input-field" value={newTaskSubject} onChange={(e) => setNewTaskSubject(e.target.value)} style={{flex: '1 1 200px'}}>
+        <form className="glass add-task-form" onSubmit={handleAddTask}>
+          <select className="input-field" value={newTaskSubject} onChange={(e) => setNewTaskSubject(e.target.value)}>
             {subjects.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
           </select>
-          <input type="text" className="input-field" placeholder="E.g., Complete Chapter 4 Practice Qs" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} style={{flex: '2 1 300px'}} />
-          <select className="input-field" value={newTaskVideo} onChange={(e) => setNewTaskVideo(e.target.value)} style={{flex: '1 1 200px'}}>
-            <option value="">No Lecture Attached</option>
-            {playlist.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
-          </select>
-          <button type="submit" className="btn-primary" style={{flex: '0 0 auto'}}><Plus size={18} /> Add Module</button>
+          <input type="text" className="input-field" placeholder="E.g., Complete Chapter 4 Practice Qs" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
+          <button type="submit" className="btn-primary"><Plus size={18} /> Add</button>
         </form>
         <div className="subjects-grid">
           {subjects.map(subject => {
@@ -768,14 +762,7 @@ const App = () => {
                     {subject.tasks.length === 0 && <p className="text-muted" style={{color: '#94a3b8', fontSize: '0.9rem'}}>No tasks added yet.</p>}
                     {subject.tasks.map(task => (
                       <div key={task.id} className="task-item">
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
-                          <div style={{fontWeight: 500}}>{task.title}</div>
-                          {task.videoId && (
-                            <button className="btn-primary" style={{padding: '4px 12px', fontSize: '0.75rem', background: 'rgba(139,92,246,0.15)', color: 'var(--accent-physics)', borderColor: 'rgba(139,92,246,0.3)'}} onClick={() => { setActiveTab('lectures'); setActiveVideo(task.videoId); }}>
-                              <MonitorPlay size={14}/> Watch Lecture
-                            </button>
-                          )}
-                        </div>
+                        <div style={{fontWeight: 500, marginBottom: '8px'}}>{task.title}</div>
                         <div style={{display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px'}}>
                           {task.subtasks.map(subtask => (
                             <label key={subtask.id} className="checkbox-wrapper">
