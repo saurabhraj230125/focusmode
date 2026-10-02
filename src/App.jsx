@@ -965,7 +965,10 @@ const App = () => {
   const setTimer = (type) => {
     setIsActive(false);
     setSessionType(type);
-    setTimeLeft(type === 'pomodoro' ? 25 * 60 : 5 * 60);
+    if (type === 'pomodoro') setTimeLeft(25 * 60);
+    else if (type === 'pomodoro50') setTimeLeft(50 * 60);
+    else if (type === 'shortBreak') setTimeLeft(5 * 60);
+    else if (type === 'longBreak') setTimeLeft(10 * 60);
   };
 
   const startTimer = () => {
@@ -1164,19 +1167,29 @@ const App = () => {
 
       <aside className="right-sidebar">
         <div className="glass timer-card">
-          <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '1rem'}}> Focus Timer </h3>
-          <div style={{display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '8px'}}>
-            <button style={{padding: '4px 12px', borderRadius: '100px', background: sessionType === 'pomodoro' ? 'rgba(255,255,255,0.1)' : 'transparent', color: sessionType === 'pomodoro' ? 'white' : '#94a3b8', border: 'none', cursor: 'pointer'}} onClick={() => setTimer('pomodoro')}>Pomodoro</button>
-            <button style={{padding: '4px 12px', borderRadius: '100px', background: sessionType === 'shortBreak' ? 'rgba(255,255,255,0.1)' : 'transparent', color: sessionType === 'shortBreak' ? 'white' : '#94a3b8', border: 'none', cursor: 'pointer'}} onClick={() => setTimer('shortBreak')}>Break</button>
+        <div className="glass timer-card" style={{position: 'relative', overflow: 'hidden'}}>
+          <div style={{position: 'absolute', top: '-50px', left: '-50px', width: '150px', height: '150px', background: 'var(--accent-physics)', filter: 'blur(80px)', opacity: 0.3}}></div>
+          <div style={{position: 'absolute', bottom: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-chem)', filter: 'blur(80px)', opacity: 0.3}}></div>
+          
+          <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '1.5rem', position: 'relative', zIndex: 1}}> ⏳ Focus Timer </h3>
+          
+          <div style={{display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '2rem', flexWrap: 'wrap', position: 'relative', zIndex: 1}}>
+            <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'pomodoro' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'pomodoro' ? 'white' : '#94a3b8', border: sessionType === 'pomodoro' ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('pomodoro')}>25m Focus</button>
+            <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'pomodoro50' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'pomodoro50' ? 'white' : '#94a3b8', border: sessionType === 'pomodoro50' ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('pomodoro50')}>50m Deep</button>
+            <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'shortBreak' ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'shortBreak' ? '#34d399' : '#94a3b8', border: sessionType === 'shortBreak' ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('shortBreak')}>5m Break</button>
+            <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'longBreak' ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'longBreak' ? '#34d399' : '#94a3b8', border: sessionType === 'longBreak' ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('longBreak')}>10m Chill</button>
           </div>
-          <div className="timer-display">{formatTime(timeLeft)}</div>
-          <div style={{fontSize: '0.85rem', color: 'var(--accent-success)', marginBottom: '1rem', fontWeight: 'bold'}}> Reward: +{sessionType === 'pomodoro' ? '50' : '10'} XP </div>
-          <div className="timer-controls">
-            <button className="btn-primary" onClick={startTimer}>
-              {isActive ? <Pause size={18} /> : <Play size={18} />}
-              {isActive ? 'Pause' : 'Start'}
+          
+          <div className="timer-display" style={{fontSize: '4.5rem', fontWeight: 800, textShadow: '0 0 40px rgba(255,255,255,0.2)', letterSpacing: '-2px', position: 'relative', zIndex: 1, margin: '1rem 0'}}>{formatTime(timeLeft)}</div>
+          
+          <div style={{fontSize: '0.9rem', color: 'var(--accent-success)', marginBottom: '1.5rem', fontWeight: 'bold', background: 'rgba(16,185,129,0.1)', padding: '6px 16px', borderRadius: '100px', display: 'inline-block', position: 'relative', zIndex: 1}}> Reward: +{sessionType.includes('pomodoro') ? (sessionType === 'pomodoro50' ? '100' : '50') : '10'} XP </div>
+          
+          <div className="timer-controls" style={{position: 'relative', zIndex: 1}}>
+            <button className="btn-primary" onClick={startTimer} style={{padding: '12px 32px', fontSize: '1.1rem', borderRadius: '100px', boxShadow: isActive ? '0 0 20px rgba(139,92,246,0.5)' : 'none'}}>
+              {isActive ? <Pause size={20} /> : <Play size={20} />}
+              {isActive ? 'Pause' : 'Start Grind'}
             </button>
-            <button className="btn-icon" onClick={() => setTimer(sessionType)}><RotateCcw size={18} /></button>
+            <button className="btn-icon" onClick={() => setTimer(sessionType)} style={{padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%'}}><RotateCcw size={20} /></button>
           </div>
         </div>
         <div className="glass" style={{padding: '1.5rem'}}>
@@ -1453,32 +1466,59 @@ const App = () => {
           </div>
         </div>
 
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem'}}>
-           <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>🗓️ Live Scheduled Study Events</h3>
-           <button className="btn-primary" onClick={() => setShowEventModal(true)}>+ Schedule Event</button>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)'}}>
+           <h3 style={{fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px'}}><Calendar size={24} color="var(--accent-math)"/> Live Scheduled Events</h3>
+           <button className="btn-primary" onClick={() => setShowEventModal(true)} style={{borderRadius: '100px', background: 'linear-gradient(90deg, var(--accent-math), var(--accent-physics))', border: 'none', boxShadow: '0 4px 15px rgba(139,92,246,0.4)'}}>+ Schedule Event</button>
         </div>
         
         {showEventModal && (
-          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--accent-physics)'}}>
-             <h4 style={{fontSize: '1.1rem', fontWeight: 'bold'}}>Create Study Event</h4>
-             <input className="input-field" placeholder="Event Title (e.g. Solving HC Verma Vectors)" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} />
-             <input className="input-field" placeholder="Time (e.g. Tonight at 9:00 PM)" value={newEventTime} onChange={e => setNewEventTime(e.target.value)} />
-             <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
-                <button className="btn-secondary" onClick={() => setShowEventModal(false)}>Cancel</button>
-                <button className="btn-primary" onClick={() => { createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime); setShowEventModal(false); setNewEventTitle(''); setNewEventTime(''); awardXP(15, 'Scheduled a Community Event'); }}>Post Event</button>
-             </div>
+          <div className="animate-fade-in" style={{background: 'rgba(0,0,0,0.8)', position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)'}}>
+            <div className="glass" style={{padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid rgba(139,92,246,0.3)', width: '90%', maxWidth: '450px', borderRadius: '24px', position: 'relative', overflow: 'hidden'}}>
+               <div style={{position: 'absolute', top: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-math)', filter: 'blur(80px)', opacity: 0.3, zIndex: 0}}></div>
+               
+               <h4 style={{fontSize: '1.5rem', fontWeight: 800, position: 'relative', zIndex: 1}}>Schedule a Drop-in</h4>
+               <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', position: 'relative', zIndex: 1, marginTop: '-10px'}}>Host a study session and let the community join you.</p>
+               
+               <div style={{display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', zIndex: 1}}>
+                 <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Event Title</label>
+                 <input className="input-field" placeholder="e.g. 2hr HC Verma Grind 🚀" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} style={{background: 'rgba(0,0,0,0.3)', fontSize: '1rem', padding: '12px 16px'}} />
+               </div>
+               
+               <div style={{display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', zIndex: 1}}>
+                 <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Time</label>
+                 <input className="input-field" placeholder="e.g. Tonight @ 9PM IST" value={newEventTime} onChange={e => setNewEventTime(e.target.value)} style={{background: 'rgba(0,0,0,0.3)', fontSize: '1rem', padding: '12px 16px'}} />
+               </div>
+               
+               <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem', position: 'relative', zIndex: 1}}>
+                  <button className="btn-secondary" style={{borderRadius: '100px', padding: '10px 24px'}} onClick={() => setShowEventModal(false)}>Cancel</button>
+                  <button className="btn-primary" style={{borderRadius: '100px', padding: '10px 24px', background: 'white', color: 'black', fontWeight: 800}} onClick={() => { createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime); setShowEventModal(false); setNewEventTitle(''); setNewEventTime(''); awardXP(15, 'Scheduled a Community Event'); }}>🚀 Publish</button>
+               </div>
+            </div>
           </div>
         )}
 
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem'}}>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem'}}>
           {studyEvents.length === 0 ? <p style={{color: 'var(--text-muted)'}}>No upcoming events. Be the first to schedule one!</p> : studyEvents.map(e => (
-            <div key={e.id} className="glass" style={{padding: '1.5rem', borderRadius: '16px'}}>
-               <h4 style={{fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem'}}>{e.title}</h4>
-               <p style={{fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem'}}>Host: {e.host}</p>
-               <p style={{fontSize: '0.85rem', color: 'var(--accent-physics)', marginBottom: '1rem', fontWeight: 'bold'}}>⏰ {e.scheduledTime}</p>
-               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                 <span style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>{e.participants?.length || 1} joined</span>
-                 <button className="btn-primary" onClick={() => { joinEvent(e.id); setConnectRoom(e.id); setInCall(true); awardXP(10, 'Joined a Scheduled Event'); }} style={{padding: '6px 12px', fontSize: '0.85rem'}}>Join Room</button>
+            <div key={e.id} className="glass" style={{padding: '1.5rem', borderRadius: '20px', background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden', transition: 'transform 0.2s'}} onMouseEnter={ev => ev.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={ev => ev.currentTarget.style.transform = 'none'}>
+               <div style={{position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'linear-gradient(to bottom, var(--accent-math), var(--accent-physics))'}}></div>
+               <h4 style={{fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem', lineHeight: 1.3}}>{e.title}</h4>
+               
+               <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.2rem'}}>
+                 <div style={{width: '24px', height: '24px', borderRadius: '50%', background: getAvatarColor(e.host), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 'bold'}}>{e.host.charAt(0).toUpperCase()}</div>
+                 <p style={{fontSize: '0.9rem', color: 'var(--text-muted)'}}>{e.host}</p>
+               </div>
+               
+               <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '8px', width: 'fit-content'}}>
+                 <Clock size={14} color="var(--accent-math)" />
+                 <p style={{fontSize: '0.85rem', color: 'var(--accent-math)', fontWeight: 700}}>{e.scheduledTime}</p>
+               </div>
+               
+               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem'}}>
+                 <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                   <Users size={16} color="var(--text-muted)" />
+                   <span style={{fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600}}>{e.participants?.length || 1} joined</span>
+                 </div>
+                 <button className="btn-primary" onClick={() => { joinEvent(e.id); setConnectRoom(e.id); setInCall(true); awardXP(10, 'Joined a Scheduled Event'); }} style={{padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: 700, background: 'rgba(255,255,255,0.1)', color: 'white'}}>Join</button>
                </div>
             </div>
           ))}
