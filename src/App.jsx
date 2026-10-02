@@ -164,53 +164,46 @@ const App = () => {
     }
   }, [aiMessages, aiOpen, aiTyping]);
 
-  const handleAISend = async (e) => {
+  const getAIAdvice = (text, prepType) => {
+    const t = text.toLowerCase();
+    
+    if (t.match(/\b(hi|hello|hey|yo)\b/)) return `Hello! I'm your deeply trained AI Advisor. Since you're studying for ${prepType || 'your exams'}, how can I help you optimize your focus today?`;
+    
+    if (t.match(/distract|phone|reel|tiktok|instagram|focus|procrastinat|can't study/)) return "Distraction is just your brain craving cheap dopamine. Solution: Put your phone in another room right now. Then, start a 25-minute Pomodoro timer on your Dashboard. Tell yourself you only have to study for 25 minutes. Usually, getting started is the only hard part. Go do it! 🚀";
+    
+    if (t.match(/stress|anxi|nervous|burnout|tired|exhaust|sleep|depress/)) return "Listen to me: your mental health is more important than any exam. If you are burned out, your brain physically cannot retain information. Take a mandatory 2-hour break, go for a walk without your phone, and get at least 7.5 hours of sleep tonight. You will study 2x better tomorrow. 💙";
+    
+    if (t.match(/memor|forget|remember|biology|history|retain/)) return "Reading notes doesn't build memory—Active Recall does. Close your book and try to write down everything you remember on a blank page. Then, check what you missed. Also, use Spaced Repetition: review the topic today, tomorrow, in 3 days, and in a week. 🧠";
+    
+    if (t.match(/physics|math|numerical|quant|solve|hard problem/)) return "For analytical subjects, reading solutions is a trap. If you get stuck on a problem for 15 minutes, look at ONLY the first step of the solution. Then hide it and try to finish it yourself. This builds true neural pathways for problem-solving. ⚡";
+    
+    if (t.match(/plan|timetable|schedule|routine|time|late/)) return "The best timetable is a flexible one. Don't schedule every minute. Instead, pick 3 'Non-Negotiable' tasks for the day and put them in your Dashboard. Complete them first thing in the morning. Everything else is a bonus. 📅";
+    
+    if (t.match(/motivat|give up|hard|tough|fail|demotivat/)) return `Motivation is a myth; Discipline is reality. You are studying for ${prepType || 'your future'}. Every time you sit down to study when you don't feel like it, you are beating 90% of your competition. Take a deep breath, pick your easiest task, and just start. You've got this! 🔥`;
+    
+    const fallbacks = [
+      "That's a great point. The key to mastering this is breaking it down into smaller pieces. What's the smallest step you can take right now?",
+      "Interesting. Have you tried logging this in your Learning Journal? Writing down exactly where you get stuck helps your brain process it better.",
+      "I see. My best advice here is to stay consistent. Small daily efforts compound massively over time.",
+      "Got it. Whenever I feel stuck there, I jump into a Study Connect room to co-work silently with others. It forces accountability!"
+    ];
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  };
+
+  const handleAISend = (e) => {
     if (e) e.preventDefault();
     if (!aiInput.trim()) return;
     const userText = aiInput.trim();
     
-    if (userText.startsWith('AIza')) {
-       localStorage.setItem('gemini_api_key', userText);
-       setAiMessages(prev => [...prev, { role: 'user', text: "Provided API Key" }, { role: 'ai', text: "Awesome! My full AI brain is now online. What do you need help with today?" }]);
-       setAiInput('');
-       return;
-    }
-
     setAiMessages(prev => [...prev, { role: 'user', text: userText }]);
     setAiInput('');
     setAiTyping(true);
 
-    const apiKey = localStorage.getItem('gemini_api_key');
-    if (!apiKey) {
-      setTimeout(() => {
-        setAiMessages(prev => [...prev, { role: 'ai', text: "I am currently running in offline mode. To unlock my full conversational AI, please paste a free Gemini API key below. You can get one for free at aistudio.google.com! (Your key starts with 'AIza...')" }]);
-        setAiTyping(false);
-      }, 800);
-      return;
-    }
-
-    try {
-      const systemContext = `You are FocusBot, an expert AI Study Advisor built into the FocusModePlayer website. Context: FocusModePlayer is a productivity app for students preparing for exams like JEE, NEET, UPSC, SAT, etc. It has a Dashboard, Journal, Ad-Free YouTube Lectures, and Study Connect video rooms. The current student's username is ${sessionUser} and they are studying for ${currentUserProfile?.prepType || 'their exams'}. Be concise, highly motivational, friendly, and give direct actionable advice. Use emojis. Do not use markdown headers, just plain text and bullet points.`;
-      
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `${systemContext}\n\nStudent says: ${userText}` }] }]
-        })
-      });
-      
-      const data = await response.json();
-      if (data.error) {
-        setAiMessages(prev => [...prev, { role: 'ai', text: `API Error: ${data.error.message}` }]);
-      } else {
-        const textResponse = data.candidates[0].content.parts[0].text;
-        setAiMessages(prev => [...prev, { role: 'ai', text: textResponse }]);
-      }
-    } catch (err) {
-      setAiMessages(prev => [...prev, { role: 'ai', text: "Sorry, I couldn't connect to the AI server. Please check your internet connection or API key." }]);
-    }
-    setAiTyping(false);
+    setTimeout(() => {
+      const response = getAIAdvice(userText, currentUserProfile?.prepType);
+      setAiMessages(prev => [...prev, { role: 'ai', text: response }]);
+      setAiTyping(false);
+    }, 1000);
   };
 
   // Initialization
