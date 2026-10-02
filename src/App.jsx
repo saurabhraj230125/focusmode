@@ -25,6 +25,32 @@ const examTemplates = {
     { id: 'polity', title: 'Polity & Governance', icon: 'polity', tasks: [] },
     { id: 'geo', title: 'Geography', icon: 'geo', tasks: [] },
     { id: 'current', title: 'Current Affairs', icon: 'current', tasks: [] }
+  ],
+  SAT: [
+    { id: 'math', title: 'Mathematics', icon: 'math', tasks: [] },
+    { id: 'reading', title: 'Reading & Writing', icon: 'current', tasks: [] }
+  ],
+  MCAT: [
+    { id: 'bio', title: 'Biology & Biochem', icon: 'bio', tasks: [] },
+    { id: 'chem', title: 'Chem & Physics', icon: 'chem', tasks: [] },
+    { id: 'psych', title: 'Psychology & Soc', icon: 'history', tasks: [] }
+  ],
+  GRE: [
+    { id: 'quant', title: 'Quantitative', icon: 'math', tasks: [] },
+    { id: 'verbal', title: 'Verbal Reasoning', icon: 'current', tasks: [] }
+  ],
+  GMAT: [
+    { id: 'quant', title: 'Quantitative', icon: 'math', tasks: [] },
+    { id: 'verbal', title: 'Verbal', icon: 'current', tasks: [] }
+  ],
+  IB: [
+    { id: 'hl', title: 'Higher Level Subjects', icon: 'physics', tasks: [] },
+    { id: 'sl', title: 'Standard Level Subjects', icon: 'history', tasks: [] },
+    { id: 'tok', title: 'Theory of Knowledge', icon: 'current', tasks: [] }
+  ],
+  AP: [
+    { id: 'stem', title: 'STEM Subjects', icon: 'math', tasks: [] },
+    { id: 'arts', title: 'Arts & Humanities', icon: 'history', tasks: [] }
   ]
 };
 
@@ -685,10 +711,13 @@ const App = () => {
           <div className="onboard-grid">
             <div className="onboard-step">
               <h3>1. What are you preparing for?</h3>
-              <div className="exam-options" style={{justifyContent: 'flex-start'}}>
-                {['JEE', 'NEET', 'UPSC'].map(exam => (
+              <div className="exam-options" style={{justifyContent: 'flex-start', flexWrap: 'wrap'}}>
+                {Object.keys(examTemplates).map(exam => (
                   <button key={exam} className={`exam-btn ${onboardPrep === exam ? 'selected' : ''}`} onClick={() => setOnboardPrep(exam)} style={{padding: '1rem', width: 'auto'}}>
-                    {exam === 'JEE' ? <Calculator size={20}/> : exam === 'NEET' ? <Stethoscope size={20}/> : <Landmark size={20}/>}
+                    {exam === 'JEE' || exam === 'SAT' || exam === 'GMAT' ? <Calculator size={20}/> : 
+                     exam === 'NEET' || exam === 'MCAT' ? <Stethoscope size={20}/> : 
+                     exam === 'GRE' || exam === 'AP' ? <BrainCircuit size={20}/> : 
+                     exam === 'IB' ? <Globe size={20}/> : <Landmark size={20}/>}
                     {exam}
                   </button>
                 ))}
@@ -991,8 +1020,19 @@ const App = () => {
       { id: 'JEE', label: 'JEE Aspirants', color: 'var(--accent-physics)', desc: 'Physics · Chemistry · Maths', icon: <Calculator size={28}/> },
       { id: 'NEET', label: 'NEET Aspirants', color: 'var(--accent-chem)', desc: 'Physics · Chemistry · Biology', icon: <Stethoscope size={28}/> },
       { id: 'UPSC', label: 'UPSC Aspirants', color: 'var(--accent-math)', desc: 'History · Polity · Geography', icon: <Landmark size={28}/> },
+      { id: 'SAT', label: 'SAT / ACT', color: '#3b82f6', desc: 'Global College Admissions', icon: <BookOpen size={28}/> },
+      { id: 'MCAT', label: 'MCAT Prep', color: '#10b981', desc: 'Medical College Admissions', icon: <Stethoscope size={28}/> },
+      { id: 'GRE', label: 'GRE / GMAT', color: '#f59e0b', desc: 'Grad School Admissions', icon: <BrainCircuit size={28}/> },
+      { id: 'IB', label: 'IB / AP', color: '#ec4899', desc: 'Global High School Curriculum', icon: <Globe size={28}/> },
     ];
     const buildJitsiRoom = (roomId) => `FocusModePlayer-${roomId}-Study-${sessionUser.replace(/[^a-zA-Z0-9]/g, '')}`;
+    
+    const joinRandomRoom = () => {
+      const roomNum = Math.floor(Math.random() * 5) + 1;
+      setConnectRoom(`Omegle-Global-${roomNum}`);
+      setInCall(true);
+      awardXP(15, 'Joined Global Random Chat');
+    };
 
     if (inCall && connectRoom) {
       const jitsiRoom = buildJitsiRoom(connectRoom);
@@ -1023,6 +1063,19 @@ const App = () => {
           <Globe size={56} color="var(--accent-physics)" style={{marginBottom: '1rem', filter: 'drop-shadow(0 0 15px rgba(139,92,246,0.5))'}} />
           <h2 style={{fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem'}}>Study Connect</h2>
           <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto'}}>Jump into a live video room with other aspirants preparing for the same exam. Camera + mic enabled — totally free.</p>
+        </div>
+
+        {/* Global Random Match (Omegle Style) */}
+        <div className="glass" style={{padding: '2rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2rem', background: 'linear-gradient(45deg, rgba(15,23,42,0.8), rgba(30,27,75,0.8))', borderColor: 'rgba(168,85,247,0.4)', marginBottom: '1rem'}}>
+          <div style={{flex: '1 1 300px'}}>
+            <h3 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.4rem', color: '#fff', marginBottom: '0.5rem'}}>
+              <Users size={24} color="#a855f7" /> Global Random Match (Omegle Style)
+            </h3>
+            <p style={{color: '#94a3b8', fontSize: '1rem'}}>Instantly connect via video and chat with a random student somewhere in the world. Perfect for quick motivation, exchanging tips, or taking a social break.</p>
+          </div>
+          <button onClick={joinRandomRoom} className="btn-primary" style={{flex: '0 0 auto', background: 'linear-gradient(90deg, #a855f7, #ec4899)', border: 'none', padding: '16px 32px', fontSize: '1.1rem', boxShadow: '0 0 20px rgba(168,85,247,0.4)'}}>
+            <Video size={20}/> Connect Now
+          </button>
         </div>
         <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>Join an Exam Study Room</h3>
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem'}}>
