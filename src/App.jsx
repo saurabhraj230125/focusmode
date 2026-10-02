@@ -1445,27 +1445,6 @@ const App = () => {
           <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto'}}>Jump into a live video room with other aspirants preparing for the same exam. Camera + mic enabled — totally free.</p>
         </div>
 
-        <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>Join an Exam Study Room</h3>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem'}}>
-          {examRooms.map(room => (
-            <div key={room.id} className="glass subject-card" style={{textAlign: 'center', padding: '2.5rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', cursor: 'pointer', borderColor: room.id === currentUserProfile?.prepType ? room.color : '', transition: 'all 0.25s ease'}} onClick={() => { setConnectRoom(room.id); setInCall(true); awardXP(10, 'Joined Study Connect Room'); }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 12px 40px ${room.color}33`; }} onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
-              <div style={{color: room.color, background: `${room.color}22`, border: `1px solid ${room.color}44`, borderRadius: '16px', padding: '16px'}}>{room.icon}</div>
-              <h3 style={{fontSize: '1.25rem', fontWeight: 700}}>{room.label}</h3>
-              <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{room.desc}</p>
-              {room.id === currentUserProfile?.prepType && <span style={{background: `${room.color}33`, color: room.color, border: `1px solid ${room.color}55`, padding: '2px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 600}}>Your Exam ⭐</span>}
-              <button className="btn-primary" style={{width: '100%', background: `${room.color}22`, borderColor: `${room.color}55`, color: room.color}}><PhoneCall size={16}/> Join Room</button>
-            </div>
-          ))}
-        </div>
-        <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-          <h3 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem'}}><Wifi size={20} color="var(--accent-success)"/> Private Study Room</h3>
-          <p style={{color: 'var(--text-muted)', fontSize: '0.95rem'}}>Create a private room with a custom name and share it with a friend to study 1-on-1.</p>
-          <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
-            <input type="text" className="input-field" placeholder="Enter a custom room name (e.g. JEECrack-Batch2025)" value={customRoomName} onChange={e => setCustomRoomName(e.target.value)} style={{flex: '1 1 200px'}} />
-            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} style={{flex: '0 0 auto', whiteSpace: 'nowrap'}}><PhoneCall size={16}/> Start Private Call</button>
-          </div>
-        </div>
-
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)'}}>
            <h3 style={{fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px'}}><Calendar size={24} color="var(--accent-math)"/> Live Scheduled Events</h3>
            <button className="btn-primary" onClick={() => setShowEventModal(true)} style={{borderRadius: '100px', background: 'linear-gradient(90deg, var(--accent-math), var(--accent-physics))', border: 'none', boxShadow: '0 4px 15px rgba(139,92,246,0.4)'}}>+ Schedule Event</button>
@@ -1484,12 +1463,12 @@ const App = () => {
                  <input className="input-field" placeholder="e.g. 2hr HC Verma Grind 🚀" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} style={{background: '#1e293b', fontSize: '1rem', padding: '12px 16px', border: '1px solid #334155'}} />
                </div>
                
-               <div style={{display: 'flex', gap: '1rem', position: 'relative', zIndex: 1}}>
-                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1}}>
+               <div style={{display: 'flex', flexWrap: 'wrap', gap: '1rem', position: 'relative', zIndex: 1}}>
+                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 150px'}}>
                    <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Time</label>
                    <input className="input-field" placeholder="e.g. Tonight @ 9PM" value={newEventTime} onChange={e => setNewEventTime(e.target.value)} style={{background: '#1e293b', fontSize: '1rem', padding: '12px 16px', border: '1px solid #334155'}} />
                  </div>
-                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1}}>
+                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 150px'}}>
                    <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Duration</label>
                    <input className="input-field" placeholder="e.g. 2 hours" value={newEventDuration} onChange={e => setNewEventDuration(e.target.value)} style={{background: '#1e293b', fontSize: '1rem', padding: '12px 16px', border: '1px solid #334155'}} />
                  </div>
@@ -1512,7 +1491,7 @@ const App = () => {
           </div>
         )}
 
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem'}}>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem'}}>
           {studyEvents.length === 0 ? <p style={{color: 'var(--text-muted)'}}>No upcoming events. Be the first to schedule one!</p> : studyEvents.map(e => (
             <div key={e.id} className="glass" style={{padding: '1.5rem', borderRadius: '20px', background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden', transition: 'transform 0.2s'}} onMouseEnter={ev => ev.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={ev => ev.currentTarget.style.transform = 'none'}>
                <div style={{position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'linear-gradient(to bottom, var(--accent-math), var(--accent-physics))'}}></div>
@@ -1550,6 +1529,29 @@ const App = () => {
             </div>
           ))}
         </div>
+
+        <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>Join an Exam Study Room</h3>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem'}}>
+          {examRooms.map(room => (
+            <div key={room.id} className="glass subject-card" style={{textAlign: 'center', padding: '2.5rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', cursor: 'pointer', borderColor: room.id === currentUserProfile?.prepType ? room.color : '', transition: 'all 0.25s ease'}} onClick={() => { setConnectRoom(room.id); setInCall(true); awardXP(10, 'Joined Study Connect Room'); }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 12px 40px ${room.color}33`; }} onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
+              <div style={{color: room.color, background: `${room.color}22`, border: `1px solid ${room.color}44`, borderRadius: '16px', padding: '16px'}}>{room.icon}</div>
+              <h3 style={{fontSize: '1.25rem', fontWeight: 700}}>{room.label}</h3>
+              <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{room.desc}</p>
+              {room.id === currentUserProfile?.prepType && <span style={{background: `${room.color}33`, color: room.color, border: `1px solid ${room.color}55`, padding: '2px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 600}}>Your Exam ⭐</span>}
+              <button className="btn-primary" style={{width: '100%', background: `${room.color}22`, borderColor: `${room.color}55`, color: room.color}}><PhoneCall size={16}/> Join Room</button>
+            </div>
+          ))}
+        </div>
+        <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+          <h3 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem'}}><Wifi size={20} color="var(--accent-success)"/> Private Study Room</h3>
+          <p style={{color: 'var(--text-muted)', fontSize: '0.95rem'}}>Create a private room with a custom name and share it with a friend to study 1-on-1.</p>
+          <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
+            <input type="text" className="input-field" placeholder="Enter a custom room name (e.g. JEECrack-Batch2025)" value={customRoomName} onChange={e => setCustomRoomName(e.target.value)} style={{flex: '1 1 200px'}} />
+            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} style={{flex: '0 0 auto', whiteSpace: 'nowrap'}}><PhoneCall size={16}/> Start Private Call</button>
+          </div>
+        </div>
+
+
       </div>
     );
   };
