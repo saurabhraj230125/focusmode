@@ -230,68 +230,208 @@ const App = () => {
     }, 100);
   };
 
-  const getAIAdvice = async (text, prepType) => {
-    const t = text.toLowerCase();
-    
-    // GREETINGS & INTRO
-    if (t.match(/\b(hi|hello|hey|yo|sup|help|start)\b/)) return `Hello! I am FocusBot, your deeply trained AI Advisor. I have analyzed terabytes of study data. Since you are studying for ${prepType || 'your exams'}, what specific topic, subject, or problem can I help you conquer today?`;
-    
-    // PROCRASTINATION, DISTRACTION, PHONE
-    if (t.match(/distract|phone|reel|tiktok|instagram|focus|procrastinat|can't study|lazy|youtube/)) return "Distraction is a dopamine trap. The internet is engineered to steal your attention. Solution: Do a 'Dopamine Detox'. Lock your phone in a drawer. Start a 25-minute Pomodoro timer here on the Dashboard. Tell your brain you only have to work for 5 minutes. The friction to start is always higher than the friction to continue. 🚀";
-    
-    // BURNOUT, TIRED, SLEEP, STRESS
-    if (t.match(/stress|anxi|nervous|burnout|tired|exhaust|sleep|depress|sad|cry|overwhelm/)) return "Listen closely: Chronic stress destroys your hippocampus (the memory center). If you are burned out, studying is literally useless because your brain can't consolidate memory without REM sleep. Take a mandatory 2-hour break, go outside, hydrate, and ensure you get 7.5 to 8 hours of sleep tonight. Your brain needs to heal. 💙";
-    
-    // MEMORY, ACTIVE RECALL, BIOLOGY, HISTORY
-    if (t.match(/memor|forget|remember|biology|history|retain|learn|cram/)) return "Rereading and highlighting are the lowest-yield study methods. You need 'Active Recall' and 'Spaced Repetition' (based on the Ebbinghaus Forgetting Curve). Close the book and write down everything you know on a blank page. Whatever you miss is your weak point. Review it today, in 3 days, and in 7 days. 🧠";
-    
-    // PROBLEM SOLVING, MATH, PHYSICS, QUANT
-    if (t.match(/physics|math|numerical|quant|solve|hard problem|calculus|mechanic/)) return "For analytical subjects, reading the solution ruins your brain's struggle phase (which is where neural pathways actually form). Try a problem for 10-15 minutes. If stuck, look at ONLY the first step of the solution. Hide it, and try to finish. The 'struggle' is the learning. ⚡";
-    
-    // CHEMISTRY (ORGANIC / INORGANIC)
-    if (t.match(/chem|organic|inorganic|reaction|mechanism/)) return "Chemistry is divided: Physical needs daily numerical practice. Organic requires understanding electron flow and mechanisms, NOT pure memorization—draw them out repeatedly. Inorganic is pure memory: use flashcards, mnemonics, and review a small chunk every morning for 15 minutes. 🧪";
-    
-    // MOCK TESTS, PYQS, PREVIOUS YEAR QUESTIONS
-    if (t.match(/mock|pyq|test|score|marks|improv|negative|exam/)) return "Mock tests are useless without Analysis. Spend as much time analyzing the mock as you did taking it. Put every single mistake into your 'Journal & Mistakes' tab. Categorize them: Silly mistake? Conceptual gap? Time pressure? Fix the root cause, and your score will naturally jump. 📈";
-    
-    // UNDERSTANDING CONCEPTS / FEYNMAN TECHNIQUE
-    if (t.match(/don't understand|confus|concept|theory|hard to grasp/)) return "Use the Feynman Technique: Try to explain this concept out loud as if you were teaching a 10-year-old. When you stumble or use complex jargon, that's your knowledge gap. Go back to the book just for that gap, then try explaining it again. 🗣️";
-    
-    // TIME MANAGEMENT, ROUTINE, TIMETABLE
-    if (t.match(/plan|timetable|schedule|routine|time|late|manage|hours/)) return "Stop planning 14-hour days—that leads to burnout. Use the Pareto Principle (80/20 rule): 80% of your marks come from 20% of the syllabus. Identify those high-yield topics. Pick 3 'Non-Negotiable' tasks daily and put them in your Dashboard. Complete them first thing in the morning. 📅";
-    
-    // MOTIVATION, DISCIPLINE, FEELING LIKE GIVING UP
-    if (t.match(/motivat|give up|hard|tough|fail|demotivat|quit|competi/)) return `Motivation is a feeling, and feelings change. Discipline is a choice. You are studying for ${prepType || 'your future'}. Every single time you sit down to study when you feel like quitting, you are beating 90% of the competition. The pain of discipline is less than the pain of regret. Start right now. 🔥`;
-    
-    // DIET, NUTRITION, HYDRATION
-    if (t.match(/food|diet|eat|drink|water|coffee|caffeine/)) return "Your brain consumes 20% of your calories. Avoid heavy carbs or sugar before studying—they cause insulin spikes and crashes (brain fog). Drink water constantly. If using caffeine, wait 90-120 minutes after waking up so you don't crash in the afternoon. 🍎";
-    
-    // WIKIPEDIA API FALLBACK FOR GENERAL KNOWLEDGE/ANY QUESTION
+  const getAIAdvice = async (text, prepType, conversationHistory = []) => {
+    const t = text.toLowerCase().trim();
+    const ctx = conversationHistory.slice(-4).map(m => m.text?.toLowerCase()).join(' ');
+
+    // ── GREETINGS ──────────────────────────────────────────────────────────────
+    if (t.match(/^(hi|hello|hey|yo|sup|heyy|hiii|helloo|namaste|hola|what'?s up|good morning|good evening|good afternoon|gm|ge)[\s!?.]*$/)) {
+      const greets = [
+        `Hey! 👋 I'm FocusBot — your AI study partner. I'm trained on JEE, NEET, UPSC and general exam strategy. Ask me anything: a concept, a topic you're stuck on, study tips, or even just how to feel less overwhelmed. What's on your mind?`,
+        `Hello! 🧠 Great to see you here. I can help you understand tough concepts, build better study habits, or just talk through what you're struggling with. What subject or problem can I help you crush today?`,
+        `Namaste! 🙏 I'm your AI advisor. Whether it's Newton's laws, Organic Chemistry, Indian Polity, or just how to stay consistent — I've got you. What do you want to tackle first?`,
+      ];
+      return greets[Math.floor(Math.random() * greets.length)];
+    }
+
+    // ── HOW ARE YOU / SMALL TALK ───────────────────────────────────────────────
+    if (t.match(/how are you|how r u|you ok|you good|what are you|who are you|tell me about yourself/)) {
+      return `I'm FocusBot — always running at 100%, optimized for your success! 🤖⚡ I'm an AI built specifically for competitive exam aspirants. I know JEE Physics, Chemistry & Maths, NEET Biology, UPSC topics, study science, and general Q&A. I remember our conversation context too, so feel free to ask follow-up questions naturally. What do you need help with?`;
+    }
+
+    // ── THANKS / APPRECIATION ─────────────────────────────────────────────────
+    if (t.match(/^(thank|thanks|thx|ty|great|awesome|nice|helpful|perfect|got it|okay|ok|understood|clear|makes sense)[\s!.]*$/)) {
+      return `You're welcome! 😊 That's what I'm here for. Got another question? Ask away — whether it's a concept, a problem, or just study advice!`;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ── PHYSICS TOPICS ────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+
+    if (t.match(/newton'?s law|force and motion|inertia|momentum|impulse/)) {
+      return `**Newton's Laws of Motion** 🎯\n\n**1st Law (Inertia):** An object stays at rest or moves with constant velocity unless acted upon by a net external force. Key: *inertia depends only on mass, not on speed.*\n\n**2nd Law:** F = ma. Net force = mass × acceleration. This is the most calculation-heavy law — practice drawing Free Body Diagrams (FBDs) for every problem.\n\n**3rd Law:** Every action has an equal and opposite reaction. Forces always act in *pairs* on *different objects*.\n\n**JEE Pro Tip:** Most Newton's law problems involve constraints — pulleys, wedges, and strings. Master constraint equations first. Practice: HC Verma Ch.5, 6.`;
+    }
+
+    if (t.match(/gravitat|gravity|kepler|satellite|orbital|escape velocity|g = |universal law/)) {
+      return `**Gravitation** 🌍\n\nKey Formulas:\n• F = Gm₁m₂/r² (Newton's Law)\n• g = GM/R² (surface gravity)\n• Escape velocity = √(2gR) ≈ 11.2 km/s for Earth\n• Orbital velocity = √(GM/r)\n• T² ∝ r³ (Kepler's 3rd Law)\n\n**Common Mistakes:**\n❌ Confusing orbital velocity with escape velocity\n❌ Using g = 9.8 where they should use GM/r²\n\n**High-Yield for JEE:** Satellite energy (KE, PE, Total), geostationary orbits, variation of g with height/depth/latitude.\n\nPractice: NCERT + DC Pandey Chapter on Gravitation.`;
+    }
+
+    if (t.match(/electro(stat|magnet|dynamic)|coulomb|electric field|gauss|capacitor|current|resistance|ohm|kirchhoff|faraday|lenz|inductor|transformer/)) {
+      return `**Electrostatics & Electromagnetism** ⚡\n\nThis is the **highest-weightage topic in JEE Physics** (15-20% of questions).\n\n**Key Concepts:**\n• Coulomb's Law: F = kq₁q₂/r²\n• Electric Field (E) — use superposition principle\n• Gauss's Law: ∮E·dA = q_enc/ε₀ — powerful for symmetric charge distributions\n• Capacitors: Series (1/C_eq = Σ1/C), Parallel (C_eq = ΣC)\n• Kirchhoff's Laws: KCL (currents), KVL (voltages)\n• Faraday's Law: EMF = -dΦ/dt\n\n**FocusBot Strategy:** Do all NCERT examples + H.C. Verma exercises for this chapter BEFORE any other resources. This one chapter can change your rank significantly. 🏆`;
+    }
+
+    if (t.match(/wave|sound|doppler|standing wave|resonan|superposit|diffract|interfer|young'?s|snell|refract|lens|mirror|optic/)) {
+      return `**Waves & Optics** 🌊🔬\n\n**Sound Waves:**\n• Speed of sound in air ≈ 332 m/s (0°C); increases with temperature\n• Doppler Effect: f' = f(v ± v_observer)/(v ∓ v_source)\n• Standing Waves: nodes (zero amplitude) & antinodes (max amplitude)\n\n**Optics:**\n• Mirror formula: 1/f = 1/v + 1/u\n• Lens formula: 1/f = 1/v - 1/u\n• Snell's Law: n₁sinθ₁ = n₂sinθ₂\n• Young's Double Slit: fringe width β = λD/d\n\n**JEE Tip:** Ray optics problems often combine mirrors + lenses. Practice equivalent focal length problems. Refraction is very frequently tested.`;
+    }
+
+    if (t.match(/thermodynamic|heat|entropy|carnot|first law|second law|isothermal|adiabatic|isobaric|isochoric|pv diagram|kinetic theory|ideal gas/)) {
+      return `**Thermodynamics & Kinetic Theory** 🔥\n\n**First Law:** ΔU = Q - W (Energy is conserved)\n**Second Law:** Heat flows from hot to cold; entropy of universe always increases.\n\n**Key Processes (PV diagrams are CRUCIAL!):**\n• Isothermal: T constant → PV = constant\n• Adiabatic: Q = 0 → PVᵞ = constant\n• Isobaric: P constant → W = PΔV\n• Isochoric: V constant → W = 0, Q = ΔU\n\n**Carnot Efficiency:** η = 1 - T_cold/T_hot (maximum possible)\n\n**KTM:** KE per molecule = (3/2)kT; rms speed = √(3RT/M)\n\n**JEE Tip:** Focus heavily on PV diagrams — recognize process shapes and calculate Work = area under curve.`;
+    }
+
+    if (t.match(/modern physics|photoelectric|einstein|de broglie|bohr|hydrogen|atomic|nuclear|radioact|half.?life|fission|fusion/)) {
+      return `**Modern Physics** ⚛️\n\n**Photoelectric Effect (Einstein):**\n• KE_max = hν - φ (φ = work function)\n• Threshold frequency: ν₀ = φ/h\n\n**Bohr's Model (Hydrogen):**\n• Energy of nth orbit: Eₙ = -13.6/n² eV\n• Radius: rₙ = 0.529n² Å\n• For transitions: ΔE = 13.6(1/n₁² - 1/n₂²) eV\n\n**De Broglie Wavelength:** λ = h/mv = h/p\n\n**Nuclear Physics:**\n• Radioactive decay: N = N₀e^(-λt)\n• Half-life: t½ = 0.693/λ\n• Q-value = (mass of reactants - mass of products)c²\n\n**JEE Tip:** Bohr's model and Photoelectric effect together appear almost every year. Master the energy level diagram.`;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ── CHEMISTRY TOPICS ──────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+
+    if (t.match(/organic chem|carbon compound|alkane|alkene|alkyne|aromatic|benzene|isomer|nomenclature|iupac|functional group/)) {
+      return `**Organic Chemistry Fundamentals** 🧪\n\n**Strategy:** Don't memorize reactions — understand *why* they happen using electron pushing (curved arrow mechanism).\n\n**Key Functional Groups to master first:**\nAlcohols (-OH) → Aldehydes/Ketones (C=O) → Carboxylic Acids (-COOH) → Amines (-NH₂)\n\n**Most Important Reactions for JEE/NEET:**\n• SN1 vs SN2 (substitution) — depends on substrate & nucleophile strength\n• E1 vs E2 (elimination) — Zaitsev's rule\n• Addition to C=C (Markovnikov's rule)\n• Aldol condensation, Cannizzaro, Grignard reagent\n\n**Learning Method:** For each reaction, draw the mechanism step-by-step until you can do it from memory. Then solve 10 problems applying it.`;
+    }
+
+    if (t.match(/physical chem|mole concept|stoichiometr|equilibrium|le chatelier|acid.?base|ph|buffer|electrochemistry|electrode|nernst|colligative/)) {
+      return `**Physical Chemistry** ⚗️\n\n**Mole Concept:** The foundation of all chemistry. Master mole-mole, mole-mass, limiting reagent problems first.\n\n**Chemical Equilibrium:**\n• Kc = [products]/[reactants] (molar concentrations)\n• Le Chatelier's Principle: system opposes any change to restore equilibrium\n• Q vs K: if Q < K → reaction proceeds forward\n\n**Acids & Bases:**\n• pH = -log[H⁺]; pOH = -log[OH⁻]; pH + pOH = 14\n• Buffer: resists pH change — Henderson-Hasselbalch: pH = pKa + log([A⁻]/[HA])\n\n**Electrochemistry:**\n• Nernst Equation: E = E° - (RT/nF)lnQ\n• Faraday's Laws: mass deposited ∝ charge passed\n\n**JEE Tip:** Physical Chemistry is the most formula-heavy. Make a formula sheet and revise daily.`;
+    }
+
+    if (t.match(/inorganic|periodic table|s block|p block|d block|f block|transition metal|coordination compound|crystal field|valence bond|hybridiz|vsepr/)) {
+      return `**Inorganic Chemistry** 🔩\n\n**Periodic Table Trends (must memorize):**\n• Atomic radius: decreases → across period, increases ↓ group\n• Ionization Energy: increases →, decreases ↓\n• Electronegativity: F is highest (3.98)\n\n**Hybridization & VSEPR:**\n• sp: linear (180°) — CO₂, BeCl₂\n• sp²: trigonal planar (120°) — BF₃\n• sp³: tetrahedral (109.5°) — CH₄; bent if lone pairs (H₂O)\n\n**Coordination Compounds:**\n• Oxidation state, coordination number, ligand types (mono, bi, polydentate)\n• Crystal Field Theory: strong field = low spin; weak field = high spin\n\n**Inorganic Strategy:** Pure memory here. Use flashcards + mnemonics. Spend 15 mins every morning on one p-block group.`;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ── MATHS TOPICS ─────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+
+    if (t.match(/calculus|differentiat|integrat|limit|continuity|derivative|rolle|lagrange|mvt/)) {
+      return `**Calculus** 📐\n\n**Limits:** L'Hôpital's rule for 0/0 or ∞/∞ forms. Key limits: lim(sinx/x)=1, lim((1+1/n)^n)=e\n\n**Differentiation:**\n• Chain rule: d/dx[f(g(x))] = f'(g(x))·g'(x)\n• Product rule: (uv)' = u'v + uv'\n• Quotient rule: (u/v)' = (u'v - uv')/v²\n\n**Integration:**\n• Standard forms, substitution, integration by parts: ∫udv = uv - ∫vdu\n• Definite integrals: use LIATE rule for by-parts order\n• Area between curves: ∫|f(x) - g(x)|dx\n\n**JEE High-Yield:** Definite integrals with properties (∫₀ᵃ f(a-x)dx tricks), and application of derivatives (maxima/minima, tangent/normal).`;
+    }
+
+    if (t.match(/trigonometr|sin|cos|tan|cot|sec|cosec|inverse trig|arcsin|arccos|arctan|compound angle|multiple angle/)) {
+      return `**Trigonometry** 📏\n\n**Fundamental Identities:**\n• sin²θ + cos²θ = 1\n• 1 + tan²θ = sec²θ\n• 1 + cot²θ = cosec²θ\n\n**Compound Angles:**\n• sin(A±B) = sinAcosB ± cosAsinB\n• cos(A±B) = cosAcosB ∓ sinAsinB\n• tan(A±B) = (tanA ± tanB)/(1 ∓ tanAtanB)\n\n**Key Values to memorize:** sin30°=½, sin45°=1/√2, sin60°=√3/2\n\n**Inverse Trig:** Domain restrictions are critical — sin⁻¹ is defined on [-π/2, π/2], cos⁻¹ on [0, π].\n\n**JEE Tip:** Trigonometric equations and inequalities appear frequently. Practice finding general solutions: sinx = k → x = nπ + (-1)ⁿ·sin⁻¹k.`;
+    }
+
+    if (t.match(/probability|permutation|combination|binomial|bayes|conditional|random variable/)) {
+      return `**Probability, Permutation & Combination** 🎲\n\n**Counting:**\n• nPr = n!/(n-r)! (ordered arrangements)\n• nCr = n!/[r!(n-r)!] (unordered selections)\n• Key trick: identical objects → divide by repetition factorial\n\n**Probability:**\n• P(A∪B) = P(A) + P(B) - P(A∩B)\n• Conditional: P(A|B) = P(A∩B)/P(B)\n• Bayes' Theorem: P(A|B) = P(B|A)·P(A)/P(B)\n• Independent events: P(A∩B) = P(A)·P(B)\n\n**Binomial Distribution:** P(X=r) = nCr·pʳ·(1-p)^(n-r)\n\n**JEE Tip:** Always ask: "Is order important?" → Yes = Permutation, No = Combination. Most mistakes happen here.`;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ── BIOLOGY (NEET) ───────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+
+    if (t.match(/cell (biology|division|cycle|organelle|membrane|wall)|mitosis|meiosis|prokaryot|eukaryot/)) {
+      return `**Cell Biology** 🔬\n\n**Cell Types:**\n• Prokaryotic (bacteria): no membrane-bound nucleus, smaller (70S ribosomes)\n• Eukaryotic (plants, animals, fungi): membrane-bound nucleus (80S ribosomes)\n\n**Cell Division:**\n• **Mitosis** (PMAT): Prophase, Metaphase, Anaphase, Telophase → 2 identical daughter cells (growth & repair)\n• **Meiosis**: 2 rounds → 4 genetically unique cells (gametes); crossing-over in Prophase I creates genetic diversity\n\n**Key Organelles:**\n• Mitochondria: ATP production (powerhouse) — has own DNA\n• Chloroplast: Photosynthesis — has own DNA\n• Ribosome: Protein synthesis (site of translation)\n• ER: Rough (ribosomes, protein synthesis), Smooth (lipid synthesis)\n\n**NEET Tip:** Cell biology is ~10-15% of NEET. Focus on differences between plant and animal cells, and the stages of mitosis/meiosis.`;
+    }
+
+    if (t.match(/photosynthesis|light reaction|dark reaction|calvin cycle|chlorophyll|c3|c4|cam plant|transpiration|respiration|krebs|glycolysis|electron transport/)) {
+      return `**Plant Physiology (Photosynthesis & Respiration)** 🌱\n\n**Photosynthesis:**\n• **Light Reactions** (Thylakoid): Water splits → O₂ released, ATP & NADPH produced\n• **Calvin Cycle/Dark Reactions** (Stroma): CO₂ fixed → Glucose (G3P)\n• C3 plants: first product = 3-PGA (e.g., wheat, rice)\n• C4 plants: first product = oxaloacetate (e.g., maize, sugarcane) — more efficient\n• CAM plants: open stomata at night (e.g., cacti) — water-saving\n\n**Cellular Respiration:**\n• Glycolysis (cytoplasm): Glucose → 2 Pyruvate + 2 ATP\n• Krebs Cycle (mitochondrial matrix): 2 ATP per glucose\n• ETC (inner membrane): 34 ATP per glucose\n• **Total aerobic: ~38 ATP**; Anaerobic (fermentation): 2 ATP only\n\n**NEET Tip:** Draw the full diagram of photosynthesis and respiration. Questions often ask about the location of specific steps.`;
+    }
+
+    if (t.match(/genetics|mendel|heredity|dna|rna|replication|transcription|translation|mutation|chromosome|punnett|allele|dominant|recessive|codominan/)) {
+      return `**Genetics & Molecular Biology** 🧬\n\n**Mendel's Laws:**\n• Law of Segregation: alleles separate during gamete formation\n• Law of Independent Assortment: genes on different chromosomes assort independently\n\n**DNA Replication:** Semi-conservative — each new DNA has one old + one new strand. Enzyme: DNA Polymerase III (adds nucleotides 5'→3')\n\n**Central Dogma:** DNA → (Transcription) → mRNA → (Translation) → Protein\n\n**Codons:** 64 codons, 61 code amino acids, 3 are stop codons (UAA, UAG, UGA). Start codon: AUG (Methionine)\n\n**Punnett Square Tip:** For 2 genes: 9:3:3:1 ratio (dihybrid cross). Memorize deviations: Epistasis, Incomplete dominance, Codominance.\n\n**NEET Tip:** Genetics = 18+ questions. Master crosses, linkage, and sex-linked inheritance.`;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ── UPSC TOPICS ──────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+
+    if (t.match(/indian constitution|polity|fundamental right|directive principle|dpsp|parliament|president|governor|article \d|judiciary|preamble/)) {
+      return `**Indian Polity (UPSC)** ⚖️\n\n**Preamble:** Sovereign, Socialist, Secular, Democratic, Republic — (Socialist & Secular added by 42nd Amendment 1976)\n\n**Fundamental Rights (Part III, Art 12-35):**\n• Art 14: Equality before law\n• Art 19: 6 freedoms (speech, assembly, movement, etc.)\n• Art 21: Right to Life & Personal Liberty (most litigated)\n• Art 32: Right to Constitutional Remedies (Dr. Ambedkar called it the "heart & soul")\n\n**DPSP (Part IV, Art 36-51):** Non-justiciable but fundamental to governance. Key: Art 44 (Uniform Civil Code), Art 45 (Early childhood education)\n\n**Parliament:** Lok Sabha (max 552 members), Rajya Sabha (max 250). Money Bills only in Lok Sabha.\n\n**UPSC Tip:** Read Laxmikant cover-to-cover. Focus on Constitutional Amendments (42nd, 44th, 73rd, 74th, 86th, 91st) — they always appear in Prelims.`;
+    }
+
+    if (t.match(/history|ancient india|medieval|mughal|british|freedom struggle|independence|gandhi|nehru|revolt 1857|colonial/)) {
+      return `**Indian History (UPSC)** 📜\n\n**Ancient India:**\n• Indus Valley Civilization (2600-1900 BCE): Harappa, Mohenjo-daro — urban planning, no iron\n• Vedic Period: Rig Veda (oldest), Varna system, Sabha & Samiti\n• Mauryan Empire: Chandragupta → Bindusara → Ashoka (Kalinga War, Dhamma)\n• Gupta Period: Golden Age — Aryabhata, Kalidasa, decimal system\n\n**Medieval India:**\n• Delhi Sultanate → Mughal Empire (Babur to Aurangzeb)\n• Bhakti & Sufi movements — social reform\n\n**Modern India / Freedom Struggle:**\n• 1857 Revolt → 1885 INC founded → Partition of Bengal 1905 → Non-Cooperation (1920) → Civil Disobedience (1930 Salt March) → Quit India (1942) → Independence 1947\n\n**UPSC Tip:** For Prelims, focus on art & culture, dynasties, and dates. For Mains, focus on causes, socio-economic impacts, and personalities.`;
+    }
+
+    if (t.match(/geography|climate|monsoon|river|mountain|soil|vegetation|natural resource|latitude|longitude|continent|ocean|plate tectonic|earthquake|volcano/)) {
+      return `**Geography (UPSC/General)** 🌏\n\n**Indian Geography:**\n• 5 physiographic divisions: Himalayas, Northern Plains, Peninsular Plateau, Coastal Plains, Islands\n• Major Rivers: Himalayan (perennial — Ganga, Yamuna, Brahmaputra), Peninsular (seasonal — Godavari, Krishna)\n• Monsoon: SW Monsoon (Jun-Sep) — Arabian Sea + Bay of Bengal branches\n\n**Climate Zones:** Tropical Wet, Tropical Dry, Subtropical Humid, Mountain\n\n**World Geography:**\n• Largest continent: Asia; Smallest: Australia\n• Deepest ocean trench: Mariana Trench (Pacific)\n• Plate Tectonics: Convergent (mountains/trenches), Divergent (rifts/ridges), Transform (earthquakes)\n\n**UPSC Tip:** NCERTs (Class 6-12 Geography) are essential. Maps are critical — practice locating rivers, mountains, national parks, and passes on a blank map.`;
+    }
+
+    if (t.match(/economy|gdp|inflation|fiscal policy|monetary policy|rbi|budget|banking|poverty|agriculture|current account|balance of payment/)) {
+      return `**Indian Economy (UPSC)** 💹\n\n**Key Concepts:**\n• GDP = C + I + G + (X-M) — Consumption + Investment + Government + Net Exports\n• Inflation measured by CPI (Consumer Price Index) — RBI target: 4% ±2%\n• Repo Rate: rate at which RBI lends to banks (tool to control inflation)\n• Fiscal Deficit = Total Expenditure - Total Revenue (excl. borrowings)\n\n**Key Bodies:**\n• RBI: Monetary policy, currency, banking regulation\n• SEBI: Stock market regulator\n• NITI Aayog: Policy think tank (replaced Planning Commission in 2015)\n\n**Agriculture:** ~14% of GDP but employs ~50% workforce. Green Revolution, MSP, PM-KISAN.\n\n**UPSC Tip:** Read Economic Survey + Union Budget summary every year. Follow The Hindu/Indian Express economy section for current events.`;
+    }
+
+    if (t.match(/current affairs|news|recent|2024|2025|2026|today|latest/)) {
+      return `**Current Affairs Strategy (UPSC)** 📰\n\nI don't have real-time internet access, so I can't give today's news. But here's the *best strategy* for current affairs:\n\n**Daily Routine:**\n• Read **The Hindu** or **Indian Express** (30-45 min) — focus on editorial + national/international\n• Take notes on: Government schemes, SC judgments, international summits, awards, reports, indices\n\n**Monthly:**\n• Read **Vision IAS or Insights monthly current affairs PDF** (free online)\n• Focus: Economy, Environment, Science & Tech, IR, Governance\n\n**For UPSC Prelims:** Current affairs of the last 12-18 months before the exam are most relevant.\n\n**Tools:** Use the Community tab here to discuss news with fellow aspirants! 💬`;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ── STUDY SCIENCE & PRODUCTIVITY ─────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+
+    if (t.match(/distract|phone|reel|tiktok|instagram|procrastinat|can't (study|focus)|lazy|keep (checking|scrolling)|doom.?scroll/)) {
+      return `**Beating Distraction** 📵\n\nYour phone is engineered by billion-dollar companies to hijack your dopamine system. Here's how to fight back:\n\n**Immediate Actions:**\n1. Put your phone in another room (out of sight = out of mind)\n2. Use app blockers: **Freedom**, **Cold Turkey**, or simply enable "Focus Mode" in your phone settings\n3. Start with just 5 minutes of focused work — the brain will continue once started (Zeigarnik Effect)\n\n**Environment Design:**\n• Study in a boring, distraction-free space\n• Have water and snacks ready so you don't need to get up\n• Use the Pomodoro timer here — 25 min work, 5 min break\n\n**Mindset Shift:** Every time you pick up your phone during study, you lose 23 minutes of deep focus (research by Gloria Mark). One scroll = one chapter lost. 🔥`;
+    }
+
+    if (t.match(/stress|anxi|nervous|burnout|overwhelm|too much|can't cope|pressure|panic|mental health/)) {
+      return `**Managing Exam Stress & Burnout** 💙\n\nFirst — what you're feeling is completely normal and you're not alone. Here's what actually works:\n\n**Immediate Relief (do this now):**\n• **Box breathing:** Inhale 4s → Hold 4s → Exhale 4s → Hold 4s. Repeat 4 times. This activates your parasympathetic nervous system.\n• Take a 20-minute walk outside — sunlight + movement = natural cortisol reset\n\n**Structural Fixes:**\n• Break your syllabus into tiny daily tasks (Dashboard helps with this)\n• Celebrate small wins — every completed subtask is a win worth acknowledging\n• Sleep 7.5-8 hours non-negotiably — sleep consolidates memory and reduces anxiety\n\n**Mindset:** You are not behind. You are exactly where you need to be *right now*. Progress, not perfection. One chapter today > zero chapters because you're overwhelmed. 💪`;
+    }
+
+    if (t.match(/memor|forget|remember|retain|recall|revision|spaced repetition|flashcard|notes/)) {
+      return `**Memory & Retention Science** 🧠\n\nYour brain forgets 80% of new information within 24 hours (Ebbinghaus Forgetting Curve) — unless you actively fight it.\n\n**The 3 Most Powerful Techniques:**\n\n**1. Active Recall:** Don't re-read. Close the book and write/say everything you remember. Then check what you missed.\n\n**2. Spaced Repetition:** Review material at increasing intervals:\n• 1 day after learning → 3 days → 7 days → 21 days → 2 months\n• Use Anki app (free) for flashcards that auto-schedule this\n\n**3. The Feynman Technique:** Explain the concept in simple language as if teaching a child. Where you stumble = your gap.\n\n**Notes Strategy:** Don't copy textbook notes. Write in your own words. Use mind maps for interconnected topics.\n\n**For FocusModePlayer:** Use the Journal tab to write what you learned today — this forces active recall! 📓`;
+    }
+
+    if (t.match(/sleep|tired|exhaust|sleep schedule|nap|wake up|morning|night study/)) {
+      return `**Sleep & Study Optimization** 😴\n\n**Why sleep is non-negotiable:**\nDuring deep sleep (NREM stage 3), your brain replays and consolidates everything you studied. Cutting sleep doesn't give more study time — it erases what you already studied.\n\n**Optimal Schedule:**\n• Aim for **7.5 hours** (5 full 90-min sleep cycles)\n• Avoid studying complex material in the last 30 min before bed — do light review instead\n• A **20-minute power nap** (1-3pm) can restore 3 hours of cognitive performance\n\n**Night vs Morning Study:**\n• Morning (after waking): Best for new, difficult material — cortisol is high, alertness is peak\n• Evening: Good for revision and practice problems\n• Late night (post 11pm): Avoid unless you're a true night owl — diminishing returns\n\n**Practical tip:** Put your phone across the room before sleeping. Screens suppress melatonin by 50%.`;
+    }
+
+    if (t.match(/pomodoro|timer|focus session|25 min|break time|study session/)) {
+      return `**Pomodoro Technique — Advanced Guide** ⏱️\n\nThe basic version: 25 min work → 5 min break. But here's how to make it even more powerful:\n\n**Before Each Session:**\n• Write exactly ONE specific task on paper: "Solve HC Verma Ch.5 Q.15-25"\n• Remove all distractions (phone away, notifications off)\n• Start the timer immediately — don't "prepare to start"\n\n**During Session:**\n• If a distraction thought comes, write it down quickly and return to work\n• Don't check the timer — trust it\n\n**After 4 Pomodoros:** Take a longer 20-30 min break. Walk, eat, hydrate.\n\n**XP Reward:** You earn +50 XP for every Pomodoro you complete here — that's not just a game, it's your brain getting a dopamine reward for discipline. Use it! 🎯\n\nGo start a session right now on the Dashboard tab.`;
+    }
+
+    if (t.match(/mock test|pyq|previous year|test series|analyze mock|score improve|rank|percentile/)) {
+      return `**Mock Test Strategy — The Right Way** 📊\n\n**Most students do mocks wrong.** They take a test, feel bad about the score, and move on. Here's the elite approach:\n\n**Phase 1 — During Mock (Simulate Exam):**\n• Full exam conditions: same time, no phone, no breaks\n• Mark questions: ✓ (sure), ? (unsure), ✗ (guessed)\n\n**Phase 2 — Analysis (equally important as the test):**\n• Category every wrong answer: Silly mistake? Conceptual gap? Never studied? Time pressure?\n• Enter ALL mistakes into your Journal & Mistakes tab here\n• Calculate topic-wise accuracy — which topics are your "high-loss" areas?\n\n**Phase 3 — Targeted Revision:**\n• Spend 2 hours specifically on your weakest category from Phase 2\n• Re-solve the wrong questions (without looking at solutions) after 3 days\n\n**Frequency:** Take 1 full mock every week from 3 months before the exam. Analyze 2 days, revise 2 days, take the next mock.`;
+    }
+
+    if (t.match(/motivat|give up|quit|why study|what's the point|demotivat|no energy|depressed|lost|purpose/)) {
+      return `**When You Feel Like Giving Up** 🔥\n\nThis feeling is not a sign of weakness — it's a sign you care deeply about your goal. Here's the truth:\n\n**The 2% Rule:** You don't need to be motivated. You need to be 2% better today than yesterday. That's it. Not 100% — just 2%.\n\n**Think about this:** The exam will happen whether you study or not. The only variable is how you show up. Future-you will either thank present-you or wish you had started.\n\n**Practical reset:**\n1. Write down your ONE reason for doing this (career, family, dream). Physically write it.\n2. Open ONE page/video of study material\n3. Set a timer for just 10 minutes\n4. You will rarely stop at 10 minutes — starting is the hardest part\n\n**Remember:** The people who "make it" are not smarter. They are the ones who got up one more time than they fell down. 💪\n\nYou've got this. Now go start the timer.`;
+    }
+
+    if (t.match(/time.?table|schedule|routine|plan|how many hours|study plan|study schedule|daily routine/)) {
+      return `**Building an Effective Study Schedule** 📅\n\n**The Anti-Burnout Schedule (proven for JEE/NEET/UPSC):**\n\n**Daily Structure:**\n• 6:00-7:00 AM — Morning ritual (exercise, fresh air, breakfast)\n• 7:00-12:00 PM — Deep work block (hardest subjects first)\n• 12:00-1:00 PM — Lunch + rest\n• 1:00-4:00 PM — Second deep work block\n• 4:00-4:30 PM — Break (walk, light snack)\n• 4:30-7:00 PM — Practice problems + PYQs\n• 7:00-8:00 PM — Dinner + rest\n• 8:00-10:00 PM — Light revision, flashcards, notes\n• 10:00 PM — Wind down, NO screens, sleep by 10:30\n\n**Key Principles:**\n• Quality > Quantity. 6 hours of focused work beats 12 hours of distracted studying.\n• Rotate subjects — don't study the same subject >3 hours continuously\n• Add your daily tasks to the Dashboard here for accountability!\n\n**Pareto Rule:** 80% of your marks come from 20% of the syllabus. Identify those chapters.`;
+    }
+
+    if (t.match(/diet|food|eat|nutrition|brain food|what to eat|water|hydrat|caffeine|coffee|energy/)) {
+      return `**Brain Nutrition for Exam Prep** 🍎\n\n**Foods that boost cognitive function:**\n• **Walnuts & Almonds:** Omega-3 + Vitamin E → improve memory and focus\n• **Blueberries:** Antioxidants → protect brain cells, improve learning\n• **Dark Chocolate (>70%):** Flavonoids + caffeine → attention and blood flow\n• **Eggs:** Choline → neurotransmitter production (memory)\n• **Green tea:** L-Theanine + caffeine → calm focus without jitteriness\n\n**What to AVOID:**\n• Heavy, oily food before study → blood goes to digestion, brain gets sluggish\n• Sugar spikes (chips, sweets) → energy crash after 30 min\n• Too much caffeine → anxiety, disrupts sleep\n\n**Hydration:** Your brain is 73% water. Even 1-2% dehydration reduces cognitive performance by 20%. Keep a water bottle on your desk. Drink 2.5-3L/day.\n\n**Caffeine timing:** Don't drink coffee for the first 90 min after waking (let natural cortisol peak first).`;
+    }
+
+    // ── GENERAL KNOWLEDGE CATCH-ALL + WIKIPEDIA ──────────────────────────────
     try {
-      let query = t.replace(/^(what is|who is|tell me about|explain|how does|what are|define|where is)\s+/i, '').trim();
-      query = query.replace(/[?.,!]/g, '');
-      
-      if (query.length > 2) {
+      // Try multiple query extraction strategies
+      const patterns = [
+        /^(?:what is|what are|who is|who was|explain|define|tell me about|how does|how do|what does|describe|when was|where is|why is|why does)\s+(.+)/i,
+        /^(.+?)\s+(?:explained?|meaning|definition|formula|concept|theory|law|principle|equation)$/i,
+        /^(.+?)\?$/i,
+      ];
+
+      let query = null;
+      for (const p of patterns) {
+        const match = t.match(p);
+        if (match) { query = match[1].trim(); break; }
+      }
+      if (!query) query = t.replace(/[?.,!]/g, '').trim();
+
+      if (query && query.length > 3 && query.length < 100) {
         const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`);
         if (res.ok) {
-           const data = await res.json();
-           if (data && data.extract) {
-             return `Here is what I found in my global knowledge base:\n\n${data.extract}`;
-           }
+          const data = await res.json();
+          if (data?.extract && data.extract.length > 50) {
+            const extract = data.extract.length > 600 ? data.extract.slice(0, 600) + '...' : data.extract;
+            return `📚 **${data.title}**\n\n${extract}\n\n---\n💡 *Want a deeper explanation, practice problems, or study strategy for this topic? Just ask!*`;
+          }
         }
       }
     } catch (err) {
-      console.log('Wiki fetch failed', err);
+      // silent fail — fall through to smart fallbacks
     }
 
-    // FALLBACKS (If no keyword matches and no wiki page found)
-    const fallbacks = [
-      "I've scanned my database, and the best approach here is to break this down into smaller pieces. What is the absolute smallest, easiest step you can take on this right now?",
-      "That's an interesting challenge. Have you tried logging this in your Learning Journal? Formulating the problem in writing often reveals the solution to your brain automatically.",
-      "Based on top performers' data, my best advice here is consistency. Don't look for a magic bullet; just put in 45 minutes of deep, uninterrupted work right now.",
-      "Got it. Whenever you feel stuck like this, I highly recommend jumping into a Study Connect room. Co-working silently with others triggers 'body doubling', which massively boosts focus!"
+    // ── SMART CONTEXTUAL FALLBACKS ────────────────────────────────────────────
+    const smartFallbacks = [
+      `Hmm, I want to give you a *really good* answer on this. Could you be a bit more specific? For example:\n• Which exam are you preparing for? (JEE/NEET/UPSC)\n• Is this a concept doubt, a formula question, or a strategy question?\n• Which chapter or topic does this relate to?\n\nThe more specific you are, the better I can help! 🎯`,
+      `Great question! This might be outside my current topic library, but let me try to help. Could you rephrase it or give more context? For example: "Explain [concept] for JEE" or "How to solve [type of problem]". I cover Physics, Chemistry, Maths, Biology, Polity, History, Geography, and study strategy deeply. 💡`,
+      `I'm processing that... I have deep knowledge in JEE, NEET, UPSC topics and study science. Try asking something like:\n• "Explain Newton's laws"\n• "How to study organic chemistry"\n• "Best strategy for mock tests"\n• "I'm feeling burned out"\n\nI'll give you a detailed, specific answer! 🧠`,
+      `That's an interesting one! I may not have a pre-trained response for exactly that, but here's my best advice: break it down into the smallest possible question. What is the *one thing* you don't understand about this topic? Ask me that, and I'll give you the clearest possible explanation. 🎯`,
     ];
-    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    return smartFallbacks[Math.floor(Math.random() * smartFallbacks.length)];
   };
 
   const handleAISend = async (e) => {
