@@ -1026,13 +1026,6 @@ const App = () => {
       { id: 'IB', label: 'IB / AP', color: '#ec4899', desc: 'Global High School Curriculum', icon: <Globe size={28}/> },
     ];
     const buildJitsiRoom = (roomId) => `FocusModePlayer-${roomId}-Study-${sessionUser.replace(/[^a-zA-Z0-9]/g, '')}`;
-    
-    const joinRandomRoom = () => {
-      const roomNum = Math.floor(Math.random() * 5) + 1;
-      setConnectRoom(`Omegle-Global-${roomNum}`);
-      setInCall(true);
-      awardXP(15, 'Joined Global Random Chat');
-    };
 
     if (inCall && connectRoom) {
       const jitsiRoom = buildJitsiRoom(connectRoom);
@@ -1065,18 +1058,6 @@ const App = () => {
           <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto'}}>Jump into a live video room with other aspirants preparing for the same exam. Camera + mic enabled — totally free.</p>
         </div>
 
-        {/* Global Random Match (Omegle Style) */}
-        <div className="glass" style={{padding: '2rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2rem', background: 'linear-gradient(45deg, rgba(15,23,42,0.8), rgba(30,27,75,0.8))', borderColor: 'rgba(168,85,247,0.4)', marginBottom: '1rem'}}>
-          <div style={{flex: '1 1 300px'}}>
-            <h3 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.4rem', color: '#fff', marginBottom: '0.5rem'}}>
-              <Users size={24} color="#a855f7" /> Global Random Match (Omegle Style)
-            </h3>
-            <p style={{color: '#94a3b8', fontSize: '1rem'}}>Instantly connect via video and chat with a random student somewhere in the world. Perfect for quick motivation, exchanging tips, or taking a social break.</p>
-          </div>
-          <button onClick={joinRandomRoom} className="btn-primary" style={{flex: '0 0 auto', background: 'linear-gradient(90deg, #a855f7, #ec4899)', border: 'none', padding: '16px 32px', fontSize: '1.1rem', boxShadow: '0 0 20px rgba(168,85,247,0.4)'}}>
-            <Video size={20}/> Connect Now
-          </button>
-        </div>
         <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>Join an Exam Study Room</h3>
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem'}}>
           {examRooms.map(room => (
