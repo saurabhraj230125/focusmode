@@ -406,6 +406,32 @@ const App = () => {
       return `**Brain Nutrition for Exam Prep** 🍎\n\n**Foods that boost cognitive function:**\n• **Walnuts & Almonds:** Omega-3 + Vitamin E → improve memory and focus\n• **Blueberries:** Antioxidants → protect brain cells, improve learning\n• **Dark Chocolate (>70%):** Flavonoids + caffeine → attention and blood flow\n• **Eggs:** Choline → neurotransmitter production (memory)\n• **Green tea:** L-Theanine + caffeine → calm focus without jitteriness\n\n**What to AVOID:**\n• Heavy, oily food before study → blood goes to digestion, brain gets sluggish\n• Sugar spikes (chips, sweets) → energy crash after 30 min\n• Too much caffeine → anxiety, disrupts sleep\n\n**Hydration:** Your brain is 73% water. Even 1-2% dehydration reduces cognitive performance by 20%. Keep a water bottle on your desk. Drink 2.5-3L/day.\n\n**Caffeine timing:** Don't drink coffee for the first 90 min after waking (let natural cortisol peak first).`;
     }
 
+    // ── WEBSITE / APP FEATURE ALIGNMENT ─────────────────────────────────────
+    
+    if (t.match(/how to use|what is this website|what is focusmodeplayer|guide|tutorial|how does this work|features/)) {
+      return `**Welcome to FocusModePlayer!** 🚀\n\nI am designed to be your ultimate study ecosystem. Here is how to use me for maximum productivity:\n\n**1. Dashboard (The Core):** Break your giant syllabus into Subjects → Modules → Subtasks. Check them off to earn XP.\n**2. Pomodoro Timer:** Use the 25-minute timer for intense focus sessions. Earning 50 XP per session builds a habit loop.\n**3. Community (Live):** Click the globe icon! It's a real-time feed of all aspirants worldwide. Share wins and tips.\n**4. Live Study Connect:** Join a virtual room to study silently with others (body doubling). It kills procrastination.\n**5. Journal & Mistakes:** At the end of the day, log what you learned and the mistakes you made. Active recall!\n**6. Lectures:** Paste any YouTube video URL. It blocks comments/recommendations and lets you take timestamped notes.\n\nStart by adding your first task on the Dashboard!`;
+    }
+
+    if (t.match(/community|chat|feed|other students|talk to|social/)) {
+      return `**The Global Community Feed** 🌍\n\nStudying for competitive exams can feel lonely. That's why we built the real-time Community!\n\n• **Real-Time Sync:** Every post, like, and comment is instantly synced globally without refreshing.\n• **Accountability:** Post your daily targets: *"I will complete 50 Physics MCQs today."* When you declare it publicly, you are 3x more likely to do it.\n• **Help:** Stuck on a concept? Ask the community! Someone preparing for the same exam might have a great shortcut.\n\nHead over to the Community tab and drop a "Hello" right now!`;
+    }
+
+    if (t.match(/study connect|live room|jitsi|video call|body doubling|study together/)) {
+      return `**Live Study Connect (Body Doubling)** 🎥\n\nProcrastinating? Join a Live Study Room!\n\n**The Psychology of Body Doubling:**\nWhen you see others working focused on camera, mirror neurons in your brain trigger your own focus state. It creates a subtle, powerful social pressure to not scroll Instagram.\n\n**How to use it:**\n1. Go to the Study Connect tab\n2. Click "Join Public Focus Room"\n3. Keep your camera on (audio is muted by default) angled at your desk/books\n4. Study for 1 hour straight\n\nYou earn 10 XP just for joining a room!`;
+    }
+    
+    if (t.match(/journal|mistakes|log|diary/)) {
+      return `**The Journal & Mistakes Log** 📓\n\nThis is your secret weapon. Most students solve problems, get them wrong, and move on. Elite students log them.\n\n**How to use the Journal:**\n• **Learned:** Briefly summarize the 2 most important concepts you learned today in your own words (Feynman Technique).\n• **Mistakes:** Every time you make a silly math error, misread a question, or apply the wrong formula — log it here.\n\nBefore your next mock test, read your Mistakes log. You will instantly boost your score by avoiding repeated errors.`;
+    }
+    
+    if (t.match(/xp|level|score|points|gamification|gamify/)) {
+      return `**XP & Leveling System** 🏆\n\nYour brain is wired to crave immediate rewards (like social media). We hijacked that system for studying!\n\n**How to earn XP:**\n• Complete a Pomodoro Session: **+50 XP**\n• Complete a full Subject Module: **+20 XP**\n• Log your Daily Journal: **+15 XP**\n• Join a Live Study Room: **+10 XP**\n• Complete a Subtask: **+5 XP**\n• Post in Community: **+2 XP**\n\nYour XP determines your Title (from Novice to Grandmaster). Treat this like an RPG game where *you* are the main character leveling up your real-life stats!`;
+    }
+
+    if (t.match(/video|lecture|youtube|notes|player/)) {
+      return `**The Distraction-Free Video Player** 📺\n\nYouTube is great for learning, but terrible for focus (the algorithm wants you to watch memes).\n\n**The Solution:**\nPaste any YouTube URL into the Lectures tab. We strip away the comments, recommended videos, and shorts.\n\n**Smart Notes:** While watching, use the text area below the video. Your notes are saved automatically and tied directly to that specific video. You can export them to text later!`;
+    }
+
     // ── GENERAL KNOWLEDGE CATCH-ALL + WIKIPEDIA ──────────────────────────────
     try {
       // Try multiple query extraction strategies
