@@ -9,7 +9,7 @@ const EVENTS_PATH = `${FIREBASE_URL}/focusmodeplayer/events`;
 
 const fetchEvents = async () => {
   try {
-    const res = await fetch(`${EVENTS_PATH}.json?orderBy="createdAt"&limitToLast=50`);
+    const res = await fetch(`${EVENTS_PATH}.json`);
     if (!res.ok) return {};
     const data = await res.json();
     return data || {};

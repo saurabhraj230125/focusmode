@@ -95,6 +95,14 @@ const extractYouTubeId = (url) => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
+const avatarColors = ['var(--accent-physics)','var(--accent-chem)','var(--accent-math)','var(--accent-success)','#f59e0b','#06b6d4'];
+const getAvatarColor = (name) => { 
+  if (!name) return avatarColors[0];
+  let h = 0; 
+  for (let c of name) h = c.charCodeAt(0) + ((h<<5)-h); 
+  return avatarColors[Math.abs(h)%avatarColors.length]; 
+};
+
 const App = () => {
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -1238,8 +1246,6 @@ const App = () => {
   const renderCommunity = () => {
     const trendingTags = ['#JEE2025','#NEET2025','#UPSC2025','#StudyTips','#OrganicChem','#Physics','#Discipline','#MockTest'];
     const tagCounts = [312, 284, 201, 178, 143, 129, 98, 87];
-    const avatarColors = ['var(--accent-physics)','var(--accent-chem)','var(--accent-math)','var(--accent-success)','#f59e0b','#06b6d4'];
-    const getAvatarColor = (name) => { let h = 0; for (let c of name) h = c.charCodeAt(0) + ((h<<5)-h); return avatarColors[Math.abs(h)%avatarColors.length]; };
     const getProfileData = (username) => {
       if (usersDb[username]) return usersDb[username].profile;
       const post = feed.find(f => f.user === username);
