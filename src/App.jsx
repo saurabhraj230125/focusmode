@@ -1166,7 +1166,6 @@ const App = () => {
       </div>
 
       <aside className="right-sidebar">
-        <div className="glass timer-card">
         <div className="glass timer-card" style={{position: 'relative', overflow: 'hidden'}}>
           <div style={{position: 'absolute', top: '-50px', left: '-50px', width: '150px', height: '150px', background: 'var(--accent-physics)', filter: 'blur(80px)', opacity: 0.3}}></div>
           <div style={{position: 'absolute', bottom: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-chem)', filter: 'blur(80px)', opacity: 0.3}}></div>
