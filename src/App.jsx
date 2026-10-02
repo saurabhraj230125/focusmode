@@ -99,7 +99,19 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [usersDb, setUsersDb] = useState({});
   const [sessionUser, setSessionUser] = useState(null); 
-  
+
+  // Derived User State
+  const currentUserProfile = usersDb[sessionUser]?.profile;
+  const currentXP = currentUserProfile?.xp || 0;
+
+  // ── Real-time Community (Gun.js) ──────────────────────────────────────────
+  const {
+    posts: feed,
+    postMessage: gunPostMessage,
+    toggleLike: gunToggleLike,
+    addComment: gunAddComment,
+  } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
+
   // Auth Form State
   const [authMode, setAuthMode] = useState('login'); 
   const [authUsername, setAuthUsername] = useState('');
@@ -529,13 +541,7 @@ const App = () => {
       if (sessionUser) {
         let xpGained = sessionType === 'pomodoro' ? 50 : 10;
         awardXP(xpGained, `Completed ${sessionType === 'pomodoro' ? 'Pomodoro Session' : 'Break'}`);
-        
-        const post = {
-          id: Date.now(), user: sessionUser,
-          action: `completed a ${sessionType === 'pomodoro' ? '25-minute Pomodoro' : 'short break'}.`,
-          time: 'just now', isChat: false
-        };
-        setFeed(prev => [post, ...prev]);
+        gunPostMessage(`completed a ${sessionType === 'pomodoro' ? '25-minute Pomodoro' : 'short break'}.`);
       }
     }
     return () => clearInterval(interval);
@@ -746,7 +752,7 @@ const App = () => {
     if (allCompletedNow) {
        trackModuleCompleted(subjectId);
        awardXP(20, 'Completed Full Module!');
-       setFeed(prev => [{ id: Date.now(), user: sessionUser, action: `just finished a full task module! 🚀`, time: 'just now', isChat: false }, ...prev]);
+       gunPostMessage(`just finished a full task module! 🚀`);
     }
   };
 
@@ -965,19 +971,9 @@ const App = () => {
     );
   }
 
-  const currentUserProfile = usersDb[sessionUser]?.profile;
   const isFullyOnboarded = !!currentUserProfile?.prepType;
   const isGuest = currentUserProfile?.isGuest;
-  const currentXP = currentUserProfile?.xp || 0;
   const { level, title } = getLevelData(currentXP);
-
-  // ── Real-time Community (Gun.js) ──────────────────────────────────────────
-  const {
-    posts: feed,
-    postMessage: gunPostMessage,
-    toggleLike: gunToggleLike,
-    addComment: gunAddComment,
-  } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
 
   const handlePostFeed = (e) => {
     e.preventDefault();
