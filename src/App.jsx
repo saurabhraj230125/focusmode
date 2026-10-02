@@ -1490,7 +1490,15 @@ const App = () => {
                
                <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem', position: 'relative', zIndex: 1}}>
                   <button className="btn-secondary" style={{borderRadius: '100px', padding: '10px 24px'}} onClick={() => setShowEventModal(false)}>Cancel</button>
-                  <button className="btn-primary" style={{borderRadius: '100px', padding: '10px 24px', background: 'white', color: 'black', fontWeight: 800}} onClick={() => { createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime); setShowEventModal(false); setNewEventTitle(''); setNewEventTime(''); awardXP(15, 'Scheduled a Community Event'); }}>🚀 Publish</button>
+                  <button className="btn-primary" style={{borderRadius: '100px', padding: '10px 24px', background: 'white', color: 'black', fontWeight: 800}} onClick={() => { 
+                    createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime); 
+                    gunPostMessage(`Hey everyone! I just scheduled a live study event: "${newEventTitle}" for ${newEventTime}! Jump into the Study Connect tab to join me! 🚀`);
+                    setShowEventModal(false); 
+                    setNewEventTitle(''); 
+                    setNewEventTime(''); 
+                    awardXP(15, 'Scheduled a Community Event');
+                    setActiveTab('community'); // Redirect to community to see the autopost
+                  }}>🚀 Publish</button>
                </div>
             </div>
           </div>
@@ -1503,8 +1511,8 @@ const App = () => {
                <h4 style={{fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem', lineHeight: 1.3}}>{e.title}</h4>
                
                <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.2rem'}}>
-                 <div style={{width: '24px', height: '24px', borderRadius: '50%', background: getAvatarColor(e.host), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 'bold'}}>{e.host.charAt(0).toUpperCase()}</div>
-                 <p style={{fontSize: '0.9rem', color: 'var(--text-muted)'}}>{e.host}</p>
+                 <div style={{width: '24px', height: '24px', borderRadius: '50%', background: getAvatarColor(e.host || 'Guest'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 'bold'}}>{(e.host || 'G').charAt(0).toUpperCase()}</div>
+                 <p style={{fontSize: '0.9rem', color: 'var(--text-muted)'}}>{e.host || 'Guest'}</p>
                </div>
                
                <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '8px', width: 'fit-content'}}>
