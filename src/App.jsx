@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
-  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle, ArrowUp
+  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle, ArrowUp, Search
 } from 'lucide-react';
 import {
   trackSignUp, trackLogin, trackLogout, trackGuestSession,
@@ -131,6 +131,10 @@ const App = () => {
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubreddit, setActiveSubreddit] = useState('All');
+  const [communitySearch, setCommunitySearch] = useState('');
+  const [joinedCommunities, setJoinedCommunities] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pm_communities') || '[]'); } catch { return []; }
+  });
   const [usersDb, setUsersDb] = useState({});
   const [sessionUser, setSessionUser] = useState(null); 
 
@@ -1795,9 +1799,37 @@ const App = () => {
       );
     };
 
-    const visibleFeed = activeSubreddit === 'All' 
-      ? feed 
-      : feed.filter(f => (f.action && f.action.includes(`#${activeSubreddit}`)) || f.prep === activeSubreddit);
+    const baseCommunities = ['All', 'JEE', 'NEET', 'UPSC', 'General', 'StudyTips'];
+    const allCommunities = [...baseCommunities, ...joinedCommunities];
+
+    const visibleFeed = feed.filter(f => {
+      let subMatch = true;
+      if (activeSubreddit !== 'All') {
+        subMatch = (f.action && f.action.includes(`#${activeSubreddit}`)) || f.prep === activeSubreddit;
+      }
+      let searchMatch = true;
+      if (communitySearch.trim()) {
+        const searchTxt = communitySearch.toLowerCase();
+        searchMatch = (f.action && f.action.toLowerCase().includes(searchTxt)) || 
+                      (f.user && f.user.toLowerCase().includes(searchTxt));
+      }
+      return subMatch && searchMatch;
+    });
+
+    const handleCreateCommunity = () => {
+      const name = window.prompt("Enter new community name (e.g. Coding, Math, Fitness):");
+      if (name && name.trim()) {
+        const cleanName = name.trim().replace(/\s+/g, '');
+        if (!allCommunities.includes(cleanName)) {
+          const newComms = [...joinedCommunities, cleanName];
+          setJoinedCommunities(newComms);
+          localStorage.setItem('pm_communities', JSON.stringify(newComms));
+          setActiveSubreddit(cleanName);
+        } else {
+          setActiveSubreddit(cleanName);
+        }
+      }
+    };
 
     const handleSubredditPost = (e) => {
       e.preventDefault();
@@ -1849,27 +1881,30 @@ const App = () => {
 
         {/* Left Sidebar - Subreddits */}
         <div className="community-left-sidebar">
-          <div className="glass" style={{padding: '1rem 0.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)'}}>
+          <div className="glass" style={{padding: '1rem 0.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', maxHeight: '60vh', overflowY: 'auto'}}>
             <h3 style={{fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.75rem', paddingLeft: '14px'}}>Communities</h3>
-            {['All', 'JEE', 'NEET', 'UPSC', 'General', 'StudyTips'].map(sub => (
+            {allCommunities.map(sub => (
               <div key={sub} className={`subreddit-item ${activeSubreddit === sub ? 'active' : ''}`} onClick={() => setActiveSubreddit(sub)}>
                 <div className="subreddit-icon">{sub === 'All' ? '🌍' : sub.charAt(0)}</div>
-                <span>{sub === 'All' ? 'Home' : `c/${sub}`}</span>
+                <span style={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{sub === 'All' ? 'Home' : `c/${sub}`}</span>
               </div>
             ))}
           </div>
-          <button className="btn-primary" style={{width: '100%', marginTop: '0.5rem', padding: '12px', borderRadius: '16px', fontWeight: 'bold'}} onClick={() => setActiveSubreddit('All')}><Plus size={16}/> Create Community</button>
+          <button className="btn-primary" style={{width: '100%', marginTop: '0.5rem', padding: '12px', borderRadius: '16px', fontWeight: 'bold'}} onClick={handleCreateCommunity}><Plus size={16}/> Create Community</button>
         </div>
 
         {/* Feed Column */}
         <div className="community-feed-col">
-          {/* Live badge */}
-          <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'0.75rem', padding:'0 4px'}}>
+          {/* Top Bar with Live Badge & Search */}
+          <div style={{display:'flex', alignItems:'center', justifyContent: 'space-between', gap:'8px', marginBottom:'0.75rem', flexWrap: 'wrap'}}>
             <span style={{display:'flex', alignItems:'center', gap:'6px', fontSize:'0.8rem', color:'#10b981', fontWeight:700}}>
               <span style={{width:'8px', height:'8px', borderRadius:'50%', background:'#10b981', boxShadow:'0 0 8px #10b981', animation:'pulse 1.5s infinite', display:'inline-block'}}></span>
-              LIVE · Real-time
+              LIVE · {feed.length} posts
             </span>
-            <span style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>— {feed.length} posts from all users worldwide</span>
+            <div style={{position: 'relative', maxWidth: '250px', flex: 1}}>
+               <Search size={14} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)'}} />
+               <input type="text" className="input-field" style={{padding: '8px 12px 8px 34px', fontSize: '0.85rem', borderRadius: '100px', background: 'rgba(255,255,255,0.05)', width: '100%', border: '1px solid rgba(255,255,255,0.1)'}} placeholder={`Search in c/${activeSubreddit}...`} value={communitySearch} onChange={e => setCommunitySearch(e.target.value)} />
+            </div>
           </div>
 
           <div className="tweet-compose glass">
