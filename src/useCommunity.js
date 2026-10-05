@@ -48,6 +48,37 @@ const patchPost = async (id, patch) => {
   });
 };
 
+const BAD_WORDS_LONG = [
+  'madharchod', 'maderchod', 'randi', 'bsdk', 'gendu', 'gandu', 'chutiya', 
+  'bhenchod', 'behenchod', 'bhosdike', 'bhosadi', 'laude', 'nigger', 'faggot',
+  'muthiya', 'mutth', 'raand', 'bhosda', 'bhosada', 'machod', 'madarchod'
+];
+const BAD_WORDS_STRICT = [
+  'mc', 'bc', 'mkc', 'tmkc', 'fuck', 'shit', 'bitch', 'whore', 'slut', 'dick', 
+  'pussy', 'cunt', 'loda', 'lode', 'bastard', 'asshole', 'chut', 'chooth', 'choot'
+];
+
+const BAD_PHRASES = [
+  'teri maa', 'teri ma', 'maa ka', 'ma ka','chut','chuti','chutiya','kutte',
+  'teri behen', 'teri bahan', 'teri bhen', 'behen ki', 'bhen ki', 'bahan ki'
+];
+
+export const containsAbuse = (text) => {
+  if (!text) return false;
+  const lowerText = text.toLowerCase();
+  
+  // Check exact bad phrases first
+  if (BAD_PHRASES.some(phrase => lowerText.includes(phrase))) return true;
+
+  // Check continuous string without special chars for long explicit words
+  const normalized = lowerText.replace(/[^a-z0-9]/g, '');
+  if (BAD_WORDS_LONG.some(bw => normalized.includes(bw))) return true;
+
+  // Check exact word matches for short/common slangs to avoid false positives
+  const words = lowerText.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+  return BAD_WORDS_STRICT.some(sw => words.includes(sw));
+};
+
 const parsePostsMap = (data) => {
   if (!data || typeof data !== 'object') return [];
   return Object.entries(data)
@@ -61,9 +92,9 @@ const parsePostsMap = (data) => {
       createdAt: val.createdAt || 0,
       likes: val.likes || 0,
       likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
-      comments: Array.isArray(val.comments) ? val.comments : [],
+      comments: Array.isArray(val.comments) ? val.comments.filter(c => !containsAbuse(c.text)) : [],
     }))
-    .filter(p => p.action)
+    .filter(p => p.action && !containsAbuse(p.action))
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, MAX_POSTS);
 };
@@ -137,9 +168,9 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
               createdAt: val.createdAt || 0,
               likes: val.likes || 0,
               likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
-              comments: Array.isArray(val.comments) ? val.comments : [],
+              comments: Array.isArray(val.comments) ? val.comments.filter(c => !containsAbuse(c.text)) : [],
             }))
-            .filter(p => p.action)
+            .filter(p => p.action && !containsAbuse(p.action))
             .sort((a, b) => b.createdAt - a.createdAt)
             .slice(0, MAX_POSTS);
         });
@@ -156,6 +187,12 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
 
   const postMessage = useCallback(async (text) => {
     if (!text?.trim() || !FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
+    
+    if (containsAbuse(text)) {
+      alert("⚠️ Restricted: Abusive language is not permitted. Please maintain a respectful community.");
+      return null;
+    }
+
     const id = `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const newPost = {
       user: sessionUser,
@@ -206,6 +243,11 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
 
   const addComment = useCallback(async (postId, text) => {
     if (!text?.trim()) return;
+
+    if (containsAbuse(text)) {
+      alert("⚠️ Restricted: Abusive language is not permitted in comments.");
+      return;
+    }
     
     // Optimistic UI update
     const newComment = { user: sessionUser, text: text.trim(), time: 'just now', ts: Date.now() };

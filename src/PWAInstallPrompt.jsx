@@ -11,21 +11,32 @@ const PWAInstallPrompt = () => {
   const [showCount, setShowCount] = useState(1);
 
   useEffect(() => {
-    // Don't show if already installed (running in standalone/fullscreen mode)
+    // Don't show if currently running in standalone/fullscreen mode
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
 
-    // Don't show if user already installed the app
+    if (isStandalone) {
+      localStorage.setItem('pwa_installed', 'true');
+      return;
+    }
+
+    const ios =
+      /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+      !window.MSStream;
+    setIsIOS(ios);
+
     const alreadyInstalled = localStorage.getItem('pwa_installed');
 
-    // Don't show if user already dismissed 3 times
-    const dismissCount = parseInt(localStorage.getItem('pwa_dismiss_count') || '0', 10);
-    setShowCount(dismissCount + 1);
+    // We will show the prompt after a delay, regardless of beforeinstallprompt, 
+    // to ensure they ALWAYS get reminded if not installed.
+    const showTimer = setTimeout(() => {
+      if (!alreadyInstalled) {
+        setShow(true);
+        trackPWAInstallPromptShown(1);
+      }
+    }, 2500);
 
-    if (isStandalone || alreadyInstalled || dismissCount >= MAX_SHOWS) return;
-
-    // Listen for the browser's own 'appinstalled' event as a safety net
     const onInstalled = () => {
       localStorage.setItem('pwa_installed', 'true');
       setShow(false);
@@ -33,38 +44,37 @@ const PWAInstallPrompt = () => {
     };
     window.addEventListener('appinstalled', onInstalled);
 
-    // Detect iOS Safari (no beforeinstallprompt support)
-    const ios =
-      /iphone|ipad|ipod/i.test(navigator.userAgent) &&
-      !window.MSStream;
-    setIsIOS(ios);
-
-    if (ios) {
-      // Show iOS instructions after a short delay
-      setTimeout(() => { setShow(true); trackPWAInstallPromptShown(dismissCount + 1); }, 2000);
-      return;
-    }
-
-    // Android / Chrome — listen for the native prompt event
     const handler = (e) => {
       e.preventDefault();
+      
+      // If we receive this event, it means the app is NOT installed right now.
+      if (localStorage.getItem('pwa_installed') === 'true') {
+        localStorage.removeItem('pwa_installed');
+      }
+
       setPrompt(e);
-      setTimeout(() => { setShow(true); trackPWAInstallPromptShown(dismissCount + 1); }, 2000);
+      // We don't need to manually setShow here because the timeout above handles it, 
+      // but we can make it immediate if it fires late.
+      setShow(true);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
     return () => {
+      clearTimeout(showTimer);
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', onInstalled);
     };
   }, []);
 
   const handleInstall = async () => {
-    if (!prompt) return;
+    if (!prompt) {
+      // If they somehow click install without prompt (shouldn't happen with updated UI)
+      alert("Please install manually from your browser's menu (⋮) -> 'Install App' or 'Add to Home screen'");
+      return;
+    }
     prompt.prompt();
     const { outcome } = await prompt.userChoice;
     if (outcome === 'accepted') {
-      // Permanently mark as installed — never show again
       trackPWAInstalled();
       localStorage.setItem('pwa_installed', 'true');
       setShow(false);
@@ -85,28 +95,20 @@ const PWAInstallPrompt = () => {
 
   return (
     <>
-      {/* Backdrop blur overlay */}
       <div className="pwa-backdrop" onClick={dismiss} />
-
-      {/* Bottom Sheet Install Banner */}
       <div className="pwa-install-sheet">
-        {/* Handle bar */}
         <div className="pwa-handle" />
-
         <div className="pwa-sheet-content">
-          {/* Close */}
           <button className="pwa-close-btn" onClick={dismiss} aria-label="Dismiss">
             <X size={18} />
           </button>
 
-          {/* App icon + info */}
           <div className="pwa-app-info">
             <img src="/icon.jpg" alt="FocusMode App Icon" className="pwa-app-icon" />
             <div className="pwa-app-text">
               <h3 className="pwa-app-name">FocusModePlayer</h3>
               <p className="pwa-app-desc">Install as an app for the best experience</p>
-              <p className="pwa-remind-count">Reminder {showCount} of {MAX_SHOWS}</p>
-              <div className="pwa-badges">
+              <div className="pwa-badges" style={{marginTop: '4px'}}>
                 <span className="pwa-badge">📴 Works Offline</span>
                 <span className="pwa-badge">⚡ Fast</span>
                 <span className="pwa-badge">🔔 Notifications</span>
@@ -115,31 +117,38 @@ const PWAInstallPrompt = () => {
           </div>
 
           {isIOS ? (
-            // iOS instructions
             <div className="pwa-ios-steps">
-              <p className="pwa-ios-title">Add to Home Screen:</p>
+              <p className="pwa-ios-title">Add to Home Screen (iOS):</p>
               <div className="pwa-ios-step">
                 <span className="pwa-step-num">1</span>
-                <span>Tap the <strong><Share size={13} style={{display:'inline', verticalAlign:'middle'}} /> Share</strong> button in Safari</span>
+                <span>Tap <strong><Share size={13} style={{display:'inline', verticalAlign:'middle'}} /> Share</strong> in Safari</span>
               </div>
               <div className="pwa-ios-step">
                 <span className="pwa-step-num">2</span>
                 <span>Scroll down and tap <strong>"Add to Home Screen"</strong></span>
               </div>
-              <div className="pwa-ios-step">
-                <span className="pwa-step-num">3</span>
-                <span>Tap <strong>"Add"</strong> — done! 🎉</span>
-              </div>
               <button className="pwa-dismiss-link" onClick={dismiss}>Maybe later</button>
             </div>
-          ) : (
-            // Android / Chrome CTA
+          ) : prompt ? (
             <div className="pwa-cta-row">
               <button className="pwa-install-btn" onClick={handleInstall}>
                 <Download size={18} />
                 Install App
               </button>
               <button className="pwa-dismiss-link" onClick={dismiss}>Not now</button>
+            </div>
+          ) : (
+            <div className="pwa-ios-steps">
+              <p className="pwa-ios-title">Install Manually (Android/Chrome):</p>
+              <div className="pwa-ios-step">
+                <span className="pwa-step-num">1</span>
+                <span>Tap the <strong>⋮ (3 dots)</strong> menu in your browser</span>
+              </div>
+              <div className="pwa-ios-step">
+                <span className="pwa-step-num">2</span>
+                <span>Select <strong>"Install App"</strong> or <strong>"Add to Home screen"</strong></span>
+              </div>
+              <button className="pwa-dismiss-link" onClick={dismiss}>I'll do it later</button>
             </div>
           )}
         </div>

@@ -249,6 +249,90 @@ h1, h2, h3, h4, h5, h6 {
   padding: 1.5rem;
   margin-bottom: 2rem;
 }
+.hidden-tab {
+  display: none !important;
+}
+
+.pip-mode {
+  position: fixed !important;
+  bottom: 20px;
+  left: 280px;
+  width: 320px;
+  z-index: 1000;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  pointer-events: auto;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@media (max-width: 768px) {
+  .pip-mode {
+    left: 20px;
+    width: calc(100% - 40px);
+    bottom: 80px; /* Above mobile nav */
+  }
+}
+
+.pip-mode .lecture-notes-section,
+.pip-mode .lecture-add-form,
+.pip-mode .lecture-playlist-section,
+.pip-mode .lecture-empty-state {
+  display: none !important;
+}
+
+.pip-mode .lecture-video-container {
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 12px;
+  background: black;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.pip-mode .video-header-controls {
+  display: none !important;
+}
+
+.pip-close-btn {
+  display: none;
+}
+.pip-mode .pip-close-btn {
+  display: flex !important;
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: #ef4444; /* bright red */
+  color: white;
+  border: 2px solid white;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1001;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.6);
+  transition: transform 0.2s;
+}
+.pip-mode .pip-close-btn:hover {
+  transform: scale(1.1);
+}
+
+.pip-mode .pip-expand-overlay {
+  display: flex !important;
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: opacity 0.2s;
+  cursor: pointer;
+  z-index: 1000;
+}
+.pip-mode .pip-expand-overlay:hover {
+  opacity: 1;
+}
 
 .progress-header {
   display: flex;
@@ -618,18 +702,59 @@ select.input-field {
   50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
 }
 
-/* ===================== TWITTER-STYLE COMMUNITY ===================== */
-.community-twitter-layout {
+/* ===================== REDDIT-STYLE COMMUNITY ===================== */
+.community-reddit-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: 220px minmax(0, 1fr) 280px;
   gap: 1.5rem;
   align-items: start;
+}
+
+.community-left-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.subreddit-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+.subreddit-item:hover {
+  background: rgba(255,255,255,0.05);
+  color: white;
+}
+.subreddit-item.active {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent-physics);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+.subreddit-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 .community-feed-col {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 1rem;
 }
 
 .community-sidebar-col {
@@ -638,6 +763,29 @@ select.input-field {
   gap: 1.5rem;
   position: sticky;
   top: 1rem;
+}
+
+.upvote-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  border-radius: 100px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.upvote-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+.upvote-btn.liked {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .tweet-compose {
@@ -663,24 +811,20 @@ select.input-field {
 }
 
 .tweet-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-top: none;
-  padding: 1.25rem 1.5rem;
-  transition: background 0.15s ease;
-}
-
-.tweet-card:first-child {
-  border-top: 1px solid var(--card-border);
-}
-
-.tweet-card:last-child {
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 
 .tweet-card:hover {
-  background: rgba(255,255,255,0.025);
+  background: rgba(255,255,255,0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
 }
 
 .tweet-avatar {
@@ -862,10 +1006,10 @@ select.input-field {
   }
 
   /* Community: stack sidebar below feed */
-  .community-twitter-layout {
+  .community-reddit-layout {
     grid-template-columns: 1fr;
   }
-  .community-sidebar-col {
+  .community-sidebar-col, .community-left-sidebar {
     position: static;
   }
 
@@ -1113,6 +1257,29 @@ select.input-field {
   text-align: center;
   margin-top: 0.75rem;
   width: 100%;
+}
+
+/* AI Chat Typing Animation */
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-slow {
+  animation: spin-slow 4s linear infinite;
 }
 
 

@@ -9,6 +9,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icon.jpg'],
+      devOptions: {
+        enabled: true
+      },
       manifest: {
         name: 'FocusModePlayer',
         short_name: 'FocusMode',
@@ -16,6 +19,7 @@ export default defineConfig({
         theme_color: '#000000',
         background_color: '#000000',
         display: 'standalone',
+        start_url: '/',
         icons: [
           {
             src: '/icon.jpg',

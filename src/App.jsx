@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
-  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle
+  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle, ArrowUp
 } from 'lucide-react';
 import {
   trackSignUp, trackLogin, trackLogout, trackGuestSession,
@@ -16,8 +16,37 @@ import {
   trackJournalSaved, trackPostCreated, trackPostLiked, trackCommentPosted,
   trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned
 } from './analytics.js';
-import { useCommunity } from './useCommunity.js';
+import { useCommunity, containsAbuse } from './useCommunity.js';
 import { useEvents } from './useEvents.js';
+
+// --- TIME AGO UTILITY ---
+const formatTimeAgo = (timestamp) => {
+  if (!timestamp) return 'just now';
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+};
+
+const TimeAgo = ({ date, fallback }) => {
+  const [display, setDisplay] = useState(date ? formatTimeAgo(date) : fallback);
+  useEffect(() => {
+    if (!date) return;
+    const timer = setInterval(() => {
+      setDisplay(formatTimeAgo(date));
+    }, 60000);
+    return () => clearInterval(timer);
+  }, [date, fallback]);
+  return <span>{display}</span>;
+};
+// ------------------------
 
 // Default templates for different exams
 const examTemplates = {
@@ -73,12 +102,7 @@ const defaultCommunityFeed = [
   { id: 5, user: 'Vikram_Singh', prep: 'JEE', xp: 1450, action: '200 days to JEE. No phone after 9pm. No excuses. Who is with me? Drop a 🔥 below! #Discipline #JEE2025', time: '6h ago', isChat: true, likes: 89, likedBy: [], comments: [] },
 ];
 
-const mockLeaderboard = [
-  { rank: 1, name: 'Vikram Singh', score: 1450 },
-  { rank: 2, name: 'Sneha_24', score: 1320 },
-  { rank: 3, name: 'AmanRaj_07', score: 980 },
-];
-
+// Removed mockLeaderboard
 const getLevelData = (xp) => {
   const level = Math.floor(xp / 100) + 1;
   let title = 'Novice Aspirant';
@@ -106,6 +130,7 @@ const getAvatarColor = (name) => {
 const App = () => {
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeSubreddit, setActiveSubreddit] = useState('All');
   const [usersDb, setUsersDb] = useState({});
   const [sessionUser, setSessionUser] = useState(null); 
 
@@ -188,6 +213,31 @@ const App = () => {
 
   // UI Toast State
   const [toastMsg, setToastMsg] = useState(null);
+
+  // ── STUDY STREAK STATE ────────────────────────────────────────────────────
+  const [studyStreak, setStudyStreak] = useState(0);
+  const [lastStudyDate, setLastStudyDate] = useState(null);
+
+  // ── STUDY PLANNER STATE ───────────────────────────────────────────────────
+  const [plannerTasks, setPlannerTasks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pm_planner') || '{}'); } catch { return {}; }
+  });
+  const [plannerTab, setPlannerTab] = useState('weekly');
+  const [plannerInput, setPlannerInput] = useState('');
+  const [plannerDay, setPlannerDay] = useState('Mon');
+  const [plannerTime, setPlannerTime] = useState('09:00');
+  const [plannerSubject, setPlannerSubject] = useState('');
+
+  // ── VIDEO RESUME STATE ────────────────────────────────────────────────────
+  const [videoProgress, setVideoProgress] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pm_vidprogress') || '{}'); } catch { return {}; }
+  });
+  const videoIframeRef = useRef({});
+
+  // ── SYLLABUS CHECKLIST STATE ──────────────────────────────────────────────
+  const [syllabusChecked, setSyllabusChecked] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pm_syllabus') || '{}'); } catch { return {}; }
+  });
 
   // AI Assistant State
   const [aiOpen, setAiOpen] = useState(false);
@@ -569,6 +619,103 @@ const App = () => {
     }
   }, [usersDb]);
 
+  // ── YOUTUBE IFRAME API INTEGRATION ──────────────────────────────────────────
+  useEffect(() => {
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      if (firstScriptTag) {
+         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      } else {
+         document.head.appendChild(tag);
+      }
+    }
+  }, []);
+
+  const ytPlayerRef = useRef(null);
+  const ytIntervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!activeVideo) {
+      if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.destroy === 'function') {
+        ytPlayerRef.current.destroy();
+        ytPlayerRef.current = null;
+      }
+      return;
+    }
+
+    const startProgressTracking = (player) => {
+      if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
+      ytIntervalRef.current = setInterval(() => {
+        if (player && player.getCurrentTime) {
+          const time = player.getCurrentTime();
+          const duration = player.getDuration();
+          if (time > 0 && duration > 0) {
+            setVideoProgress(prev => {
+              const newState = { ...prev, [activeVideo]: { time, duration, completed: (time / duration) > 0.95 } };
+              localStorage.setItem('pm_vidprogress', JSON.stringify(newState));
+              return newState;
+            });
+          }
+        }
+      }, 5000);
+    };
+
+    const initPlayer = () => {
+      if (!document.getElementById('youtube-player')) {
+        setTimeout(initPlayer, 100);
+        return;
+      }
+
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === 'function') {
+        ytPlayerRef.current.loadVideoById({
+          videoId: activeVideo,
+          startSeconds: Math.floor(videoProgress[activeVideo]?.time || 0)
+        });
+      } else {
+        ytPlayerRef.current = new window.YT.Player('youtube-player', {
+          videoId: activeVideo,
+          playerVars: {
+            autoplay: 1,
+            modestbranding: 1,
+            rel: 0,
+            start: Math.floor(videoProgress[activeVideo]?.time || 0)
+          },
+          events: {
+            onStateChange: (event) => {
+              if (event.data === window.YT.PlayerState.PLAYING) {
+                startProgressTracking(event.target);
+              } else {
+                if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
+                if (event.target && event.target.getCurrentTime) {
+                  const time = event.target.getCurrentTime();
+                  const duration = event.target.getDuration();
+                  setVideoProgress(prev => {
+                    const newState = { ...prev, [activeVideo]: { time, duration, completed: (time / duration) > 0.95 } };
+                    localStorage.setItem('pm_vidprogress', JSON.stringify(newState));
+                    return newState;
+                  });
+                }
+              }
+            }
+          }
+        });
+      }
+    };
+
+    if (window.YT && window.YT.Player) {
+      initPlayer();
+    } else {
+      window.onYouTubeIframeAPIReady = initPlayer;
+    }
+
+    return () => {
+      if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
+    };
+  }, [activeVideo]); // Omit videoProgress to prevent reloading video on progress tick
+
   // Sync specific user data when they change
   useEffect(() => {
     if (sessionUser && usersDb[sessionUser]?.profile?.prepType) {
@@ -632,6 +779,20 @@ const App = () => {
     }
     const savedNotes = localStorage.getItem(`pm_notes_${username}`);
     if (savedNotes) setVideoNotes(JSON.parse(savedNotes));
+
+    // Load streak data
+    const savedStreak = localStorage.getItem(`pm_streak_${username}`);
+    const savedLastDate = localStorage.getItem(`pm_lastdate_${username}`);
+    if (savedStreak) setStudyStreak(parseInt(savedStreak, 10));
+    if (savedLastDate) setLastStudyDate(savedLastDate);
+
+    // Load syllabus data
+    const savedSyllabus = localStorage.getItem(`pm_syllabus_${username}`);
+    if (savedSyllabus) setSyllabusChecked(JSON.parse(savedSyllabus));
+
+    // Load planner data
+    const savedPlanner = localStorage.getItem(`pm_planner_${username}`);
+    if (savedPlanner) setPlannerTasks(JSON.parse(savedPlanner));
   };
 
   const awardXP = (amount, reason) => {
@@ -656,6 +817,66 @@ const App = () => {
       total++; if (sub.completed) completed++;
     })));
     setProgress(total === 0 ? 0 : Math.round((completed / total) * 100));
+  };
+
+  // ── STREAK MANAGEMENT ───────────────────────────────────────────────────
+  const updateStreak = useCallback(() => {
+    if (!sessionUser) return;
+    const today = new Date().toDateString();
+    const last = localStorage.getItem(`pm_lastdate_${sessionUser}`);
+    let streak = parseInt(localStorage.getItem(`pm_streak_${sessionUser}`) || '0', 10);
+    if (last === today) return; // already counted today
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    if (last === yesterday) {
+      streak += 1;
+    } else if (last !== today) {
+      streak = 1; // reset streak if missed a day
+    }
+    localStorage.setItem(`pm_streak_${sessionUser}`, streak.toString());
+    localStorage.setItem(`pm_lastdate_${sessionUser}`, today);
+    setStudyStreak(streak);
+    setLastStudyDate(today);
+    if (streak > 1) {
+      setToastMsg({ amount: 0, reason: `🔥 ${streak}-Day Streak! Keep grinding!` });
+      setTimeout(() => setToastMsg(null), 3000);
+    }
+  }, [sessionUser]);
+
+  // ── PLANNER FUNCTIONS ───────────────────────────────────────────────────
+  const addPlannerTask = () => {
+    if (!plannerInput.trim()) return;
+    const key = plannerDay;
+    const task = { id: Date.now(), text: plannerInput.trim(), subject: plannerSubject || subjects[0]?.title || '', time: plannerTime, done: false };
+    const updated = { ...plannerTasks, [key]: [...(plannerTasks[key] || []), task] };
+    setPlannerTasks(updated);
+    if (sessionUser) localStorage.setItem(`pm_planner_${sessionUser}`, JSON.stringify(updated));
+    setPlannerInput('');
+  };
+
+  const togglePlannerTask = (day, id) => {
+    const updated = {
+      ...plannerTasks,
+      [day]: (plannerTasks[day] || []).map(t => t.id === id ? { ...t, done: !t.done } : t)
+    };
+    setPlannerTasks(updated);
+    if (sessionUser) localStorage.setItem(`pm_planner_${sessionUser}`, JSON.stringify(updated));
+  };
+
+  const deletePlannerTask = (day, id) => {
+    const updated = {
+      ...plannerTasks,
+      [day]: (plannerTasks[day] || []).filter(t => t.id !== id)
+    };
+    setPlannerTasks(updated);
+    if (sessionUser) localStorage.setItem(`pm_planner_${sessionUser}`, JSON.stringify(updated));
+  };
+
+  // ── SYLLABUS FUNCTIONS ──────────────────────────────────────────────────
+  const toggleSyllabus = (key) => {
+    const updated = { ...syllabusChecked, [key]: !syllabusChecked[key] };
+    setSyllabusChecked(updated);
+    if (sessionUser) localStorage.setItem(`pm_syllabus_${sessionUser}`, JSON.stringify(updated));
+    if (!syllabusChecked[key]) awardXP(10, 'Syllabus Topic Completed!');
   };
 
   const handleTabChange = (tab) => {
@@ -812,7 +1033,7 @@ const App = () => {
       return updatedSubjects;
     });
 
-    if (taskCompletedJustNow) { trackSubtaskCompleted(subjectId); awardXP(5, 'Completed Subtask'); }
+    if (taskCompletedJustNow) { trackSubtaskCompleted(subjectId); awardXP(5, 'Completed Subtask'); updateStreak(); }
     if (allCompletedNow) {
        trackModuleCompleted(subjectId);
        awardXP(20, 'Completed Full Module!');
@@ -830,6 +1051,7 @@ const App = () => {
     setLearnedText(''); setMistakesText('');
     setTodayMood('😐');
     awardXP(15, 'Logged Daily Journal');
+    updateStreak();
   };
 
   // Community Functions — delegated to real-time Gun.js (see useCommunity hook)
@@ -1059,13 +1281,21 @@ const App = () => {
   const isGuest = currentUserProfile?.isGuest;
   const { level, title } = getLevelData(currentXP);
 
-  const handlePostFeed = (e) => {
+  const handlePostFeed = async (e) => {
     e.preventDefault();
     if (!newPostText.trim()) return;
+    
+    if (containsAbuse(newPostText)) {
+      alert("⚠️ Restricted: Abusive language is not permitted. Please maintain a respectful community.");
+      return;
+    }
+
     trackPostCreated();
-    gunPostMessage(newPostText);
-    setNewPostText('');
-    awardXP(2, 'Community Post');
+    const id = await gunPostMessage(newPostText);
+    if (id) {
+      setNewPostText('');
+      awardXP(2, 'Community Post');
+    }
   };
 
   const toggleLike = (postId) => {
@@ -1073,10 +1303,16 @@ const App = () => {
     gunToggleLike(postId);
   };
 
-  const submitComment = (postId) => {
+  const submitComment = async (postId) => {
     if (!commentText.trim()) return;
+    
+    if (containsAbuse(commentText)) {
+      alert("⚠️ Restricted: Abusive language is not permitted in comments.");
+      return;
+    }
+
     trackCommentPosted();
-    gunAddComment(postId, commentText);
+    await gunAddComment(postId, commentText);
     setCommentText('');
     setCommentingOn(null);
     awardXP(1, 'Commented on a Post');
@@ -1122,112 +1358,248 @@ const App = () => {
     );
   }
 
-  // Generate dynamic leaderboard with current user
-  const combinedLeaderboard = [...mockLeaderboard];
-  const myRank = combinedLeaderboard.filter(lb => lb.score > currentXP).length + 1;
-  combinedLeaderboard.push({ rank: myRank, name: sessionUser + " (You)", score: currentXP });
-  combinedLeaderboard.sort((a,b) => b.score - a.score);
+  // Generate dynamic leaderboard with real users (Global from feed + Local)
+  const realUsersMap = {};
+  feed.forEach(post => {
+    if (!realUsersMap[post.user] || post.xp > realUsersMap[post.user]) {
+      realUsersMap[post.user] = post.xp;
+    }
+  });
+  Object.keys(usersDb).forEach(u => {
+    const xp = usersDb[u]?.profile?.xp || 0;
+    if (!realUsersMap[u] || xp > realUsersMap[u]) {
+      realUsersMap[u] = xp;
+    }
+  });
+  realUsersMap[sessionUser] = Math.max(realUsersMap[sessionUser] || 0, currentXP);
+
+  const combinedLeaderboard = Object.entries(realUsersMap).map(([name, score]) => ({
+    name: name === sessionUser ? name + " (You)" : name,
+    score: score
+  })).sort((a,b) => b.score - a.score);
   combinedLeaderboard.forEach((lb, i) => lb.rank = i + 1);
 
-  const renderDashboard = () => (
-    <div className="dashboard-grid animate-fade-in">
-      <div className="left-col">
-        <section className="glass progress-section">
-          <div className="progress-header">
-            <h2 className="progress-title">Today's Progress</h2>
-            <span className="progress-percentage">{progress}%</span>
+  const renderDashboard = () => {
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const todayStr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()];
+
+    // Syllabus topics by exam
+    const syllabusMap = {
+      JEE: { Physics: ['Mechanics','Thermodynamics','Electrostatics','Magnetism','Modern Physics','Waves & Optics'], Chemistry: ['Mole Concept','Equilibrium','Organic Reactions','Electrochemistry','P-Block','D-Block'], Mathematics: ['Calculus','Algebra','Trigonometry','Coordinate Geometry','Probability','Vectors'] },
+      NEET: { Physics: ['Mechanics','Thermodynamics','Optics','Modern Physics','Magnetism'], Chemistry: ['Organic Chem','Physical Chem','Inorganic Chem'], Biology: ['Cell Biology','Genetics','Ecology','Plant Physiology','Human Physiology'] },
+      UPSC: { History: ['Ancient India','Medieval India','Modern India'], Polity: ['Constitution','Parliament','Judiciary'], Geography: ['Physical','Indian Geo','World Geo'], Economy: ['Macro Econ','Micro Econ','Govt Schemes'] },
+    };
+    const syllabus = syllabusMap[currentUserProfile?.prepType] || syllabusMap.JEE;
+    const allSyllabusTopics = Object.entries(syllabus).flatMap(([sub, topics]) => topics.map(t => `${sub}::${t}`));
+    const doneCount = allSyllabusTopics.filter(k => syllabusChecked[k]).length;
+    const syllabusPct = allSyllabusTopics.length ? Math.round((doneCount / allSyllabusTopics.length) * 100) : 0;
+
+    return (
+      <div className="dashboard-grid animate-fade-in">
+        <div className="left-col">
+
+          {/* Streak + Stats Banner */}
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:'1rem', marginBottom:'1rem'}}>
+            <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(239,68,68,0.12),rgba(251,146,60,0.08))', borderColor:'rgba(239,68,68,0.2)'}}>
+              <div style={{fontSize:'2rem', marginBottom:'4px'}}>{'🔥'.repeat(Math.min(studyStreak,5)) || '🔥'}</div>
+              <div style={{fontSize:'1.8rem', fontWeight:800, color:'#fb923c', lineHeight:1}}>{studyStreak}</div>
+              <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'4px', fontWeight:600}}>Day Streak</div>
+            </div>
+            <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(139,92,246,0.12),rgba(109,40,217,0.08))', borderColor:'rgba(139,92,246,0.2)'}}>
+              <div style={{fontSize:'1.8rem', fontWeight:800, color:'var(--accent-physics)', lineHeight:1}}>{currentXP}</div>
+              <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'4px', fontWeight:600}}>Total XP</div>
+            </div>
+            <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(6,182,212,0.08))', borderColor:'rgba(16,185,129,0.2)'}}>
+              <div style={{fontSize:'1.8rem', fontWeight:800, color:'var(--accent-success)', lineHeight:1}}>{progress}%</div>
+              <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'4px', fontWeight:600}}>Today Done</div>
+            </div>
+            <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(59,130,246,0.12),rgba(37,99,235,0.08))', borderColor:'rgba(59,130,246,0.2)'}}>
+              <div style={{fontSize:'1.8rem', fontWeight:800, color:'var(--accent-math)', lineHeight:1}}>{syllabusPct}%</div>
+              <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'4px', fontWeight:600}}>Syllabus</div>
+            </div>
           </div>
-          <div className="progress-bar-bg">
-            <div className="progress-bar-fill" style={{ width: `${progress}%` }}></div>
-          </div>
-        </section>
-        <form className="glass add-task-form" onSubmit={handleAddTask}>
-          <select className="input-field" value={newTaskSubject} onChange={(e) => setNewTaskSubject(e.target.value)}>
-            {subjects.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-          </select>
-          <input type="text" className="input-field" placeholder="E.g., Complete Chapter 4 Practice Qs" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
-          <button type="submit" className="btn-primary"><Plus size={18} /> Add</button>
-        </form>
-        <div className="subjects-grid">
-          {subjects.map(subject => {
-            const isExpanded = expandedSubjects.includes(subject.id);
-            let total = 0, comp = 0;
-            subject.tasks.forEach(t => t.subtasks.forEach(s => { total++; if(s.completed) comp++; }));
-            return (
-              <div key={subject.id} className="glass subject-card">
-                <div className="subject-header" onClick={() => setExpandedSubjects(prev => prev.includes(subject.id) ? prev.filter(x => x !== subject.id) : [...prev, subject.id])}>
-                  <div className="subject-info">
-                    <div className="subject-icon" style={{background: 'rgba(255,255,255,0.1)'}}>
-                      {getSubjectIcon(subject.icon)}
+
+          {/* Syllabus Tracker */}
+          <div className="glass" style={{padding:'1.5rem', marginBottom:'1rem'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem'}}>
+              <h3 style={{fontSize:'1rem', fontWeight:800, display:'flex', alignItems:'center', gap:'8px'}}><BookOpen size={16} color="var(--accent-math)"/> Syllabus Tracker</h3>
+              <div style={{background:'rgba(59,130,246,0.1)', color:'var(--accent-math)', padding:'4px 12px', borderRadius:'100px', fontSize:'0.8rem', fontWeight:700}}>{doneCount}/{allSyllabusTopics.length} done</div>
+            </div>
+            <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+              {Object.entries(syllabus).map(([subject, topics]) => {
+                const subDone = topics.filter(t => syllabusChecked[`${subject}::${t}`]).length;
+                const subPct = Math.round((subDone / topics.length) * 100);
+                return (
+                  <div key={subject}>
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'6px'}}>
+                      <span style={{fontSize:'0.85rem', fontWeight:700, color:'white'}}>{subject}</span>
+                      <span style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>{subDone}/{topics.length}</span>
                     </div>
-                    <div>
-                      <h3 className="subject-title">{subject.title}</h3>
-                      <p className="subject-stats">{comp}/{total} Tasks Completed</p>
+                    <div style={{height:'4px', background:'rgba(255,255,255,0.06)', borderRadius:'4px', marginBottom:'8px'}}>
+                      <div style={{height:'100%', width:`${subPct}%`, background:'linear-gradient(90deg, var(--accent-math), var(--accent-physics))', borderRadius:'4px', transition:'width 0.4s ease'}}></div>
+                    </div>
+                    <div style={{display:'flex', flexWrap:'wrap', gap:'6px'}}>
+                      {topics.map(topic => {
+                        const key = `${subject}::${topic}`;
+                        const done = syllabusChecked[key];
+                        return (
+                          <button key={topic} onClick={() => toggleSyllabus(key)} style={{padding:'4px 10px', borderRadius:'100px', fontSize:'0.75rem', fontWeight:600, cursor:'pointer', transition:'all 0.2s', background: done ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)', color: done ? 'var(--accent-success)' : 'var(--text-muted)', border: done ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.08)', textDecoration: done ? 'line-through' : 'none'}}>
+                            {done ? '✓ ' : ''}{topic}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                  <button className={`toggle-btn ${isExpanded ? 'expanded' : ''}`}><ChevronDown size={20} /></button>
-                </div>
-                {isExpanded && (
-                  <div className="tasks-list">
-                    {subject.tasks.length === 0 && <p className="text-muted" style={{color: '#94a3b8', fontSize: '0.9rem'}}>No tasks added yet.</p>}
-                    {subject.tasks.map(task => (
-                      <div key={task.id} className="task-item">
-                        <div style={{fontWeight: 500, marginBottom: '8px'}}>{task.title}</div>
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px'}}>
-                          {task.subtasks.map(subtask => (
-                            <label key={subtask.id} className="checkbox-wrapper">
-                              <input type="checkbox" checked={subtask.completed} onChange={() => toggleSubtask(subject.id, task.id, subtask.id)} />
-                              <div className="checkmark"><Check /></div>
-                              <span className="checkbox-text" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                {subtask.title}
-                                {!subtask.completed && <span style={{fontSize: '0.75rem', color: 'var(--accent-physics)'}}>+5 XP</span>}
-                              </span>
-                            </label>
-                          ))}
+                );
+              })}
+            </div>
+          </div>
+
+          <section className="glass progress-section">
+            <div className="progress-header">
+              <h2 className="progress-title">Today's Task Progress</h2>
+              <span className="progress-percentage">{progress}%</span>
+            </div>
+            <div className="progress-bar-bg">
+              <div className="progress-bar-fill" style={{ width: `${progress}%` }}></div>
+            </div>
+          </section>
+          <form className="glass add-task-form" onSubmit={handleAddTask}>
+            <select className="input-field" value={newTaskSubject} onChange={(e) => setNewTaskSubject(e.target.value)}>
+              {subjects.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+            </select>
+            <input type="text" className="input-field" placeholder="E.g., Complete Chapter 4 Practice Qs" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
+            <button type="submit" className="btn-primary"><Plus size={18} /> Add</button>
+          </form>
+          <div className="subjects-grid">
+            {subjects.map(subject => {
+              const isExpanded = expandedSubjects.includes(subject.id);
+              let total = 0, comp = 0;
+              subject.tasks.forEach(t => t.subtasks.forEach(s => { total++; if(s.completed) comp++; }));
+              const subPct = total === 0 ? 0 : Math.round((comp / total) * 100);
+              return (
+                <div key={subject.id} className="glass subject-card">
+                  <div className="subject-header" onClick={() => setExpandedSubjects(prev => prev.includes(subject.id) ? prev.filter(x => x !== subject.id) : [...prev, subject.id])}>
+                    <div className="subject-info">
+                      <div className="subject-icon" style={{background: 'rgba(255,255,255,0.1)'}}>
+                        {getSubjectIcon(subject.icon)}
+                      </div>
+                      <div style={{flex:1}}>
+                        <h3 className="subject-title">{subject.title}</h3>
+                        <div style={{display:'flex', alignItems:'center', gap:'8px', marginTop:'4px'}}>
+                          <div style={{flex:1, height:'3px', background:'rgba(255,255,255,0.08)', borderRadius:'3px'}}>
+                            <div style={{height:'100%', width:`${subPct}%`, background:'var(--accent-success)', borderRadius:'3px', transition:'width 0.4s'}}></div>
+                          </div>
+                          <span style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>{comp}/{total}</span>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                    <button className={`toggle-btn ${isExpanded ? 'expanded' : ''}`}><ChevronDown size={20} /></button>
                   </div>
-                )}
-              </div>
-            );
-          })}
+                  {isExpanded && (
+                    <div className="tasks-list">
+                      {subject.tasks.length === 0 && <p className="text-muted" style={{color: '#94a3b8', fontSize: '0.9rem'}}>No tasks added yet.</p>}
+                      {subject.tasks.map(task => (
+                        <div key={task.id} className="task-item">
+                          <div style={{fontWeight: 600, marginBottom: '8px', fontSize:'0.95rem'}}>{task.title}</div>
+                          <div style={{display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px'}}>
+                            {task.subtasks.map(subtask => (
+                              <label key={subtask.id} className="checkbox-wrapper">
+                                <input type="checkbox" checked={subtask.completed} onChange={() => toggleSubtask(subject.id, task.id, subtask.id)} />
+                                <div className="checkmark"><Check /></div>
+                                <span className="checkbox-text" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                  {subtask.title}
+                                  {!subtask.completed && <span style={{fontSize: '0.75rem', color: 'var(--accent-physics)'}}>+5 XP</span>}
+                                  {subtask.completed && <span style={{fontSize:'0.75rem', color:'var(--accent-success)'}}>✓ Done</span>}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      <aside className="right-sidebar">
-        <div className="glass timer-card" style={{position: 'relative', overflow: 'hidden'}}>
-          <div style={{position: 'absolute', top: '-50px', left: '-50px', width: '150px', height: '150px', background: 'var(--accent-physics)', filter: 'blur(80px)', opacity: 0.3}}></div>
-          <div style={{position: 'absolute', bottom: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-chem)', filter: 'blur(80px)', opacity: 0.3}}></div>
-          
-          <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '1.5rem', position: 'relative', zIndex: 1}}> ⏳ Focus Timer </h3>
-          
-          <div style={{display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '2rem', flexWrap: 'wrap', position: 'relative', zIndex: 1}}>
-            <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'pomodoro' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'pomodoro' ? 'white' : '#94a3b8', border: sessionType === 'pomodoro' ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('pomodoro')}>25m Focus</button>
-            <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'pomodoro50' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'pomodoro50' ? 'white' : '#94a3b8', border: sessionType === 'pomodoro50' ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('pomodoro50')}>50m Deep</button>
-            <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'shortBreak' ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'shortBreak' ? '#34d399' : '#94a3b8', border: sessionType === 'shortBreak' ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('shortBreak')}>5m Break</button>
-            <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'longBreak' ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'longBreak' ? '#34d399' : '#94a3b8', border: sessionType === 'longBreak' ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('longBreak')}>10m Chill</button>
+        <aside className="right-sidebar">
+          <div className="glass timer-card" style={{position: 'relative', overflow: 'hidden'}}>
+            <div style={{position: 'absolute', top: '-50px', left: '-50px', width: '150px', height: '150px', background: 'var(--accent-physics)', filter: 'blur(80px)', opacity: 0.3}}></div>
+            <div style={{position: 'absolute', bottom: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-chem)', filter: 'blur(80px)', opacity: 0.3}}></div>
+            
+            <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '1.5rem', position: 'relative', zIndex: 1}}> ⏳ Focus Timer </h3>
+            
+            <div style={{display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '2rem', flexWrap: 'wrap', position: 'relative', zIndex: 1}}>
+              <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'pomodoro' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'pomodoro' ? 'white' : '#94a3b8', border: sessionType === 'pomodoro' ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('pomodoro')}>25m Focus</button>
+              <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'pomodoro50' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'pomodoro50' ? 'white' : '#94a3b8', border: sessionType === 'pomodoro50' ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('pomodoro50')}>50m Deep</button>
+              <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'shortBreak' ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'shortBreak' ? '#34d399' : '#94a3b8', border: sessionType === 'shortBreak' ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('shortBreak')}>5m Break</button>
+              <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'longBreak' ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'longBreak' ? '#34d399' : '#94a3b8', border: sessionType === 'longBreak' ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('longBreak')}>10m Chill</button>
+            </div>
+            
+            <div className="timer-display" style={{fontSize: '4.5rem', fontWeight: 800, textShadow: '0 0 40px rgba(255,255,255,0.2)', letterSpacing: '-2px', position: 'relative', zIndex: 1, margin: '1rem 0'}}>{formatTime(timeLeft)}</div>
+            
+            <div style={{fontSize: '0.9rem', color: 'var(--accent-success)', marginBottom: '1.5rem', fontWeight: 'bold', background: 'rgba(16,185,129,0.1)', padding: '6px 16px', borderRadius: '100px', display: 'inline-block', position: 'relative', zIndex: 1}}> Reward: +{sessionType.includes('pomodoro') ? (sessionType === 'pomodoro50' ? '100' : '50') : '10'} XP </div>
+            
+            <div className="timer-controls" style={{position: 'relative', zIndex: 1}}>
+              <button className="btn-primary" onClick={startTimer} style={{padding: '12px 32px', fontSize: '1.1rem', borderRadius: '100px', boxShadow: isActive ? '0 0 20px rgba(139,92,246,0.5)' : 'none'}}>
+                {isActive ? <Pause size={20} /> : <Play size={20} />}
+                {isActive ? 'Pause' : 'Start Grind'}
+              </button>
+              <button className="btn-icon" onClick={() => setTimer(sessionType)} style={{padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%'}}><RotateCcw size={20} /></button>
+            </div>
           </div>
-          
-          <div className="timer-display" style={{fontSize: '4.5rem', fontWeight: 800, textShadow: '0 0 40px rgba(255,255,255,0.2)', letterSpacing: '-2px', position: 'relative', zIndex: 1, margin: '1rem 0'}}>{formatTime(timeLeft)}</div>
-          
-          <div style={{fontSize: '0.9rem', color: 'var(--accent-success)', marginBottom: '1.5rem', fontWeight: 'bold', background: 'rgba(16,185,129,0.1)', padding: '6px 16px', borderRadius: '100px', display: 'inline-block', position: 'relative', zIndex: 1}}> Reward: +{sessionType.includes('pomodoro') ? (sessionType === 'pomodoro50' ? '100' : '50') : '10'} XP </div>
-          
-          <div className="timer-controls" style={{position: 'relative', zIndex: 1}}>
-            <button className="btn-primary" onClick={startTimer} style={{padding: '12px 32px', fontSize: '1.1rem', borderRadius: '100px', boxShadow: isActive ? '0 0 20px rgba(139,92,246,0.5)' : 'none'}}>
-              {isActive ? <Pause size={20} /> : <Play size={20} />}
-              {isActive ? 'Pause' : 'Start Grind'}
-            </button>
-            <button className="btn-icon" onClick={() => setTimer(sessionType)} style={{padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%'}}><RotateCcw size={20} /></button>
+
+          {/* Weekly Mini Planner Preview */}
+          <div className="glass" style={{padding:'1.5rem'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem'}}>
+              <h3 style={{fontSize:'1rem', fontWeight:800, display:'flex', alignItems:'center', gap:'6px'}}><Calendar size={16} color="var(--accent-chem)"/> This Week</h3>
+              <button onClick={() => handleTabChange('planner')} style={{fontSize:'0.75rem', color:'var(--accent-physics)', background:'transparent', border:'none', cursor:'pointer', fontWeight:600}}>View All →</button>
+            </div>
+            <div style={{display:'flex', gap:'6px', justifyContent:'space-between'}}>
+              {days.map(d => {
+                const tasks = plannerTasks[d] || [];
+                const done = tasks.filter(t => t.done).length;
+                const isToday = d === todayStr;
+                return (
+                  <div key={d} style={{flex:1, textAlign:'center'}}>
+                    <div style={{fontSize:'0.7rem', color: isToday ? 'var(--accent-physics)' : 'var(--text-muted)', fontWeight: isToday ? 800 : 500, marginBottom:'4px'}}>{d}</div>
+                    <div style={{height:'36px', borderRadius:'8px', background: isToday ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.04)', border: isToday ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.06)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px'}}>
+                      {tasks.length > 0 ? (
+                        <>
+                          <div style={{fontSize:'0.7rem', fontWeight:700, color: done === tasks.length ? 'var(--accent-success)' : 'white'}}>{done}/{tasks.length}</div>
+                          <div style={{width:'80%', height:'3px', background:'rgba(255,255,255,0.1)', borderRadius:'2px'}}>
+                            <div style={{height:'100%', width:`${tasks.length ? (done/tasks.length)*100 : 0}%`, background:'var(--accent-success)', borderRadius:'2px'}}></div>
+                          </div>
+                        </>
+                      ) : <div style={{fontSize:'0.65rem', color:'rgba(255,255,255,0.2)'}}>–</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-        <div className="glass" style={{padding: '1.5rem'}}>
-          <h3 style={{fontSize: '1rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '0.5rem'}}>Daily Motivation</h3>
-          <p style={{fontStyle: 'italic', fontSize: '0.95rem'}}>"Discipline is choosing between what you want now, and what you want most."</p>
-        </div>
-      </aside>
-    </div>
-  );
+
+          {/* Streak card */}
+          <div className="glass" style={{padding:'1.5rem', background:'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(251,146,60,0.05))', borderColor:'rgba(239,68,68,0.15)'}}>
+            <h3 style={{fontSize:'0.95rem', fontWeight:800, display:'flex', alignItems:'center', gap:'8px', marginBottom:'0.75rem'}}>
+              🔥 Study Streak
+            </h3>
+            <div style={{display:'flex', gap:'6px', marginBottom:'10px'}}>
+              {[...Array(7)].map((_,i) => (
+                <div key={i} style={{flex:1, height:'28px', borderRadius:'6px', background: i < (studyStreak % 7 || (studyStreak > 0 ? 7 : 0)) ? 'linear-gradient(135deg, #ef4444, #f97316)' : 'rgba(255,255,255,0.05)', boxShadow: i < (studyStreak % 7 || (studyStreak > 0 ? 7 : 0)) ? '0 4px 10px rgba(239,68,68,0.3)' : 'none', transition:'all 0.3s'}}></div>
+              ))}
+            </div>
+            <p style={{fontSize:'0.82rem', color:'var(--text-muted)'}}>
+              {studyStreak === 0 ? 'Start studying to build your streak!' : `${studyStreak} day${studyStreak > 1 ? 's' : ''} strong! Keep it up 💪`}
+            </p>
+          </div>
+        </aside>
+      </div>
+    );
+  };
 
   const renderJournal = () => (
     <div className="journal-layout animate-fade-in">
@@ -1264,6 +1636,96 @@ const App = () => {
     </div>
   );
 
+  const renderPlanner = () => {
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const todayStr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()];
+    const subjectColors = { Physics:'#8b5cf6', Chemistry:'#ec4899', Mathematics:'#3b82f6', Biology:'#10b981', History:'#f59e0b', Polity:'#06b6d4', Geography:'#8b5cf6', Economy:'#ef4444' };
+
+    return (
+      <div className="animate-fade-in" style={{display:'flex', flexDirection:'column', gap:'2rem', maxWidth:'1000px'}}>
+        {/* Header */}
+        <div className="glass" style={{padding:'2rem', background:'linear-gradient(135deg,rgba(139,92,246,0.1),rgba(236,72,153,0.05))', borderColor:'rgba(139,92,246,0.2)'}}>
+          <h2 style={{fontSize:'1.75rem', fontWeight:800, marginBottom:'0.5rem', display:'flex', alignItems:'center', gap:'12px'}}><Calendar size={28} color="var(--accent-physics)"/> Weekly Study Planner</h2>
+          <p style={{color:'var(--text-muted)'}}>Plan your week topic by topic. Track what you complete each day.</p>
+        </div>
+
+        {/* Add Task Form */}
+        <div className="glass" style={{padding:'1.5rem'}}>
+          <h3 style={{fontSize:'1rem', fontWeight:700, marginBottom:'1rem', display:'flex', alignItems:'center', gap:'8px'}}><Plus size={16} color="var(--accent-success)"/> Schedule a Study Block</h3>
+          <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
+            <select className="input-field" value={plannerDay} onChange={e => setPlannerDay(e.target.value)} style={{flex:'0 0 auto', minWidth:'80px'}}>
+              {days.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <input type="time" className="input-field" value={plannerTime} onChange={e => setPlannerTime(e.target.value)} style={{flex:'0 0 auto', width:'110px'}} />
+            <select className="input-field" value={plannerSubject} onChange={e => setPlannerSubject(e.target.value)} style={{flex:'0 0 auto', minWidth:'120px'}}>
+              <option value="">Subject...</option>
+              {subjects.map(s => <option key={s.id} value={s.title}>{s.title}</option>)}
+            </select>
+            <input className="input-field" placeholder="What will you study? E.g. HC Verma Ch.12" value={plannerInput} onChange={e => setPlannerInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPlannerTask()} style={{flex:'1 1 200px'}} />
+            <button className="btn-primary" onClick={addPlannerTask} style={{flex:'0 0 auto', whiteSpace:'nowrap'}}><Plus size={16}/> Add Block</button>
+          </div>
+        </div>
+
+        {/* Weekly Grid */}
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(130px,1fr))', gap:'1rem'}}>
+          {days.map(day => {
+            const tasks = plannerTasks[day] || [];
+            const done = tasks.filter(t => t.done).length;
+            const isToday = day === todayStr;
+            return (
+              <div key={day} className="glass" style={{padding:'1rem', borderColor: isToday ? 'rgba(139,92,246,0.4)' : 'var(--card-border)', background: isToday ? 'rgba(139,92,246,0.05)' : 'var(--card-bg)', minHeight:'160px'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
+                  <div>
+                    <div style={{fontSize:'0.9rem', fontWeight:800, color: isToday ? 'var(--accent-physics)' : 'white'}}>{day}</div>
+                    {isToday && <div style={{fontSize:'0.65rem', color:'var(--accent-physics)', fontWeight:600}}>TODAY</div>}
+                  </div>
+                  {tasks.length > 0 && <div style={{fontSize:'0.7rem', color: done === tasks.length ? 'var(--accent-success)' : 'var(--text-muted)', fontWeight:700}}>{done}/{tasks.length}</div>}
+                </div>
+                {tasks.length === 0 ? (
+                  <div style={{color:'rgba(255,255,255,0.15)', fontSize:'0.75rem', textAlign:'center', marginTop:'1.5rem'}}>No blocks yet</div>
+                ) : (
+                  <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+                    {tasks.map(task => (
+                      <div key={task.id} style={{display:'flex', gap:'6px', alignItems:'flex-start'}}>
+                        <button onClick={() => togglePlannerTask(day, task.id)} style={{marginTop:'2px', width:'14px', height:'14px', minWidth:'14px', borderRadius:'3px', border:`2px solid ${task.done ? 'var(--accent-success)' : 'rgba(255,255,255,0.2)'}`, background: task.done ? 'var(--accent-success)' : 'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                          {task.done && <Check size={8} color="white"/>}
+                        </button>
+                        <div style={{flex:1, minWidth:0}}>
+                          {task.time && <div style={{fontSize:'0.62rem', color:'var(--accent-math)', fontWeight:700, marginBottom:'2px'}}>{task.time}</div>}
+                          {task.subject && <div style={{fontSize:'0.62rem', padding:'1px 5px', borderRadius:'4px', background:`${subjectColors[task.subject] || '#8b5cf6'}22`, color:subjectColors[task.subject] || 'var(--accent-physics)', marginBottom:'2px', fontWeight:600}}>{task.subject}</div>}
+                          <div style={{fontSize:'0.75rem', lineHeight:1.3, textDecoration: task.done ? 'line-through' : 'none', color: task.done ? 'var(--text-muted)' : 'white', wordBreak:'break-word'}}>{task.text}</div>
+                        </div>
+                        <button onClick={() => deletePlannerTask(day, task.id)} style={{background:'transparent', border:'none', color:'rgba(255,255,255,0.2)', cursor:'pointer', fontSize:'0.7rem', marginTop:'2px', flexShrink:0, lineHeight:1}}>&times;</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Weekly Stats */}
+        <div className="glass" style={{padding:'1.5rem'}}>
+          <h3 style={{fontSize:'1rem', fontWeight:800, marginBottom:'1rem', display:'flex', alignItems:'center', gap:'8px'}}><Target size={16} color="var(--accent-chem)"/> Weekly Summary</h3>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:'1rem'}}>
+            {[
+              { label:'Total Blocks', val: days.reduce((s,d) => s + (plannerTasks[d]?.length || 0), 0), color:'var(--accent-physics)'},
+              { label:'Completed', val: days.reduce((s,d) => s + (plannerTasks[d]?.filter(t=>t.done).length || 0), 0), color:'var(--accent-success)'},
+              { label:'Remaining', val: days.reduce((s,d) => s + (plannerTasks[d]?.filter(t=>!t.done).length || 0), 0), color:'#f59e0b'},
+              { label:'Active Days', val: days.filter(d => (plannerTasks[d]?.length || 0) > 0).length, color:'var(--accent-math)'},
+            ].map(stat => (
+              <div key={stat.label} style={{textAlign:'center', padding:'1rem', background:'rgba(255,255,255,0.03)', borderRadius:'12px', border:'1px solid rgba(255,255,255,0.05)'}}>
+                <div style={{fontSize:'2rem', fontWeight:800, color:stat.color}}>{stat.val}</div>
+                <div style={{fontSize:'0.8rem', color:'var(--text-muted)', marginTop:'4px'}}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderCommunity = () => {
     const trendingTags = ['#JEE2025','#NEET2025','#UPSC2025','#StudyTips','#OrganicChem','#Physics','#Discipline','#MockTest'];
     const tagCounts = [312, 284, 201, 178, 143, 129, 98, 87];
@@ -1286,7 +1748,7 @@ const App = () => {
               <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'2px'}}>
                 <span className="tweet-username" onClick={() => setViewingProfile(item.user)}>{item.user}</span>
                 {item.prep && <span style={{fontSize:'0.7rem', padding:'1px 8px', borderRadius:'100px', background:'rgba(139,92,246,0.15)', color:'var(--accent-physics)', border:'1px solid rgba(139,92,246,0.25)', fontWeight:700}}>{item.prep}</span>}
-                <span style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>{item.time}</span>
+                <span style={{fontSize:'0.75rem', color:'var(--text-muted)'}}><TimeAgo date={item.createdAt} fallback={item.time} /></span>
               </div>
               {item.xp > 0 && <p style={{fontSize:'0.72rem', color:'var(--accent-success)', marginBottom:'8px'}}>⚡ Lvl {pLvl} · {pTitle}</p>}
               <p className="tweet-body">
@@ -1297,8 +1759,8 @@ const App = () => {
                 )}
               </p>
               <div className="tweet-actions">
-                <button className={`tweet-action-btn${hasLiked?' liked':''}`} onClick={() => toggleLike(item.id)}>
-                  <span>{hasLiked ? '❤️' : '🤍'}</span><span>{item.likes||0}</span>
+                <button className={`upvote-btn${hasLiked?' liked':''}`} onClick={() => toggleLike(item.id)}>
+                  <ArrowUp size={16} strokeWidth={3} /><span>{item.likes||0}</span>
                 </button>
                 <button className="tweet-action-btn" onClick={() => setCommentingOn(commentingOn===item.id ? null : item.id)}>
                   <span>💬</span><span>{(item.comments||[]).length}</span>
@@ -1314,7 +1776,7 @@ const App = () => {
                       <div style={{width:'26px', height:'26px', minWidth:'26px', borderRadius:'50%', background:getAvatarColor(c.user), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold'}}>{c.user.charAt(0).toUpperCase()}</div>
                       <div style={{background:'rgba(255,255,255,0.04)', borderRadius:'10px', padding:'6px 10px', flex:1}}>
                         <span style={{fontWeight:700, fontSize:'0.82rem', color:'var(--accent-physics)'}}>{c.user}</span>
-                        <span style={{fontSize:'0.72rem', color:'var(--text-muted)', marginLeft:'6px'}}>{c.time}</span>
+                        <span style={{fontSize:'0.72rem', color:'var(--text-muted)', marginLeft:'6px'}}><TimeAgo date={c.ts} fallback={c.time} /></span>
                         <p style={{fontSize:'0.88rem', marginTop:'2px'}}>{c.text}</p>
                       </div>
                     </div>
@@ -1333,9 +1795,28 @@ const App = () => {
       );
     };
 
+    const visibleFeed = activeSubreddit === 'All' 
+      ? feed 
+      : feed.filter(f => (f.action && f.action.includes(`#${activeSubreddit}`)) || f.prep === activeSubreddit);
+
+    const handleSubredditPost = (e) => {
+      e.preventDefault();
+      let finalTxt = newPostText.trim();
+      if (!finalTxt) return;
+      if (activeSubreddit !== 'All' && !finalTxt.includes(`#${activeSubreddit}`)) {
+        finalTxt += ` #${activeSubreddit}`;
+      }
+      const fakeEvent = { preventDefault: () => {} };
+      const originalTxt = newPostText;
+      setNewPostText(finalTxt);
+      setTimeout(() => {
+        handlePostFeed(fakeEvent);
+      }, 0);
+    };
+
     return (
-      <div className="community-twitter-layout animate-fade-in">
-        {/* Profile Modal */}
+      <div className="community-reddit-layout animate-fade-in">
+        {/* Profile Modal (unchanged) */}
         {viewingProfile && (() => {
           const prof = getProfileData(viewingProfile);
           const { level: pL, title: pT } = getLevelData(prof?.xp || 0);
@@ -1358,7 +1839,6 @@ const App = () => {
                   <div><div style={{fontWeight:800, fontSize:'1.2rem'}}>{userPosts.length}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Posts</div></div>
                   <div><div style={{fontWeight:800, fontSize:'1.2rem', color:'#f87171'}}>{totalLikes}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Likes</div></div>
                 </div>
-
                 {userPosts.slice(0,2).map(p => (
                   <p key={p.id} style={{fontSize:'0.85rem', color:'#cbd5e1', padding:'8px 12px', background:'rgba(255,255,255,0.03)', borderRadius:'10px', marginBottom:'6px', lineHeight:1.4}}>"{p.action.slice(0,100)}{p.action.length>100?'...':''}"</p>
                 ))}
@@ -1366,6 +1846,20 @@ const App = () => {
             </div>
           );
         })()}
+
+        {/* Left Sidebar - Subreddits */}
+        <div className="community-left-sidebar">
+          <div className="glass" style={{padding: '1rem 0.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)'}}>
+            <h3 style={{fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.75rem', paddingLeft: '14px'}}>Communities</h3>
+            {['All', 'JEE', 'NEET', 'UPSC', 'General', 'StudyTips'].map(sub => (
+              <div key={sub} className={`subreddit-item ${activeSubreddit === sub ? 'active' : ''}`} onClick={() => setActiveSubreddit(sub)}>
+                <div className="subreddit-icon">{sub === 'All' ? '🌍' : sub.charAt(0)}</div>
+                <span>{sub === 'All' ? 'Home' : `c/${sub}`}</span>
+              </div>
+            ))}
+          </div>
+          <button className="btn-primary" style={{width: '100%', marginTop: '0.5rem', padding: '12px', borderRadius: '16px', fontWeight: 'bold'}} onClick={() => setActiveSubreddit('All')}><Plus size={16}/> Create Community</button>
+        </div>
 
         {/* Feed Column */}
         <div className="community-feed-col">
@@ -1381,11 +1875,11 @@ const App = () => {
           <div className="tweet-compose glass">
             <div style={{display:'flex', gap:'12px'}}>
               <div className="tweet-avatar" style={{background:getAvatarColor(sessionUser), flexShrink:0}}>{sessionUser.charAt(0).toUpperCase()}</div>
-              <form onSubmit={handlePostFeed} style={{flex:1, display:'flex', flexDirection:'column', gap:'10px'}}>
-                <textarea className="tweet-compose-input" placeholder="What's on your study grind? Share tips, wins, questions... #JEE2025" value={newPostText} onChange={e=>setNewPostText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))handlePostFeed(e);}} rows={3} maxLength={280} />
+              <form onSubmit={handleSubredditPost} style={{flex:1, display:'flex', flexDirection:'column', gap:'10px'}}>
+                <textarea className="tweet-compose-input" placeholder={activeSubreddit === 'All' ? "What's on your study grind? Share tips, wins, questions..." : `Post to c/${activeSubreddit}...`} value={newPostText} onChange={e=>setNewPostText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))handleSubredditPost(e);}} rows={3} maxLength={280} />
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                   <span style={{fontSize:'0.8rem', color:newPostText.length>240?'#ef4444':'var(--text-muted)'}}>{newPostText.length}/280</span>
-                  <button type="submit" className="btn-primary" style={{padding:'8px 18px'}} disabled={!newPostText.trim()}><Send size={14}/> Post (+2 XP)</button>
+                  <button type="submit" className="btn-primary" style={{padding:'8px 18px'}} disabled={!newPostText.trim()}><Send size={14}/> Post</button>
                 </div>
               </form>
             </div>
@@ -1404,14 +1898,14 @@ const App = () => {
                 </div>
               ))}
             </div>
-          ) : feed.length === 0 ? (
+          ) : visibleFeed.length === 0 ? (
             <div style={{textAlign:'center', padding:'3rem 1rem', color:'var(--text-muted)'}}>
               <span style={{fontSize:'2rem'}}>🌍</span>
-              <p style={{marginTop:'0.75rem', fontWeight:600}}>No posts yet — be the first!</p>
-              <p style={{fontSize:'0.85rem', marginTop:'0.25rem'}}>Your post will be visible to every user on the site in real-time.</p>
+              <p style={{marginTop:'0.75rem', fontWeight:600}}>No posts in {activeSubreddit === 'All' ? 'the community' : `c/${activeSubreddit}`} yet!</p>
+              <p style={{fontSize:'0.85rem', marginTop:'0.25rem'}}>Be the first to create a post here.</p>
             </div>
           ) : (
-            <div style={{display:'flex', flexDirection:'column'}}>{feed.map(item => renderPostCard(item))}</div>
+            <div style={{display:'flex', flexDirection:'column'}}>{visibleFeed.map(item => renderPostCard(item))}</div>
           )}
         </div>
 
@@ -1429,13 +1923,28 @@ const App = () => {
           </div>
           <div className="glass leaderboard-card" style={{borderRadius:'20px'}}>
             <h3 style={{fontSize:'1rem', fontWeight:'bold', display:'flex', alignItems:'center', gap:'8px', marginBottom:'1rem'}}><Trophy size={16} color="#fbbf24"/> Top Scorers</h3>
-            {combinedLeaderboard.slice(0,5).map(lb => (
-              <div key={lb.name} className="leaderboard-item" style={{cursor:'pointer'}} onClick={()=>setViewingProfile(lb.name.replace(' (You)',''))}>
-                <span className={`rank rank-${lb.rank}`}>#{lb.rank}</span>
-                <span className="leaderboard-name" style={{color:lb.name.includes('(You)')?'white':'inherit'}}>{lb.name}</span>
-                <span className="leaderboard-score">{lb.score} XP</span>
-              </div>
-            ))}
+            {combinedLeaderboard.slice(0,5).map((lb, idx) => {
+              const isMe = lb.name.includes('(You)');
+              const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null;
+              const { level: lbLevel } = getLevelData(lb.score);
+              // Estimate streak from score (just for display variety among mock users)
+              const mockStreak = isMe ? studyStreak : Math.max(1, Math.floor(lb.score / 200));
+              return (
+                <div key={lb.name} className="leaderboard-item" style={{cursor:'pointer', padding:'10px 0', borderBottom: idx < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none', background: isMe ? 'rgba(139,92,246,0.06)' : 'transparent', borderRadius: isMe ? '10px' : 0, paddingLeft: isMe ? '8px' : '0', paddingRight: isMe ? '8px' : '0', marginLeft: isMe ? '-8px' : 0, marginRight: isMe ? '-8px' : 0}} onClick={() => setViewingProfile(lb.name.replace(' (You)',''))}>
+                  <div style={{display:'flex', alignItems:'center', gap:'8px', width:'100%'}}>
+                    <span style={{fontSize:'1.1rem', width:'24px', flexShrink:0}}>{medal || `#${lb.rank}`}</span>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{fontWeight:700, fontSize:'0.88rem', color: isMe ? 'var(--accent-physics)' : 'white', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{lb.name}</div>
+                      <div style={{display:'flex', gap:'6px', marginTop:'3px', alignItems:'center'}}>
+                        <span style={{fontSize:'0.68rem', color:'var(--accent-success)', fontWeight:700}}>Lvl {lbLevel}</span>
+                        <span style={{fontSize:'0.68rem', color:'#fb923c', fontWeight:700}}>🔥 {mockStreak}d</span>
+                      </div>
+                    </div>
+                    <span style={{fontWeight:800, fontSize:'0.85rem', color:'#fbbf24', flexShrink:0}}>{lb.score.toLocaleString()} XP</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -1618,11 +2127,18 @@ const App = () => {
       <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
         {activeVideo ? (
           <div style={{display: 'grid', gap: '1.5rem', alignItems: 'start', gridTemplateColumns: `repeat(auto-fit, minmax(${isHorizontal ? '400px' : '100%'}, 1fr))`}}>
-            <div className="glass" style={{padding: '1rem', background: '#000', borderRadius: '20px', overflow: 'hidden'}}>
-              <div style={{position: 'relative', paddingBottom: '56.25%', height: 0}}>
-                <iframe src={`https://www.youtube-nocookie.com/embed/${activeVideo}?autoplay=1&rel=0&modestbranding=1`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px'}}></iframe>
+            <div className="glass lecture-video-container" style={{padding: '1rem', background: '#000', borderRadius: '20px', overflow: 'hidden', position: 'relative'}}>
+              <button className="pip-close-btn" onClick={() => setActiveVideo(null)}><X size={14}/></button>
+              <div style={{position: 'relative', paddingBottom: '56.25%', height: 0, background: '#111', borderRadius: '12px', overflow: 'hidden'}}>
+                <div id="youtube-player" style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%'}}></div>
+                <div className="pip-expand-overlay" onClick={() => handleTabChange('lectures')}>
+                   <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
+                     <Columns size={32} />
+                     <span style={{fontWeight: 'bold'}}>Return to Lectures</span>
+                   </div>
+                </div>
               </div>
-              <div style={{display: 'flex', justifyContent: 'space-between', padding: '10px 10px 0', color: '#fff', flexWrap: 'wrap', gap: '10px'}}>
+              <div className="video-header-controls" style={{display: 'flex', justifyContent: 'space-between', padding: '10px 10px 0', color: '#fff', flexWrap: 'wrap', gap: '10px'}}>
                 <span style={{fontWeight: 'bold', fontSize: '1.1rem'}}>{activeVideoObj?.title}</span>
                 <div style={{display: 'flex', gap: '10px'}}>
                   <button onClick={() => setLectureViewMode('horizontal')} style={{background: isHorizontal ? 'var(--accent-physics)' : 'rgba(255,255,255,0.1)', border: 'none', padding: '6px', borderRadius: '8px', color: 'white', cursor: 'pointer'}} title="Side-by-side view"><Columns size={16}/></button>
@@ -1631,7 +2147,7 @@ const App = () => {
               </div>
             </div>
             
-            <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', maxHeight: isHorizontal ? '600px' : 'auto'}}>
+            <div className="glass lecture-notes-section" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', maxHeight: isHorizontal ? '600px' : 'auto'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                 <h3 style={{fontSize: '1.1rem', fontWeight: 'bold'}}>Lecture Notes</h3>
                 <button className="btn-primary" onClick={() => downloadNote(activeVideoObj)} style={{padding: '6px 12px', fontSize: '0.8rem'}}><Download size={14}/> Export</button>
@@ -1667,13 +2183,13 @@ const App = () => {
             </div>
           </div>
         ) : (
-          <div className="glass" style={{padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', color: 'var(--text-muted)'}}>
+          <div className="glass lecture-empty-state" style={{padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', color: 'var(--text-muted)'}}>
             <MonitorPlay size={64} style={{opacity: 0.5}} />
             <p>Select a video from your playlist or add a new one to start watching ad-free.</p>
           </div>
         )}
         
-        <form className="glass" style={{padding: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center'}} onSubmit={handleAddVideo}>
+        <form className="glass lecture-add-form" style={{padding: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center'}} onSubmit={handleAddVideo}>
           <div className="input-group" style={{flex: '1 1 250px'}}>
             <Video size={18} className="input-icon" />
             <input type="text" className="input-field with-icon" placeholder="Paste YouTube Link (Normal or Live)..." value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} style={{width: '100%'}} />
@@ -1682,35 +2198,56 @@ const App = () => {
           <button type="submit" className="btn-primary" style={{flex: '0 0 auto', whiteSpace: 'nowrap'}}><Plus size={18} /> Add to Playlist (+5 XP)</button>
         </form>
         
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem'}}>
-          {playlist.map(video => (
+        <div className="lecture-playlist-section" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem'}}>
+          {playlist.map(video => {
+            const prog = videoProgress[video.id];
+            const percent = prog ? Math.min(100, (prog.time / prog.duration) * 100) : 0;
+            return (
             <div key={video.id} className="glass subject-card" style={{display: 'flex', flexDirection: 'column', gap: '1rem', cursor: 'pointer', border: activeVideo === video.id ? '2px solid var(--accent-physics)' : ''}} onClick={() => { setActiveVideo(video.id); awardXP(10, 'Started a Lecture'); }}>
               <div style={{position: 'relative', paddingBottom: '56.25%', borderRadius: '10px', overflow: 'hidden', background: '#111'}}>
                 <img src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`} alt="thumbnail" style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8}} />
                 <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                   <div style={{background: 'rgba(0,0,0,0.6)', padding: '12px', borderRadius: '50%', color: 'white', backdropFilter: 'blur(4px)'}}><Play size={24} fill="white" /></div>
                 </div>
+                {/* Premium Paid Batch Progress Bar */}
+                {percent > 0 && (
+                  <div style={{position: 'absolute', bottom: 0, left: 0, width: '100%', height: '4px', background: 'rgba(255,255,255,0.3)'}}>
+                    <div style={{height: '100%', width: `${percent}%`, background: 'var(--accent-physics)', boxShadow: '0 0 10px var(--accent-physics)'}}></div>
+                  </div>
+                )}
               </div>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+
                 <div>
-                  <h4 style={{fontWeight: 600, fontSize: '1.05rem', marginBottom: '6px', lineHeight: 1.3, textDecoration: video.watched ? 'line-through' : 'none', color: video.watched ? 'var(--text-muted)' : 'white'}}>{video.title}</h4>
-                  <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                  <h4 style={{fontWeight: 600, fontSize: '1.05rem', marginBottom: '6px', lineHeight: 1.3, textDecoration: video.watched || prog?.completed ? 'line-through' : 'none', color: video.watched || prog?.completed ? 'var(--text-muted)' : 'white'}}>{video.title}</h4>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap'}}>
                     <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{video.addedAt}</span>
                     {(videoNotes[video.id]?.notes || videoNotes[video.id]?.mistakes) && (
                       <span style={{fontSize: '0.7rem', padding: '2px 6px', background: 'rgba(139,92,246,0.15)', color: 'var(--accent-physics)', borderRadius: '100px', fontWeight: 'bold'}}>Has Notes</span>
+                    )}
+                    {prog && !prog.completed && percent > 0 && percent < 95 && (
+                      <span style={{fontSize: '0.7rem', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent-physics)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>
+                        {Math.round(percent)}% Watched
+                      </span>
+                    )}
+                    {(video.watched || prog?.completed) && (
+                      <span style={{fontSize: '0.7rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>
+                        Completed
+                      </span>
                     )}
                   </div>
                 </div>
                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end'}}>
                    <button onClick={(e) => { e.stopPropagation(); removeVideo(video.id, e); }} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex'}}><Trash2 size={16}/></button>
-                   <label style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: video.watched ? 'var(--accent-success)' : 'var(--text-muted)', cursor: 'pointer'}} onClick={e => e.stopPropagation()}>
-                     <input type="checkbox" checked={!!video.watched} onChange={(e) => toggleVideoWatched(e, video.id)} />
-                     {video.watched ? 'Watched' : 'Mark'}
+                   <label style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: video.watched || prog?.completed ? 'var(--accent-success)' : 'var(--text-muted)', cursor: 'pointer'}} onClick={e => e.stopPropagation()}>
+                     <input type="checkbox" checked={!!(video.watched || prog?.completed)} onChange={(e) => toggleVideoWatched(e, video.id)} />
+                     {video.watched || prog?.completed ? 'Watched' : 'Mark'}
                    </label>
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -1879,10 +2416,12 @@ const App = () => {
            <div style={{background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', textAlign: 'center'}}>
              <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Lvl {level}: {title}</div>
              <div style={{fontWeight: 'bold', color: 'var(--accent-success)', fontSize: '1.1rem', marginTop: '4px'}}>{currentXP} XP</div>
+             {studyStreak > 0 && <div style={{fontSize:'0.78rem', color:'#fb923c', marginTop:'4px', fontWeight:700}}>🔥 {studyStreak}-Day Streak</div>}
            </div>
         )}
         <div className="nav-links">
           <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}><LayoutDashboard size={18} /> Today's Plan</div>
+          <div className={`nav-item ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => handleTabChange('planner')}><Calendar size={18} /> Study Planner</div>
           <div className={`nav-item ${activeTab === 'journal' ? 'active' : ''}`} onClick={() => handleTabChange('journal')}><BookOpen size={18} /> Journal & Mistakes</div>
           <div className={`nav-item ${activeTab === 'lectures' ? 'active' : ''}`} onClick={() => handleTabChange('lectures')}><MonitorPlay size={18} /> Video Lectures</div>
           <div className={`nav-item ${activeTab === 'connect' ? 'active' : ''}`} onClick={() => handleTabChange('connect')}><PhoneCall size={18} /> Study Connect</div>
@@ -1902,6 +2441,7 @@ const App = () => {
         <header className="page-header" style={{paddingTop: '1rem'}}>
           <h1 className="greeting">
             {activeTab === 'dashboard' && `Mission ${currentUserProfile.prepType}`}
+            {activeTab === 'planner' && 'Study Planner'}
             {activeTab === 'journal' && 'Learning Journal'}
             {activeTab === 'lectures' && 'Ad-Free Lectures'}
             {activeTab === 'connect' && 'Study Connect'}
@@ -1910,6 +2450,7 @@ const App = () => {
           </h1>
           <p className="subtitle">
             {activeTab === 'dashboard' && "Crush your tasks for today."}
+            {activeTab === 'planner' && "Plan your weekly study schedule."}
             {activeTab === 'journal' && "Log your learnings and mistakes."}
             {activeTab === 'lectures' && "Watch lectures ad-free."}
             {activeTab === 'connect' && "Video rooms with fellow aspirants."}
@@ -1918,48 +2459,173 @@ const App = () => {
           </p>
         </header>
         {activeTab === 'dashboard' && renderDashboard()}
+        {activeTab === 'planner' && renderPlanner()}
         {activeTab === 'journal' && renderJournal()}
-        {activeTab === 'lectures' && renderLectures()}
         {activeTab === 'connect' && renderStudyConnect()}
         {activeTab === 'community' && renderCommunity()}
         {activeTab === 'profile' && renderProfile()}
+        
+        <div className={`lectures-wrapper ${activeTab !== 'lectures' ? (activeVideo ? 'pip-mode' : 'hidden-tab') : ''}`}>
+           {renderLectures()}
+        </div>
       </main>
 
-      {/* Floating AI Assistant */}
-      <div style={{position: 'fixed', bottom: '80px', right: '20px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', transform: `translate(${aiPosition.x}px, ${aiPosition.y}px)`, transition: isAiDragging ? 'none' : 'transform 0.2s ease'}}>
+      {/* Floating AI Assistant - Premium UI */}
+      <div style={{position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', transform: `translate(${aiPosition.x}px, ${aiPosition.y}px)`, transition: isAiDragging ? 'none' : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
         {aiOpen && (
-          <div className="animate-fade-in" style={{width: 'clamp(300px, 90vw, 360px)', height: '450px', marginBottom: '16px', borderRadius: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.8)', border: '1px solid rgba(168,85,247,0.5)', background: '#0f172a'}}>
-            <div onMouseDown={handleAiDragStart} onTouchStart={handleAiDragStart} style={{background: 'linear-gradient(90deg, var(--accent-physics), var(--accent-chem))', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'grab', userSelect: 'none'}}>
-              <div style={{display: 'flex', alignItems: 'center', gap: '8px', color: 'white'}}>
-                <Move size={16} style={{opacity: 0.7}}/>
-                <Bot size={24}/>
-                <span style={{fontWeight: 'bold', fontSize: '1.1rem'}}>AI Advisor</span>
+          <div className="animate-fade-in" style={{
+            width: 'clamp(320px, 90vw, 400px)', 
+            height: '550px', 
+            marginBottom: '20px', 
+            borderRadius: '28px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            overflow: 'hidden', 
+            boxShadow: '0 30px 60px rgba(0,0,0,0.6), 0 0 40px rgba(139, 92, 246, 0.2)', 
+            border: '1px solid rgba(255,255,255,0.1)', 
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)'
+          }}>
+            <div onMouseDown={handleAiDragStart} onTouchStart={handleAiDragStart} style={{
+              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.8), rgba(236, 72, 153, 0.8))', 
+              padding: '18px 24px', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              cursor: 'grab', 
+              userSelect: 'none',
+              borderBottom: '1px solid rgba(255,255,255,0.1)'
+            }}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '12px', color: 'white'}}>
+                <div style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '8px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backdropFilter: 'blur(4px)'
+                }}>
+                  <Bot size={22}/>
+                </div>
+                <div>
+                  <div style={{fontWeight: '800', fontSize: '1.15rem', letterSpacing: '-0.5px'}}>FocusBot AI</div>
+                  <div style={{fontSize: '0.75rem', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '4px'}}>
+                    <span style={{width: '6px', height: '6px', background: '#4ade80', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #4ade80'}}></span> Online
+                  </div>
+                </div>
               </div>
-              <button onClick={() => setAiOpen(false)} style={{background: 'rgba(0,0,0,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}><X size={16}/></button>
+              <button onClick={() => setAiOpen(false)} style={{background: 'rgba(0,0,0,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s'}} onMouseEnter={e => e.currentTarget.style.background='rgba(0,0,0,0.4)'} onMouseLeave={e => e.currentTarget.style.background='rgba(0,0,0,0.2)'}><X size={18}/></button>
             </div>
-            <div style={{flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px'}}>
+            
+            <div style={{flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '16px', background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.2))'}}>
+              <div style={{textAlign: 'center', margin: '10px 0 20px'}}>
+                <span style={{background: 'rgba(255,255,255,0.05)', padding: '6px 14px', borderRadius: '100px', fontSize: '0.75rem', color: 'var(--text-muted)'}}>Today</span>
+              </div>
+              
               {aiMessages.map((msg, i) => (
-                <div key={i} style={{alignSelf: msg.role === 'ai' ? 'flex-start' : 'flex-end', background: msg.role === 'ai' ? 'rgba(255,255,255,0.1)' : 'var(--accent-physics)', padding: '12px 16px', borderRadius: msg.role === 'ai' ? '16px 16px 16px 4px' : '16px 16px 4px 16px', maxWidth: '85%', fontSize: '0.95rem', lineHeight: '1.5', color: 'white', border: msg.role === 'ai' ? '1px solid rgba(255,255,255,0.05)' : 'none'}}>
-                  {msg.text}
+                <div key={i} style={{
+                  alignSelf: msg.role === 'ai' ? 'flex-start' : 'flex-end', 
+                  display: 'flex',
+                  flexDirection: msg.role === 'ai' ? 'row' : 'row-reverse',
+                  gap: '12px',
+                  maxWidth: '90%'
+                }}>
+                  {msg.role === 'ai' && (
+                    <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 'auto', boxShadow: '0 4px 10px rgba(139,92,246,0.3)'}}>
+                      <Bot size={16} color="white"/>
+                    </div>
+                  )}
+                  <div style={{
+                    background: msg.role === 'ai' ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg, var(--accent-physics), #6d28d9)', 
+                    padding: '14px 18px', 
+                    borderRadius: msg.role === 'ai' ? '20px 20px 20px 4px' : '20px 20px 4px 20px', 
+                    fontSize: '0.95rem', 
+                    lineHeight: '1.6', 
+                    color: 'white', 
+                    border: msg.role === 'ai' ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    boxShadow: msg.role === 'ai' ? 'none' : '0 10px 20px rgba(109,40,217,0.3)'
+                  }}>
+                    {msg.text.split('\n').map((line, idx) => (
+                      <span key={idx}>
+                        {line.includes('**') ? (
+                          <span dangerouslySetInnerHTML={{__html: line.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')}} />
+                        ) : line}
+                        {idx !== msg.text.split('\n').length - 1 && <br />}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ))}
               {aiTyping && (
-                <div style={{alignSelf: 'flex-start', background: 'rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '16px 16px 16px 4px', color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', gap: '8px', alignItems: 'center'}}>
-                  <Sparkles size={14} className="spin-slow"/> Thinking...
+                <div style={{alignSelf: 'flex-start', display: 'flex', gap: '12px', maxWidth: '85%'}}>
+                   <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 'auto'}}>
+                      <Bot size={16} color="white"/>
+                   </div>
+                   <div style={{background: 'rgba(255,255,255,0.07)', padding: '16px 20px', borderRadius: '20px 20px 20px 4px', display: 'flex', gap: '6px', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)'}}>
+                      <div className="typing-dot" style={{animationDelay: '0s'}}></div>
+                      <div className="typing-dot" style={{animationDelay: '0.2s'}}></div>
+                      <div className="typing-dot" style={{animationDelay: '0.4s'}}></div>
+                   </div>
                 </div>
               )}
               <div ref={aiEndRef} />
             </div>
-            <form onSubmit={handleAISend} style={{padding: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.2)'}}>
-              <input type="text" className="input-field" placeholder="Ask for advice..." value={aiInput} onChange={e => setAiInput(e.target.value)} style={{flex: 1, padding: '10px 16px', borderRadius: '100px'}} />
-              <button type="submit" className="btn-primary" style={{borderRadius: '50%', width: '42px', height: '42px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}} disabled={!aiInput.trim() || aiTyping}><Send size={18}/></button>
+            <form onSubmit={handleAISend} style={{padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.3)'}}>
+              <input type="text" placeholder="Message FocusBot..." value={aiInput} onChange={e => setAiInput(e.target.value)} style={{
+                flex: 1, 
+                padding: '14px 20px', 
+                borderRadius: '100px', 
+                background: 'rgba(255,255,255,0.05)', 
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+                fontSize: '0.95rem',
+                outline: 'none',
+                transition: 'border-color 0.2s'
+              }} onFocus={e => e.target.style.borderColor = 'var(--accent-physics)'} onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}/>
+              <button type="submit" disabled={!aiInput.trim() || aiTyping} style={{
+                borderRadius: '50%', 
+                width: '48px', 
+                height: '48px', 
+                padding: 0, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: (!aiInput.trim() || aiTyping) ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))',
+                color: (!aiInput.trim() || aiTyping) ? 'rgba(255,255,255,0.3)' : 'white',
+                border: 'none',
+                cursor: (!aiInput.trim() || aiTyping) ? 'not-allowed' : 'pointer',
+                boxShadow: (!aiInput.trim() || aiTyping) ? 'none' : '0 4px 15px rgba(139,92,246,0.4)',
+                transition: 'all 0.2s'
+              }}>
+                <Send size={20} style={{marginLeft: '2px'}}/>
+              </button>
             </form>
           </div>
         )}
         
         {!aiOpen && (
-          <button onClick={() => { trackAIOpened(); setAiOpen(true); }} className="btn-primary" style={{width: '60px', height: '60px', borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 25px rgba(168,85,247,0.5)', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))'}}>
-            <Bot size={28}/>
+          <button onClick={() => { trackAIOpened(); setAiOpen(true); }} style={{
+            width: '68px', 
+            height: '68px', 
+            borderRadius: '50%', 
+            padding: 0, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            boxShadow: '0 15px 35px rgba(168,85,247,0.6), inset 0 2px 5px rgba(255,255,255,0.5)', 
+            background: 'linear-gradient(135deg, #a855f7, #ec4899)',
+            border: 'none',
+            color: 'white',
+            cursor: 'pointer',
+            transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            position: 'relative',
+            overflow: 'hidden'
+          }} onMouseEnter={e => e.currentTarget.style.transform='scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform='scale(1)'}>
+            <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent)', borderRadius: '50%'}}></div>
+            <Sparkles size={18} style={{position: 'absolute', top: '15px', right: '15px', opacity: 0.8}} className="spin-slow"/>
+            <Bot size={32} style={{position: 'relative', zIndex: 1}}/>
           </button>
         )}
       </div>
