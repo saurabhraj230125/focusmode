@@ -1921,7 +1921,7 @@ const App = () => {
 
         {/* Tab Content */}
         {activeCommunityTab === "chat" ? (
-          <div className="community-chat-layout" style={{display: "grid", gap: "1.5rem", flex: 1, minHeight: 0}}>
+          <div className="community-chat-layout" style={{flex: 1, minHeight: 0, width: "100%", maxWidth: "100%"}}>
             {/* Left Peers List - Gamified Sidebar */}
             <div className="glass peers-sidebar" style={{borderRadius: "24px", overflowY: "auto", padding: "0", display: "flex", flexDirection: "column", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(15, 23, 42, 0.6)"}}>
               <div style={{padding: "1.25rem", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, background: "rgba(15, 23, 42, 0.95)", backdropFilter: "blur(10px)", zIndex: 10}}>
@@ -1985,7 +1985,7 @@ const App = () => {
               </div>
               
               {/* Chat Messages Body */}
-              <div className="custom-scrollbar" style={{flex: 1, overflowY: "auto", padding: "2rem", display: "flex", flexDirection: "column-reverse", gap: "1.25rem"}}>
+              <div className="custom-scrollbar" style={{flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column-reverse", gap: "1rem", overflowX: "hidden", width: "100%", boxSizing: "border-box"}}>
                 {chatMessages.length === 0 ? (
                   <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px"}}>
                     <span style={{fontSize: "3rem"}}>👋</span>
@@ -1998,15 +1998,15 @@ const App = () => {
                     const text = activeChat === "global" ? msg.action : msg.action.replace(/^@DM_[^\s]+\s/, "");
                     const { level: mLvl } = getLevelData(msg.xp || 0);
                     return (
-                      <div key={msg.id} style={{display: "flex", gap: "16px", alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "85%", animation: "slideUp 0.3s ease-out forwards"}}>
+                      <div key={msg.id} style={{display: "flex", gap: "12px", alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "90%", animation: "slideUp 0.3s ease-out forwards", width: "fit-content"}}>
                         {!isMe && (
                           <div style={{width: "40px", height: "40px", borderRadius: "12px", background: getAvatarColor(msg.user), flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", cursor: "pointer", border: "2px solid rgba(255,255,255,0.1)", fontWeight: "bold"}} onClick={() => setViewingProfile(msg.user)}>
                              {msg.user.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div style={{display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start"}}>
+                        <div style={{display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", maxWidth: "100%"}}>
                            {!isMe && activeChat === "global" && (
-                              <div style={{display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", cursor: "pointer"}} onClick={() => setViewingProfile(msg.user)}>
+                              <div style={{display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", cursor: "pointer", maxWidth: "100%"}} onClick={() => setViewingProfile(msg.user)}>
                                  <span style={{fontSize: "0.85rem", color: "white", fontWeight: "700"}}>{msg.user}</span>
                                  <span style={{fontSize: "0.65rem", background: "rgba(139,92,246,0.2)", color: "var(--accent-physics)", padding: "2px 6px", borderRadius: "6px", fontWeight: "bold"}}>Lvl {mLvl}</span>
                               </div>
@@ -2023,10 +2023,10 @@ const App = () => {
               </div>
               
               {/* Chat Input */}
-              <div style={{padding: "1.25rem 2rem", background: "rgba(0,0,0,0.3)", borderTop: "1px solid rgba(255,255,255,0.05)"}}>
-                <form onSubmit={handleSendMessage} style={{display: "flex", gap: "12px"}}>
-                  <input type="text" className="input-field" placeholder={`Message ${activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}...`} value={chatInput} onChange={e => setChatInput(e.target.value)} style={{flex: 1, padding: "16px 24px", borderRadius: "100px", fontSize: "1rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", transition: "all 0.3s", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.1)", outline: "none"}} onFocus={(e) => e.target.style.boxShadow = "0 0 0 2px var(--accent-physics), inset 0 2px 10px rgba(0,0,0,0.1)"} onBlur={(e) => e.target.style.boxShadow = "inset 0 2px 10px rgba(0,0,0,0.1)"} />
-                  <button type="submit" className="btn-primary" style={{borderRadius: "100px", padding: "0 24px", display: "flex", alignItems: "center", gap: "8px", fontWeight: "bold", fontSize: "1rem", boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)", transition: "all 0.2s"}} disabled={!chatInput.trim()}>Send <Send size={18}/></button>
+              <div style={{padding: "1rem", background: "rgba(0,0,0,0.3)", borderTop: "1px solid rgba(255,255,255,0.05)", width: "100%", maxWidth: "100%", boxSizing: "border-box"}}>
+                <form onSubmit={handleSendMessage} style={{display: "flex", gap: "8px", width: "100%"}}>
+                  <input type="text" className="input-field" placeholder={`Message ${activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}...`} value={chatInput} onChange={e => setChatInput(e.target.value)} style={{flex: 1, padding: "14px 16px", borderRadius: "100px", fontSize: "0.95rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", transition: "all 0.3s", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.1)", outline: "none", minWidth: 0}} onFocus={(e) => e.target.style.boxShadow = "0 0 0 2px var(--accent-physics), inset 0 2px 10px rgba(0,0,0,0.1)"} onBlur={(e) => e.target.style.boxShadow = "inset 0 2px 10px rgba(0,0,0,0.1)"} />
+                  <button type="submit" className="btn-primary" style={{borderRadius: "100px", padding: "0 16px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "bold", fontSize: "0.95rem", boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)", transition: "all 0.2s", flexShrink: 0}} disabled={!chatInput.trim()}><Send size={16}/></button>
                 </form>
               </div>
             </div>
