@@ -358,6 +358,11 @@ const App = () => {
       return `You're welcome! 😊 That's what I'm here for. Got another question? Ask away — whether it's a concept, a problem, or just study advice!`;
     }
 
+    // ── ABOUT APP / PLANMAKER ─────────────────────────────────────────────────
+    if (t.match(/what is this (app|website)|about (planmaker|focusmodeplayer)|who created (you|this)|how to use this|what can i do here/)) {
+      return `Welcome to **FocusModePlayer (PlanMaker)**! 🚀 This is the ultimate study dashboard for JEE, NEET & UPSC aspirants. Here's what you can do:\n\n1. **Plan:** Track daily tasks, study modules, and track your syllabus progress.\n2. **Journal:** Write daily reflections and download your notes.\n3. **Lectures:** Add YouTube links to watch ad-free without distractions.\n4. **Connect:** Join P2P video study rooms with other students.\n5. **Community:** Share updates and ask questions in real-time!\n\nI'm FocusBot, your AI guide. Let me know if you need help!`;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // ── PHYSICS TOPICS ────────────────────────────────────────────────────────
     // ─────────────────────────────────────────────────────────────────────────
@@ -2506,11 +2511,12 @@ const App = () => {
       </main>
 
       {/* Floating AI Assistant - Premium UI */}
-      <div style={{position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', transform: `translate(${aiPosition.x}px, ${aiPosition.y}px)`, transition: isAiDragging ? 'none' : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
+      <div className="floating-ai-wrapper" style={{position: 'fixed', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', transform: `translate(${aiPosition.x}px, ${aiPosition.y}px)`, transition: isAiDragging ? 'none' : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
         {aiOpen && (
-          <div className="animate-fade-in" style={{
-            width: 'clamp(320px, 90vw, 400px)', 
-            height: '550px', 
+          <div className="animate-fade-in floating-ai-chat" style={{
+            width: 'clamp(300px, 92vw, 400px)', 
+            height: 'clamp(400px, 60vh, 600px)', 
+            maxHeight: 'calc(100vh - 120px)',
             marginBottom: '20px', 
             borderRadius: '28px', 
             display: 'flex', 

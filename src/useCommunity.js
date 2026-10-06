@@ -55,7 +55,8 @@ const BAD_WORDS_LONG = [
 ];
 const BAD_WORDS_STRICT = [
   'mc', 'bc', 'mkc', 'tmkc', 'fuck', 'shit', 'bitch', 'whore', 'slut', 'dick', 
-  'pussy', 'cunt', 'loda', 'lode', 'bastard', 'asshole', 'chut', 'chooth', 'choot'
+  'pussy', 'cunt', 'loda', 'lode', 'bastard', 'asshole', 'chut', 'chooth', 'choot',
+  'sexy', 'porn', 'nude', 'boobs', 'tits', 'cock', 'horny'
 ];
 
 const BAD_PHRASES = [

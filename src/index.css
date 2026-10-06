@@ -1283,3 +1283,15 @@ select.input-field {
 }
 
 
+
+/* Floating AI Responsive wrapper */
+.floating-ai-wrapper {
+  bottom: 20px;
+  right: 20px;
+}
+@media (max-width: 768px) {
+  .floating-ai-wrapper {
+    bottom: calc(var(--bottom-nav-height) + 20px) !important;
+    right: 15px !important;
+  }
+}
