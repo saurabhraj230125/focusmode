@@ -1323,3 +1323,7 @@ html, body {
   height: 36px !important;
 }
 
+
+* { box-sizing: border-box; }
+textarea { max-width: 100%; box-sizing: border-box; }
+

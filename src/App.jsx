@@ -1019,6 +1019,13 @@ const App = () => {
     setNewTaskTitle('');
   };
 
+  const handleDeleteTask = (subjectId, taskId) => {
+    setSubjects(prev => prev.map(sub => {
+      if (sub.id !== subjectId) return sub;
+      return { ...sub, tasks: sub.tasks.filter(t => t.id !== taskId) };
+    }));
+  };
+
   const toggleSubtask = (subjectId, taskId, subtaskId) => {
     let taskCompletedJustNow = false;
     let allCompletedNow = false;
@@ -1515,7 +1522,10 @@ const App = () => {
                       {subject.tasks.length === 0 && <p className="text-muted" style={{color: '#94a3b8', fontSize: '0.9rem'}}>No tasks added yet.</p>}
                       {subject.tasks.map(task => (
                         <div key={task.id} className="task-item">
-                          <div style={{fontWeight: 600, marginBottom: '8px', fontSize:'0.95rem'}}>{task.title}</div>
+                          <div style={{fontWeight: 600, marginBottom: '8px', fontSize:'0.95rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <span>{task.title}</span>
+                            <button onClick={() => handleDeleteTask(subject.id, task.id)} style={{background:'transparent', border:'none', color:'rgba(255,255,255,0.3)', cursor:'pointer', fontSize:'1rem'}}>&times;</button>
+                          </div>
                           <div style={{display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px'}}>
                             {task.subtasks.map(subtask => (
                               <label key={subtask.id} className="checkbox-wrapper">
@@ -1900,7 +1910,6 @@ const App = () => {
               </div>
             ))}
           </div>
-          <button className="btn-primary" style={{width: '100%', marginTop: '0.5rem', padding: '12px', borderRadius: '16px', fontWeight: 'bold'}} onClick={handleCreateCommunity}><Plus size={16}/> Create Community</button>
         </div>
 
         {/* Feed Column */}
