@@ -18,7 +18,9 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export function usePushNotifications(sessionUser) {
-  const [permission, setPermission] = useState(Notification.permission);
+  const [permission, setPermission] = useState(() => {
+    return typeof Notification !== 'undefined' ? Notification.permission : 'default';
+  });
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   // Register and subscribe on mount if permission already granted
