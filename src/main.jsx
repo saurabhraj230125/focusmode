@@ -14,3 +14,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <PWAInstallPrompt />
   </React.StrictMode>,
 )
+
+// Force reload across all tabs when a new update is pushed
+let refreshing = false;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+}
