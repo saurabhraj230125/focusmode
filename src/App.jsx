@@ -191,7 +191,7 @@ const App = () => {
   const [activeVideo, setActiveVideo] = useState(null);
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoTitle, setNewVideoTitle] = useState('');
-  const [lectureViewMode, setLectureViewMode] = useState('horizontal');
+  
 
   // Community State (real-time feed is wired via useCommunity hook after render)
   const [newPostText, setNewPostText] = useState('');
@@ -2155,7 +2155,7 @@ const App = () => {
     const activeVideoObj = playlist.find(v => v.id === activeVideo);
     const activeData = videoNotes[activeVideo] || { notes: '', mistakes: '' };
     
-    const isHorizontal = lectureViewMode === 'horizontal';
+    const isHorizontal = false;
 
     return (
       <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
