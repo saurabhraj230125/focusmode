@@ -2026,7 +2026,7 @@ const App = () => {
               <div style={{padding: "1rem", background: "rgba(0,0,0,0.3)", borderTop: "1px solid rgba(255,255,255,0.05)", width: "100%", maxWidth: "100%", boxSizing: "border-box"}}>
                 <form onSubmit={handleSendMessage} style={{display: "flex", gap: "8px", width: "100%"}}>
                   <input type="text" className="input-field" placeholder={`Message ${activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}...`} value={chatInput} onChange={e => setChatInput(e.target.value)} style={{flex: 1, padding: "14px 16px", borderRadius: "100px", fontSize: "0.95rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", transition: "all 0.3s", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.1)", outline: "none", minWidth: 0}} onFocus={(e) => e.target.style.boxShadow = "0 0 0 2px var(--accent-physics), inset 0 2px 10px rgba(0,0,0,0.1)"} onBlur={(e) => e.target.style.boxShadow = "inset 0 2px 10px rgba(0,0,0,0.1)"} />
-                  <button type="submit" className="btn-primary" style={{borderRadius: "100px", padding: "0 16px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "bold", fontSize: "0.95rem", boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)", transition: "all 0.2s", flexShrink: 0}} disabled={!chatInput.trim()}><Send size={16}/></button>
+                  <button type="submit" onPointerDown={e => { e.preventDefault(); handleSendMessage(e); }} className="btn-primary" style={{borderRadius: "100px", padding: "0 16px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "bold", fontSize: "0.95rem", boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)", transition: "all 0.2s", flexShrink: 0}} disabled={!chatInput.trim()}><Send size={16}/></button>
                 </form>
               </div>
             </div>
@@ -2634,7 +2634,7 @@ const App = () => {
       </main>
 
       {/* Floating AI Assistant - Premium UI */}
-      <div className="floating-ai-wrapper" style={{position: 'fixed', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', transform: `translate(${aiPosition.x}px, ${aiPosition.y}px)`, transition: isAiDragging ? 'none' : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
+      <div className="floating-ai-wrapper" style={{position: 'fixed', zIndex: 1000, display: activeTab === 'community' ? 'none' : 'flex', flexDirection: 'column', alignItems: 'flex-end', transform: `translate(${aiPosition.x}px, ${aiPosition.y}px)`, transition: isAiDragging ? 'none' : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
         {aiOpen && (
           <div className="animate-fade-in floating-ai-chat" style={{
             width: 'clamp(300px, 92vw, 400px)', 
