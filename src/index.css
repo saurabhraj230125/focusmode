@@ -268,7 +268,7 @@ h1, h2, h3, h4, h5, h6 {
 @media (max-width: 768px) {
   .pip-mode {
     left: 20px;
-    width: calc(100% - 40px);
+    width: 200px; right: 20px; left: auto !important;
     bottom: 80px; /* Above mobile nav */
   }
 }
@@ -1294,4 +1294,20 @@ select.input-field {
     bottom: calc(var(--bottom-nav-height) + 20px) !important;
     right: 15px !important;
   }
+}
+
+/* Prevent mobile overflow */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+.app-layout {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+
+@keyframes bounce-streak {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
 }

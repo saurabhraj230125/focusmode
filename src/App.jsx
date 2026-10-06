@@ -221,6 +221,7 @@ const App = () => {
   // ── STUDY STREAK STATE ────────────────────────────────────────────────────
   const [studyStreak, setStudyStreak] = useState(0);
   const [lastStudyDate, setLastStudyDate] = useState(null);
+  const [showStreakAnimation, setShowStreakAnimation] = useState(false);
 
   // ── STUDY PLANNER STATE ───────────────────────────────────────────────────
   const [plannerTasks, setPlannerTasks] = useState(() => {
@@ -847,7 +848,11 @@ const App = () => {
     setLastStudyDate(today);
     if (streak > 1) {
       setToastMsg({ amount: 0, reason: `🔥 ${streak}-Day Streak! Keep grinding!` });
-      setTimeout(() => setToastMsg(null), 3000);
+      setShowStreakAnimation(true);
+      setTimeout(() => {
+        setToastMsg(null);
+        setShowStreakAnimation(false);
+      }, 3500);
     }
   }, [sessionUser]);
 
@@ -1912,18 +1917,7 @@ const App = () => {
             </div>
           </div>
 
-          <div className="tweet-compose glass">
-            <div style={{display:'flex', gap:'12px'}}>
-              <div className="tweet-avatar" style={{background:getAvatarColor(sessionUser), flexShrink:0}}>{sessionUser.charAt(0).toUpperCase()}</div>
-              <form onSubmit={handleSubredditPost} style={{flex:1, display:'flex', flexDirection:'column', gap:'10px'}}>
-                <textarea className="tweet-compose-input" placeholder={activeSubreddit === 'All' ? "What's on your study grind? Share tips, wins, questions..." : `Post to c/${activeSubreddit}...`} value={newPostText} onChange={e=>setNewPostText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))handleSubredditPost(e);}} rows={3} maxLength={280} />
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                  <span style={{fontSize:'0.8rem', color:newPostText.length>240?'#ef4444':'var(--text-muted)'}}>{newPostText.length}/280</span>
-                  <button type="submit" className="btn-primary" style={{padding:'8px 18px'}} disabled={!newPostText.trim()}><Send size={14}/> Post</button>
-                </div>
-              </form>
-            </div>
-          </div>
+          {/* Tweet Compose removed as per user request to simplify community into chats only */}
 
           {isCommunityLoading ? (
             <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', padding:'1rem 0'}}>
@@ -2692,6 +2686,23 @@ const App = () => {
           <User size={20} /><span>Profile</span>
         </div>
       </nav>
+
+      {/* STREAK ANIMATION OVERLAY */}
+      {showStreakAnimation && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', flexDirection: 'column', 
+          alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(10px)', color: 'white', animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{
+            fontSize: '6rem', filter: 'drop-shadow(0 0 40px #fb923c)', animation: 'bounce-streak 1s infinite'
+          }}>🔥</div>
+          <h1 style={{ fontSize: '3rem', fontWeight: 900, marginTop: '20px', color: '#fb923c', textShadow: '0 0 20px #fb923c', textAlign: 'center' }}>
+            {studyStreak} DAY STREAK!
+          </h1>
+          <p style={{ fontSize: '1.2rem', color: '#fca5a5', marginTop: '10px', textAlign: 'center' }}>You are on fire! Keep it up! 🚀</p>
+        </div>
+      )}
     </div>
   );
 };
