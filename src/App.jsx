@@ -130,6 +130,8 @@ const getAvatarColor = (name) => {
 const App = () => {
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeChat, setActiveChat] = useState('global');
+  const [chatInput, setChatInput] = useState('');
   const [activeSubreddit, setActiveSubreddit] = useState('All');
   const [communitySearch, setCommunitySearch] = useState('');
   const [joinedCommunities, setJoinedCommunities] = useState(() => {
@@ -1750,240 +1752,181 @@ const App = () => {
     );
   };
 
+
   const renderCommunity = () => {
-    const trendingTags = ['#JEE2025','#NEET2025','#UPSC2025','#StudyTips','#OrganicChem','#Physics','#Discipline','#MockTest'];
-    const tagCounts = [312, 284, 201, 178, 143, 129, 98, 87];
     const getProfileData = (username) => {
       if (usersDb[username]) return usersDb[username].profile;
       const post = feed.find(f => f.user === username);
-      return { prepType: post?.prep || 'JEE', xp: post?.xp || 0 };
+      return { prepType: post?.prep || "JEE", xp: post?.xp || 0 };
     };
 
-    const renderPostCard = (item) => {
-      const hasLiked = item.likedBy?.includes(sessionUser);
-      const { level: pLvl, title: pTitle } = getLevelData(item.xp || 0);
-      return (
-        <div key={item.id} className="tweet-card">
-          <div style={{display:'flex', gap:'12px', alignItems:'flex-start'}}>
-            <div className="tweet-avatar" style={{background: getAvatarColor(item.user), cursor:'pointer', flexShrink:0}} onClick={() => setViewingProfile(item.user)}>
-              {item.user.charAt(0).toUpperCase()}
-            </div>
-            <div style={{flex:1, minWidth:0}}>
-              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'2px'}}>
-                <span className="tweet-username" onClick={() => setViewingProfile(item.user)}>{item.user}</span>
-                {item.prep && <span style={{fontSize:'0.7rem', padding:'1px 8px', borderRadius:'100px', background:'rgba(139,92,246,0.15)', color:'var(--accent-physics)', border:'1px solid rgba(139,92,246,0.25)', fontWeight:700}}>{item.prep}</span>}
-                <span style={{fontSize:'0.75rem', color:'var(--text-muted)'}}><TimeAgo date={item.createdAt} fallback={item.time} /></span>
-              </div>
-              {item.xp > 0 && <p style={{fontSize:'0.72rem', color:'var(--accent-success)', marginBottom:'8px'}}>⚡ Lvl {pLvl} · {pTitle}</p>}
-              <p className="tweet-body">
-                {(item.action||'').split(/(#\w+)/).map((part, i) =>
-                  part.startsWith('#')
-                    ? <span key={i} style={{color:'var(--accent-physics)', cursor:'pointer', fontWeight:600}} onClick={() => setNewPostText(part)}>{part}</span>
-                    : part
-                )}
-              </p>
-              <div className="tweet-actions">
-                <button className={`upvote-btn${hasLiked?' liked':''}`} onClick={() => toggleLike(item.id)}>
-                  <ArrowUp size={16} strokeWidth={3} /><span>{item.likes||0}</span>
-                </button>
-                <button className="tweet-action-btn" onClick={() => setCommentingOn(commentingOn===item.id ? null : item.id)}>
-                  <span>💬</span><span>{(item.comments||[]).length}</span>
-                </button>
-                <button className="tweet-action-btn" onClick={() => { navigator.clipboard?.writeText(item.action); setToastMsg({amount:0, reason:'📋 Copied!'}); setTimeout(()=>setToastMsg(null),2000); }}>
-                  <span>🔁</span><span>Share</span>
-                </button>
-              </div>
-              {(item.comments||[]).length > 0 && (
-                <div style={{borderTop:'1px solid var(--card-border)', paddingTop:'10px', display:'flex', flexDirection:'column', gap:'8px', marginTop:'8px'}}>
-                  {item.comments.map((c,i) => (
-                    <div key={i} style={{display:'flex', gap:'8px'}}>
-                      <div style={{width:'26px', height:'26px', minWidth:'26px', borderRadius:'50%', background:getAvatarColor(c.user), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold'}}>{c.user.charAt(0).toUpperCase()}</div>
-                      <div style={{background:'rgba(255,255,255,0.04)', borderRadius:'10px', padding:'6px 10px', flex:1}}>
-                        <span style={{fontWeight:700, fontSize:'0.82rem', color:'var(--accent-physics)'}}>{c.user}</span>
-                        <span style={{fontSize:'0.72rem', color:'var(--text-muted)', marginLeft:'6px'}}><TimeAgo date={c.ts} fallback={c.time} /></span>
-                        <p style={{fontSize:'0.88rem', marginTop:'2px'}}>{c.text}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {commentingOn === item.id && (
-                <div style={{display:'flex', gap:'8px', marginTop:'10px'}}>
-                  <input autoFocus className="input-field" placeholder="Write a reply..." value={commentText} onChange={e => setCommentText(e.target.value)} onKeyDown={e => e.key==='Enter' && submitComment(item.id)} style={{flex:1, padding:'8px 14px', fontSize:'0.88rem'}} />
-                  <button className="btn-primary" style={{padding:'8px 14px'}} onClick={() => submitComment(item.id)}><Send size={14}/></button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    };
+    const onlineUsers = Array.from(new Set(feed.map(f => f.user))).filter(u => u !== sessionUser).slice(0, 15);
+    const activeMissions = [
+      { id: 1, title: "Complete Calculus Chapter", progress: 65, members: 4, color: "var(--accent-math)" },
+      { id: 2, title: "Solve 50 Physics PYQs", progress: 30, members: 8, color: "var(--accent-physics)" },
+      { id: 3, title: "Master Organic Chemistry", progress: 85, members: 12, color: "var(--accent-chem)" }
+    ];
 
-    const baseCommunities = ['All', 'JEE', 'NEET', 'UPSC', 'General', 'StudyTips'];
-    const allCommunities = [...baseCommunities, ...joinedCommunities];
-
-    const visibleFeed = feed.filter(f => {
-      let subMatch = true;
-      if (activeSubreddit !== 'All') {
-        subMatch = (f.action && f.action.includes(`#${activeSubreddit}`)) || f.prep === activeSubreddit;
-      }
-      let searchMatch = true;
-      if (communitySearch.trim()) {
-        const searchTxt = communitySearch.toLowerCase();
-        searchMatch = (f.action && f.action.toLowerCase().includes(searchTxt)) || 
-                      (f.user && f.user.toLowerCase().includes(searchTxt));
-      }
-      return subMatch && searchMatch;
+    const chatMessages = feed.filter(f => {
+       if (activeChat === "global") return !f.action.startsWith("@DM_");
+       const targetUser = activeChat.split(":")[1];
+       return f.action.startsWith(`@DM_${sessionUser}_${targetUser}`) || f.action.startsWith(`@DM_${targetUser}_${sessionUser}`);
     });
 
-    const handleCreateCommunity = () => {
-      const name = window.prompt("Enter new community name (e.g. Coding, Math, Fitness):");
-      if (name && name.trim()) {
-        const cleanName = name.trim().replace(/\s+/g, '');
-        if (!allCommunities.includes(cleanName)) {
-          const newComms = [...joinedCommunities, cleanName];
-          setJoinedCommunities(newComms);
-          localStorage.setItem('pm_communities', JSON.stringify(newComms));
-          setActiveSubreddit(cleanName);
-        } else {
-          setActiveSubreddit(cleanName);
-        }
-      }
-    };
-
-    const handleSubredditPost = (e) => {
+    const handleSendMessage = (e) => {
       e.preventDefault();
-      let finalTxt = newPostText.trim();
-      if (!finalTxt) return;
-      if (activeSubreddit !== 'All' && !finalTxt.includes(`#${activeSubreddit}`)) {
-        finalTxt += ` #${activeSubreddit}`;
+      if (!chatInput.trim()) return;
+      
+      let finalMsg = chatInput;
+      if (activeChat !== "global") {
+        const targetUser = activeChat.split(":")[1];
+        finalMsg = `@DM_${sessionUser}_${targetUser} ${finalMsg}`;
       }
+      
       const fakeEvent = { preventDefault: () => {} };
-      const originalTxt = newPostText;
-      setNewPostText(finalTxt);
+      setNewPostText(finalMsg);
       setTimeout(() => {
         handlePostFeed(fakeEvent);
       }, 0);
+      setChatInput("");
     };
 
     return (
       <div className="community-reddit-layout animate-fade-in">
-        {/* Profile Modal (unchanged) */}
+        {/* Profile Modal */}
         {viewingProfile && (() => {
           const prof = getProfileData(viewingProfile);
           const { level: pL, title: pT } = getLevelData(prof?.xp || 0);
-          const userPosts = feed.filter(f => f.user === viewingProfile);
-          const totalLikes = userPosts.reduce((s,p) => s+(p.likes||0), 0);
           return (
-            <div style={{position:'fixed', inset:0, zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.8)', backdropFilter:'blur(10px)', padding:'1rem'}} onClick={() => setViewingProfile(null)}>
-              <div className="glass" style={{maxWidth:'400px', width:'100%', padding:'clamp(1.25rem, 5vw, 2rem)', borderRadius:'24px', position:'relative', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
-                <button onClick={() => setViewingProfile(null)} style={{position:'absolute', top:'16px', right:'16px', background:'transparent', border:'none', color:'var(--text-muted)', cursor:'pointer', zIndex: 10}}><X size={20}/></button>
-                <div style={{height:'80px', borderRadius:'14px 14px 0 0', marginBottom:'-30px', background:`linear-gradient(135deg, ${getAvatarColor(viewingProfile)}, #1a1c29)`, marginLeft:'-2rem', marginRight:'-2rem', marginTop:'-2rem'}}></div>
-                <div style={{width:'68px', height:'68px', borderRadius:'50%', background:getAvatarColor(viewingProfile), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem', fontWeight:'bold', border:'3px solid #0f1015', position:'relative', zIndex:1}}>{viewingProfile.charAt(0).toUpperCase()}</div>
-                <h2 style={{fontSize:'1.25rem', fontWeight:800, marginTop:'8px', wordBreak: 'break-word'}}>{viewingProfile}</h2>
-                <p style={{color:'var(--accent-success)', fontSize:'0.88rem', fontWeight:600, marginBottom:'12px'}}>⚡ Lvl {pL} · {pT}</p>
-                <div style={{display:'flex', gap:'0.75rem', flexWrap:'wrap', marginBottom:'1.25rem'}}>
-                  {prof?.prepType && <span style={{background:'rgba(139,92,246,0.15)', color:'var(--accent-physics)', border:'1px solid rgba(139,92,246,0.3)', padding:'3px 12px', borderRadius:'100px', fontSize:'0.8rem', fontWeight:600}}>{prof.prepType}</span>}
-                  {prof?.targetYear && <span style={{background:'rgba(255,255,255,0.05)', color:'var(--text-muted)', padding:'3px 12px', borderRadius:'100px', fontSize:'0.8rem'}}>Target {prof.targetYear}</span>}
-                </div>
-                <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(70px, 1fr))', gap:'1rem', textAlign:'center', padding:'1rem', background:'rgba(255,255,255,0.03)', borderRadius:'14px', marginBottom:'1rem'}}>
-                  <div><div style={{fontWeight:800, fontSize:'1.2rem', color:'var(--accent-success)'}}>{prof?.xp||0}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>XP</div></div>
-                  <div><div style={{fontWeight:800, fontSize:'1.2rem'}}>{userPosts.length}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Posts</div></div>
-                  <div><div style={{fontWeight:800, fontSize:'1.2rem', color:'#f87171'}}>{totalLikes}</div><div style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Likes</div></div>
-                </div>
-                {userPosts.slice(0,2).map(p => (
-                  <p key={p.id} style={{fontSize:'0.85rem', color:'#cbd5e1', padding:'8px 12px', background:'rgba(255,255,255,0.03)', borderRadius:'10px', marginBottom:'6px', lineHeight:1.4}}>"{p.action.slice(0,100)}{p.action.length>100?'...':''}"</p>
-                ))}
+            <div style={{position:"fixed", inset:0, zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.8)", backdropFilter:"blur(10px)", padding:"1rem"}} onClick={() => setViewingProfile(null)}>
+              <div className="glass" style={{maxWidth:"400px", width:"100%", padding:"2rem", borderRadius:"24px", position:"relative"}} onClick={e => e.stopPropagation()}>
+                <button onClick={() => setViewingProfile(null)} style={{position:"absolute", top:"16px", right:"16px", background:"transparent", border:"none", color:"var(--text-muted)", cursor:"pointer", zIndex: 10}}><X size={20}/></button>
+                <div style={{height:"80px", borderRadius:"14px 14px 0 0", marginBottom:"-30px", background:`linear-gradient(135deg, ${getAvatarColor(viewingProfile)}, #1a1c29)`, marginLeft:"-2rem", marginRight:"-2rem", marginTop:"-2rem"}}></div>
+                <div style={{width:"68px", height:"68px", borderRadius:"50%", background:getAvatarColor(viewingProfile), display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.8rem", fontWeight:"bold", border:"3px solid #0f1015", position:"relative", zIndex:1}}>{viewingProfile.charAt(0).toUpperCase()}</div>
+                <h2 style={{fontSize:"1.25rem", fontWeight:800, marginTop:"8px"}}>{viewingProfile}</h2>
+                <p style={{color:"var(--accent-success)", fontSize:"0.88rem", fontWeight:600, marginBottom:"12px"}}>? Lvl {pL} � {pT}</p>
+                <button className="btn-primary" style={{width: "100%", padding: "8px"}} onClick={() => { setActiveChat(`user:${viewingProfile}`); setViewingProfile(null); }}>?? Message {viewingProfile}</button>
               </div>
             </div>
           );
         })()}
 
-        {/* Left Sidebar - Subreddits */}
-        <div className="community-left-sidebar">
-          <div className="glass" style={{padding: '1rem 0.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', maxHeight: '60vh', overflowY: 'auto'}}>
-            <h3 style={{fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.75rem', paddingLeft: '14px'}}>Communities</h3>
-            {allCommunities.map(sub => (
-              <div key={sub} className={`subreddit-item ${activeSubreddit === sub ? 'active' : ''}`} onClick={() => setActiveSubreddit(sub)}>
-                <div className="subreddit-icon">{sub === 'All' ? '🌍' : sub.charAt(0)}</div>
-                <span style={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{sub === 'All' ? 'Home' : `c/${sub}`}</span>
-              </div>
-            ))}
+        {/* Left Sidebar - Online Peers */}
+        <div className="community-left-sidebar" style={{display: "flex", flexDirection: "column", gap: "1rem"}}>
+          <div className="glass" style={{padding: "1rem 0.5rem", borderRadius: "20px"}}>
+            <h3 style={{fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "0.75rem", paddingLeft: "14px", display: "flex", alignItems: "center", gap: "6px"}}><Users size={14}/> Peers</h3>
+            <div className={`subreddit-item ${activeChat === "global" ? "active" : ""}`} onClick={() => setActiveChat("global")}>
+              <div className="subreddit-icon">??</div>
+              <span>Global Lounge</span>
+            </div>
+            <h3 style={{fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px", margin: "1.5rem 0 0.75rem 0", paddingLeft: "14px"}}>Online Now</h3>
+            <div style={{maxHeight: "40vh", overflowY: "auto"}}>
+              {onlineUsers.map(u => (
+                <div key={u} className={`subreddit-item ${activeChat === `user:${u}` ? "active" : ""}`} onClick={() => setActiveChat(`user:${u}`)} style={{display: "flex", alignItems: "center", gap: "8px", position: "relative"}}>
+                  <div style={{width: "24px", height: "24px", borderRadius: "50%", background: getAvatarColor(u), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: "bold", flexShrink: 0}}>{u.charAt(0).toUpperCase()}</div>
+                  <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>{u}</span>
+                  <div style={{width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 5px #10b981"}}></div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Feed Column */}
-        <div className="community-feed-col">
-          {/* Top Bar with Live Badge & Search */}
-          <div style={{display:'flex', alignItems:'center', justifyContent: 'space-between', gap:'8px', marginBottom:'0.75rem', flexWrap: 'wrap'}}>
-            <span style={{display:'flex', alignItems:'center', gap:'6px', fontSize:'0.8rem', color:'#10b981', fontWeight:700}}>
-              <span style={{width:'8px', height:'8px', borderRadius:'50%', background:'#10b981', boxShadow:'0 0 8px #10b981', animation:'pulse 1.5s infinite', display:'inline-block'}}></span>
-              LIVE · {feed.length} posts
-            </span>
-            <div style={{position: 'relative', maxWidth: '250px', flex: 1}}>
-               <Search size={14} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)'}} />
-               <input type="text" className="input-field" style={{padding: '8px 12px 8px 34px', fontSize: '0.85rem', borderRadius: '100px', background: 'rgba(255,255,255,0.05)', width: '100%', border: '1px solid rgba(255,255,255,0.1)'}} placeholder={`Search in c/${activeSubreddit}...`} value={communitySearch} onChange={e => setCommunitySearch(e.target.value)} />
+        {/* Chat Feed Column */}
+        <div className="community-feed-col glass" style={{borderRadius: "20px", display: "flex", flexDirection: "column", height: "calc(100vh - 120px)", padding: 0, overflow: "hidden"}}>
+          
+          {/* Mobile Peers List (Visible only on small screens) */}
+          <div className="mobile-peers-list" style={{display: 'flex', gap: '10px', overflowX: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+            <div onClick={() => setActiveChat("global")} style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer', opacity: activeChat === 'global' ? 1 : 0.5}}>
+              <div style={{width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem'}}>🌍</div>
+              <span style={{fontSize: '0.65rem'}}>Global</span>
             </div>
+            {onlineUsers.map(u => (
+              <div key={u} onClick={() => setActiveChat(`user:${u}`)} style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer', position: 'relative', opacity: activeChat === `user:${u}` ? 1 : 0.5}}>
+                <div style={{width: '36px', height: '36px', borderRadius: '50%', background: getAvatarColor(u), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 'bold'}}>{u.charAt(0).toUpperCase()}</div>
+                <div style={{position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 5px #10b981'}}></div>
+                <span style={{fontSize: '0.65rem', maxWidth: '40px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{u}</span>
+              </div>
+            ))}
           </div>
 
-          {/* Tweet Compose removed as per user request to simplify community into chats only */}
+          <div style={{padding: "1rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: "12px"}}>
+            <div style={{width: "40px", height: "40px", borderRadius: "50%", background: activeChat === "global" ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : getAvatarColor(activeChat.split(":")[1]), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem"}}>{activeChat === "global" ? "🌍" : activeChat.split(":")[1].charAt(0).toUpperCase()}</div>
+            <div>
+              <h2 style={{fontSize: "1.1rem", fontWeight: "bold", margin: 0}}>{activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}</h2>
+              <span style={{fontSize: "0.75rem", color: "#10b981"}}>Online</span>
+            </div>
+          </div>
+          
+          <div style={{flex: 1, overflowY: "auto", padding: "1.5rem", display: "flex", flexDirection: "column-reverse", gap: "1rem"}}>
+            {chatMessages.length === 0 ? (
+              <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto"}}>No messages yet. Say hi! 👋</div>
+            ) : (
+              chatMessages.map(msg => {
+                const isMe = msg.user === sessionUser;
+                const text = activeChat === "global" ? msg.action : msg.action.replace(/^@DM_[^\s]+\s/, "");
+                return (
+                  <div key={msg.id} style={{display: "flex", gap: "12px", alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "80%"}}>
+                    {!isMe && <div style={{width: "32px", height: "32px", borderRadius: "50%", background: getAvatarColor(msg.user), flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", cursor: "pointer"}} onClick={() => setViewingProfile(msg.user)}>{msg.user.charAt(0).toUpperCase()}</div>}
+                    <div style={{background: isMe ? "var(--accent-physics)" : "rgba(255,255,255,0.05)", padding: "10px 14px", borderRadius: isMe ? "16px 16px 0 16px" : "16px 16px 16px 0", border: isMe ? "none" : "1px solid rgba(255,255,255,0.1)"}}>
+                      {!isMe && activeChat === "global" && <div style={{fontSize: "0.75rem", color: "var(--accent-success)", fontWeight: "bold", marginBottom: "4px", cursor: "pointer"}} onClick={() => setViewingProfile(msg.user)}>{msg.user}</div>}
+                      <div style={{fontSize: "0.95rem", lineHeight: 1.4, wordBreak: "break-word"}}>{text}</div>
+                      <div style={{fontSize: "0.65rem", color: isMe ? "rgba(255,255,255,0.7)" : "var(--text-muted)", marginTop: "6px", textAlign: "right"}}><TimeAgo date={msg.createdAt} fallback={msg.time}/></div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          
+          <div style={{padding: "1rem", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(0,0,0,0.2)"}}>
+            <form onSubmit={handleSendMessage} style={{display: "flex", gap: "10px"}}>
+              <input type="text" className="input-field" placeholder={`Message ${activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}...`} value={chatInput} onChange={e => setChatInput(e.target.value)} style={{flex: 1, padding: "12px 16px", borderRadius: "100px", fontSize: "0.95rem"}} />
+              <button type="submit" className="btn-primary" style={{borderRadius: "50%", width: "45px", height: "45px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center"}} disabled={!chatInput.trim()}><Send size={18}/></button>
+            </form>
+          </div>
+        </div>
 
-          {isCommunityLoading ? (
-            <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', padding:'1rem 0'}}>
-              {[1, 2, 3].map(i => (
-                <div key={i} className="glass" style={{padding:'1.5rem', borderRadius:'20px', display:'flex', gap:'1rem', opacity: 1 - i * 0.2}}>
-                  <div style={{width:'40px', height:'40px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', flexShrink:0, animation:'pulse 1.5s infinite'}}></div>
-                  <div style={{flex:1, display:'flex', flexDirection:'column', gap:'10px'}}>
-                    <div style={{width:'150px', height:'16px', background:'rgba(255,255,255,0.1)', borderRadius:'8px', animation:'pulse 1.5s infinite'}}></div>
-                    <div style={{width:'80%', height:'14px', background:'rgba(255,255,255,0.05)', borderRadius:'8px', animation:'pulse 1.5s infinite'}}></div>
-                    <div style={{width:'60%', height:'14px', background:'rgba(255,255,255,0.05)', borderRadius:'8px', animation:'pulse 1.5s infinite'}}></div>
+        {/* Right Sidebar - Missions & Leaderboard */}
+        <div className="community-sidebar-col" style={{display: "flex", flexDirection: "column", gap: "1rem"}}>
+          <div className="glass" style={{padding: "1.5rem", borderRadius: "20px"}}>
+            <h3 style={{fontSize: "1rem", fontWeight: 800, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "8px"}}><Target size={16} color="var(--accent-math)"/> Squad Missions</h3>
+            <div style={{display: "flex", flexDirection: "column", gap: "12px"}}>
+              {activeMissions.map(mission => (
+                <div key={mission.id} style={{background: "rgba(255,255,255,0.03)", padding: "10px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.05)"}}>
+                  <div style={{fontSize: "0.85rem", fontWeight: "bold", marginBottom: "6px"}}>{mission.title}</div>
+                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "4px"}}>
+                    <span>{mission.members} Peers</span>
+                    <span>{mission.progress}%</span>
+                  </div>
+                  <div style={{width: "100%", height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px"}}>
+                    <div style={{width: `${mission.progress}%`, height: "100%", background: mission.color, borderRadius: "2px"}}></div>
                   </div>
                 </div>
               ))}
             </div>
-          ) : visibleFeed.length === 0 ? (
-            <div style={{textAlign:'center', padding:'3rem 1rem', color:'var(--text-muted)'}}>
-              <span style={{fontSize:'2rem'}}>🌍</span>
-              <p style={{marginTop:'0.75rem', fontWeight:600}}>No posts in {activeSubreddit === 'All' ? 'the community' : `c/${activeSubreddit}`} yet!</p>
-              <p style={{fontSize:'0.85rem', marginTop:'0.25rem'}}>Be the first to create a post here.</p>
-            </div>
-          ) : (
-            <div style={{display:'flex', flexDirection:'column'}}>{visibleFeed.map(item => renderPostCard(item))}</div>
-          )}
-        </div>
-
-        {/* Sidebar Column */}
-        <div className="community-sidebar-col">
-          <div className="glass" style={{padding:'1.5rem', borderRadius:'20px'}}>
-            <h3 style={{fontSize:'1rem', fontWeight:800, marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:'8px'}}><Flame size={16} color="var(--accent-chem)"/> Trending Topics</h3>
-            {trendingTags.map((tag, i) => (
-              <div key={tag} style={{padding:'10px 0', borderBottom: i<trendingTags.length-1?'1px solid var(--card-border)':'none', cursor:'pointer'}} onClick={()=>setNewPostText(p=>p+(p?' ':'')+tag)}>
-                <p style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>Aspirant Community · Trending</p>
-                <p style={{fontWeight:700, color:'var(--accent-physics)', fontSize:'0.9rem'}}>{tag}</p>
-                <p style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>{tagCounts[i]} posts</p>
-              </div>
-            ))}
+            <button className="btn-primary" style={{width: "100%", marginTop: "1rem", padding: "8px", fontSize: "0.85rem"}} onClick={() => alert("Mission joined! Collaborate with your peers to complete it.")}>+ Join a Mission</button>
           </div>
-          <div className="glass leaderboard-card" style={{borderRadius:'20px'}}>
-            <h3 style={{fontSize:'1rem', fontWeight:'bold', display:'flex', alignItems:'center', gap:'8px', marginBottom:'1rem'}}><Trophy size={16} color="#fbbf24"/> Top Scorers</h3>
+
+          <div className="glass leaderboard-card" style={{borderRadius: "20px"}}>
+            <h3 style={{fontSize: "1rem", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", marginBottom: "1rem"}}><Trophy size={16} color="#fbbf24"/> Top Scorers</h3>
             {combinedLeaderboard.slice(0,5).map((lb, idx) => {
-              const isMe = lb.name.includes('(You)');
-              const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null;
+              const isMe = lb.name.includes("(You)");
+              const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : null;
               const { level: lbLevel } = getLevelData(lb.score);
-              // Estimate streak from score (just for display variety among mock users)
               const mockStreak = isMe ? studyStreak : Math.max(1, Math.floor(lb.score / 200));
               return (
-                <div key={lb.name} className="leaderboard-item" style={{cursor:'pointer', padding:'10px 0', borderBottom: idx < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none', background: isMe ? 'rgba(139,92,246,0.06)' : 'transparent', borderRadius: isMe ? '10px' : 0, paddingLeft: isMe ? '8px' : '0', paddingRight: isMe ? '8px' : '0', marginLeft: isMe ? '-8px' : 0, marginRight: isMe ? '-8px' : 0}} onClick={() => setViewingProfile(lb.name.replace(' (You)',''))}>
-                  <div style={{display:'flex', alignItems:'center', gap:'8px', width:'100%'}}>
-                    <span style={{fontSize:'1.1rem', width:'24px', flexShrink:0}}>{medal || `#${lb.rank}`}</span>
-                    <div style={{flex:1, minWidth:0}}>
-                      <div style={{fontWeight:700, fontSize:'0.88rem', color: isMe ? 'var(--accent-physics)' : 'white', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{lb.name}</div>
-                      <div style={{display:'flex', gap:'6px', marginTop:'3px', alignItems:'center'}}>
-                        <span style={{fontSize:'0.68rem', color:'var(--accent-success)', fontWeight:700}}>Lvl {lbLevel}</span>
-                        <span style={{fontSize:'0.68rem', color:'#fb923c', fontWeight:700}}>🔥 {mockStreak}d</span>
+                <div key={lb.name} className="leaderboard-item" style={{cursor: "pointer", padding: "10px 0", borderBottom: idx < 4 ? "1px solid rgba(255,255,255,0.05)" : "none", background: isMe ? "rgba(139,92,246,0.06)" : "transparent", borderRadius: isMe ? "10px" : 0}} onClick={() => setViewingProfile(lb.name.replace(" (You)",""))}>
+                  <div style={{display: "flex", alignItems: "center", gap: "8px", width: "100%"}}>
+                    <span style={{fontSize: "1.1rem", width: "24px", flexShrink: 0}}>{medal || `#${lb.rank}`}</span>
+                    <div style={{flex: 1, minWidth: 0}}>
+                      <div style={{fontWeight: 700, fontSize: "0.88rem", color: isMe ? "var(--accent-physics)" : "white", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{lb.name}</div>
+                      <div style={{display: "flex", gap: "6px", marginTop: "3px", alignItems: "center"}}>
+                        <span style={{fontSize: "0.68rem", color: "var(--accent-success)", fontWeight: 700}}>Lvl {lbLevel}</span>
+                        <span style={{fontSize: "0.68rem", color: "#fb923c", fontWeight: 700}}>🔥 {mockStreak}d</span>
                       </div>
                     </div>
-                    <span style={{fontWeight:800, fontSize:'0.85rem', color:'#fbbf24', flexShrink:0}}>{lb.score.toLocaleString()} XP</span>
+                    <span style={{fontWeight: 800, fontSize: "0.85rem", color: "#fbbf24", flexShrink: 0}}>{lb.score.toLocaleString()} XP</span>
                   </div>
                 </div>
               );
