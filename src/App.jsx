@@ -1918,6 +1918,23 @@ const App = () => {
 
             {/* Chat Area - Ultra Premium */}
             <div className="glass chat-main-area" style={{borderRadius: "24px", display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(15, 23, 42, 0.6)"}}>
+              {/* Mobile Peers List */}
+              <div className="mobile-peers-list custom-scrollbar" style={{display: "flex", gap: "10px", padding: "12px 1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", overflowX: "auto", background: "rgba(15, 23, 42, 0.95)"}}>
+                <div onClick={() => setActiveChat("global")} style={{display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer", opacity: activeChat === "global" ? 1 : 0.4, transition: "opacity 0.2s", flexShrink: 0}}>
+                  <div style={{width: "42px", height: "42px", borderRadius: "12px", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", boxShadow: activeChat === "global" ? "0 0 10px rgba(59,130,246,0.5)" : "none"}}>🌍</div>
+                  <span style={{fontSize: "0.65rem", fontWeight: "bold", color: "white"}}>Global</span>
+                </div>
+                {allPeers.map(peer => (
+                  <div key={peer.name} onClick={() => setActiveChat(`user:${peer.name}`)} style={{display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer", opacity: activeChat === `user:${peer.name}` ? 1 : 0.4, transition: "opacity 0.2s", flexShrink: 0}}>
+                    <div style={{position: "relative"}}>
+                       <div style={{width: "42px", height: "42px", borderRadius: "12px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: "bold", border: peer.isOnline ? "2px solid #10b981" : "2px solid rgba(255,255,255,0.1)", boxShadow: activeChat === `user:${peer.name}` ? "0 0 10px rgba(255,255,255,0.2)" : "none"}}>{peer.name.charAt(0).toUpperCase()}</div>
+                       {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "12px", height: "12px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
+                    </div>
+                    <span style={{fontSize: "0.65rem", fontWeight: "bold", color: "white", maxWidth: "48px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{peer.name}</span>
+                  </div>
+                ))}
+              </div>
+
               {/* Chat Header */}
               <div style={{padding: "1.25rem 2rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)", display: "flex", alignItems: "center", gap: "16px", backdropFilter: "blur(10px)"}}>
                 <div style={{width: "48px", height: "48px", borderRadius: "14px", background: activeChat === "global" ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : getAvatarColor(activeChat.split(":")[1]), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", boxShadow: "0 4px 15px rgba(0,0,0,0.3)"}}>{activeChat === "global" ? "🌍" : activeChat.split(":")[1].charAt(0).toUpperCase()}</div>

@@ -1367,3 +1367,29 @@ textarea { max-width: 100%; box-sizing: border-box; }
   }
 }
 
+
+.mobile-peers-list {
+  display: none !important;
+}
+@media (max-width: 768px) {
+  .peers-sidebar {
+    display: none !important;
+  }
+  .mobile-peers-list {
+    display: flex !important;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .chat-main-area {
+    min-height: unset !important;
+    flex: 1 !important;
+    height: 100% !important;
+  }
+  .community-chat-layout {
+    height: 100%;
+    margin-bottom: 0 !important;
+  }
+}
+
