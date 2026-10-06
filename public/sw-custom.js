@@ -2,7 +2,10 @@
 // Handles: Push Notifications + Offline Caching
 
 // Required placeholder for vite-plugin-pwa injectManifest strategy
+import { precacheAndRoute } from 'workbox-precaching';
+
 const MANIFEST = self.__WB_MANIFEST || [];
+precacheAndRoute(MANIFEST);
 
 const CACHE_NAME = 'focusmode-v2';
 const FIREBASE_URL = 'https://studentmesh-878b5-default-rtdb.asia-southeast1.firebasedatabase.app';
