@@ -1311,3 +1311,15 @@ html, body {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-20px); }
 }
+
+.pip-mode .lecture-video-container {
+  overflow: visible !important;
+}
+.pip-mode .pip-close-btn {
+  top: -10px !important;
+  right: -10px !important;
+  z-index: 10000 !important;
+  width: 36px !important;
+  height: 36px !important;
+}
+
