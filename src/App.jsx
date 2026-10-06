@@ -18,6 +18,7 @@ import {
 } from './analytics.js';
 import { useCommunity, containsAbuse } from './useCommunity.js';
 import { useEvents } from './useEvents.js';
+import { usePushNotifications } from './usePushNotifications.js';
 
 // --- TIME AGO UTILITY ---
 const formatTimeAgo = (timestamp) => {
@@ -157,6 +158,9 @@ const App = () => {
 
   // ── Scheduled Events (Firebase) ──────────────────────────────────────────
   const { events: studyEvents, isLoading: isEventsLoading, createEvent, joinEvent, deleteEvent } = useEvents(sessionUser);
+  const { permission: pushPermission, requestPermission: requestPushPermission, showLocalNotification } = usePushNotifications(sessionUser);
+  const [showPushBanner, setShowPushBanner] = useState(false);
+  const prevFeedLengthRef = useRef(0);
   const [showEventModal, setShowEventModal] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventTime, setNewEventTime] = useState('');
@@ -256,6 +260,33 @@ const App = () => {
   ]);
   const [aiTyping, setAiTyping] = useState(false);
   const aiEndRef = useRef(null);
+
+  // Push Notifications: prompt banner after login
+  useEffect(() => {
+    if (!sessionUser) return;
+    if (pushPermission === 'default') {
+      // Show our custom banner after 3s
+      const t = setTimeout(() => setShowPushBanner(true), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [sessionUser, pushPermission]);
+
+  // Push Notifications: fire local notification when a new message arrives in community
+  useEffect(() => {
+    if (!feed || !sessionUser) return;
+    const globalMsgs = feed.filter(f => !f.action?.startsWith('@DM_'));
+    if (prevFeedLengthRef.current === 0) {
+      prevFeedLengthRef.current = globalMsgs.length;
+      return;
+    }
+    if (globalMsgs.length > prevFeedLengthRef.current) {
+      const newest = globalMsgs[globalMsgs.length - 1];
+      if (newest && newest.user !== sessionUser && document.hidden) {
+        showLocalNotification('New message in Global Lounge', `${newest.user}: ${newest.action?.substring(0, 60)}`, 'community-msg');
+      }
+    }
+    prevFeedLengthRef.current = globalMsgs.length;
+  }, [feed, sessionUser, showLocalNotification]);
 
   // Deep Linking for Study Rooms
   useEffect(() => {
@@ -2472,6 +2503,29 @@ const App = () => {
 
   return (
     <div className="app-layout">
+      {/* Push Notification Permission Banner */}
+      {showPushBanner && pushPermission === 'default' && (
+        <div style={{
+          position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, maxWidth: '420px', width: 'calc(100% - 2rem)',
+          background: 'linear-gradient(135deg, #1e1b4b, #312e81)',
+          border: '1px solid rgba(139,92,246,0.4)', borderRadius: '20px',
+          padding: '1.25rem 1.5rem', display: 'flex', gap: '14px',
+          alignItems: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          animation: 'slideUp 0.4s ease-out forwards'
+        }}>
+          <div style={{fontSize: '2rem', flexShrink: 0}}>🔔</div>
+          <div style={{flex: 1}}>
+            <div style={{fontWeight: 'bold', fontSize: '1rem', marginBottom: '4px'}}>Stay in the loop!</div>
+            <div style={{fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)'}}>Get notified when peers message you, even when the app is closed.</div>
+          </div>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0}}>
+            <button onClick={() => { requestPushPermission(); setShowPushBanner(false); }} style={{background: 'var(--accent-physics)', border: 'none', color: 'white', padding: '8px 14px', borderRadius: '100px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap'}}>Enable</button>
+            <button onClick={() => setShowPushBanner(false)} style={{background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.6)', padding: '6px 14px', borderRadius: '100px', cursor: 'pointer', fontSize: '0.8rem'}}>Not now</button>
+          </div>
+        </div>
+      )}
+
       {/* XP Toast */}
       {toastMsg && (
         <div className="xp-toast">

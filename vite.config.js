@@ -8,9 +8,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'public',
+      filename: 'sw-custom.js',
       includeAssets: ['favicon.svg', 'icon.jpg'],
       devOptions: {
-        enabled: true
+        enabled: true,
+        type: 'module',
       },
       manifest: {
         name: 'FocusModePlayer',
