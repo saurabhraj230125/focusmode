@@ -2174,10 +2174,6 @@ const App = () => {
               </div>
               <div className="video-header-controls" style={{display: 'flex', justifyContent: 'space-between', padding: '10px 10px 0', color: '#fff', flexWrap: 'wrap', gap: '10px'}}>
                 <span style={{fontWeight: 'bold', fontSize: '1.1rem'}}>{activeVideoObj?.title}</span>
-                <div style={{display: 'flex', gap: '10px'}}>
-                  <button onClick={() => setLectureViewMode('horizontal')} style={{background: isHorizontal ? 'var(--accent-physics)' : 'rgba(255,255,255,0.1)', border: 'none', padding: '6px', borderRadius: '8px', color: 'white', cursor: 'pointer'}} title="Side-by-side view"><Columns size={16}/></button>
-                  <button onClick={() => setLectureViewMode('vertical')} style={{background: !isHorizontal ? 'var(--accent-physics)' : 'rgba(255,255,255,0.1)', border: 'none', padding: '6px', borderRadius: '8px', color: 'white', cursor: 'pointer'}} title="Stacked view"><Rows size={16}/></button>
-                </div>
               </div>
             </div>
             
