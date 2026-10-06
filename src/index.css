@@ -1341,3 +1341,29 @@ textarea { max-width: 100%; box-sizing: border-box; }
   }
 }
 
+
+.community-chat-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+}
+@media (max-width: 1024px) {
+  .community-chat-layout {
+    grid-template-columns: 240px 1fr;
+  }
+}
+@media (max-width: 768px) {
+  .community-chat-layout {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .peers-sidebar {
+    max-height: 250px !important;
+  }
+  .chat-main-area {
+    min-height: 500px !important;
+  }
+}
+
