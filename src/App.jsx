@@ -1817,7 +1817,7 @@ const App = () => {
        return f.action.startsWith(`@DM_${sessionUser}_${targetUser}`) || f.action.startsWith(`@DM_${targetUser}_${sessionUser}`);
     });
 
-    const handleSendMessage = (e) => {
+    const handleSendMessage = async (e) => {
       e.preventDefault();
       if (!chatInput.trim()) return;
       
@@ -1827,11 +1827,16 @@ const App = () => {
         finalMsg = `@DM_${sessionUser}_${targetUser} ${finalMsg}`;
       }
       
-      const fakeEvent = { preventDefault: () => {} };
-      setNewPostText(finalMsg);
-      setTimeout(() => {
-        handlePostFeed(fakeEvent);
-      }, 0);
+      if (containsAbuse(finalMsg)) {
+        alert("Restricted: Abusive language is not permitted.");
+        return;
+      }
+      
+      trackPostCreated();
+      const id = await gunPostMessage(finalMsg);
+      if (id) {
+        awardXP(2, 'Community Post');
+      }
       setChatInput("");
     };
 
