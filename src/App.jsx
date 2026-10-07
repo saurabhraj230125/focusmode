@@ -2091,7 +2091,7 @@ const App = () => {
                              {msg.user.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div style={{display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", minWidth: 0, flex: 1}}>
+                        <div style={{display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", minWidth: 0, maxWidth: "100%"}}>
                            {!isMe && activeChat === "global" && (
                               <div style={{display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", cursor: "pointer", maxWidth: "100%"}} onClick={() => setViewingProfile(msg.user)}>
                                  <span style={{fontSize: "0.8rem", color: "white", fontWeight: "700", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{msg.user}</span>
@@ -2099,7 +2099,7 @@ const App = () => {
                               </div>
                            )}
                            <div style={{display: "flex", alignItems: "center", gap: "8px", flexDirection: isMe ? "row-reverse" : "row", maxWidth: "100%"}} className="chat-msg-wrapper">
-                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(20, 25, 40, 0.8)", padding: "10px 14px", borderRadius: isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isMe ? "0 4px 15px rgba(168, 85, 247, 0.25)" : "0 4px 15px rgba(0,0,0,0.2)", backdropFilter: "blur(12px)", color: "white", minWidth: 0, wordBreak: "break-word", overflowWrap: "anywhere"}}>
+                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(40, 48, 70, 0.95)", padding: "10px 14px", borderRadius: isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.15)", boxShadow: isMe ? "0 4px 15px rgba(168, 85, 247, 0.25)" : "0 4px 15px rgba(0,0,0,0.2)", backdropFilter: "blur(12px)", color: "white", minWidth: 0, wordBreak: "break-word", overflowWrap: "anywhere"}}>
                                <div style={{fontSize: "0.9rem", lineHeight: 1.5, fontWeight: "500"}}>{text}</div>
                              </div>
                              {isMe && (

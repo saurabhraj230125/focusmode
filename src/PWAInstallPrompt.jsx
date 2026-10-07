@@ -31,9 +31,10 @@ const PWAInstallPrompt = () => {
     // We will show the prompt after a delay, regardless of beforeinstallprompt, 
     // to ensure they ALWAYS get reminded if not installed.
     const showTimer = setTimeout(() => {
-      if (!alreadyInstalled) {
+      const prev = parseInt(localStorage.getItem('pwa_dismiss_count') || '0', 10);
+      if (!alreadyInstalled && prev < MAX_SHOWS) {
         setShow(true);
-        trackPWAInstallPromptShown(1);
+        trackPWAInstallPromptShown(prev + 1);
       }
     }, 2500);
 
@@ -55,7 +56,10 @@ const PWAInstallPrompt = () => {
       setPrompt(e);
       // We don't need to manually setShow here because the timeout above handles it, 
       // but we can make it immediate if it fires late.
-      setShow(true);
+      const prev = parseInt(localStorage.getItem('pwa_dismiss_count') || '0', 10);
+      if (prev < MAX_SHOWS) {
+        setShow(true);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handler);
