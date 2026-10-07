@@ -260,6 +260,7 @@ const App = () => {
     try { return JSON.parse(localStorage.getItem('pm_vidprogress') || '{}'); } catch { return {}; }
   });
   const videoIframeRef = useRef({});
+  const videoTopRef = useRef(null);
 
   // ── SYLLABUS CHECKLIST STATE ──────────────────────────────────────────────
   const [syllabusChecked, setSyllabusChecked] = useState(() => {
@@ -2076,7 +2077,7 @@ const App = () => {
                 {chatMessages.length === 0 ? (
                   <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px"}}>
                     <span style={{fontSize: "3rem"}}>👋</span>
-                    <div style={{fontWeight: "bold", fontSize: "1.1rem", color: "white"}}>It\'s quiet here...</div>
+                    <div style={{fontWeight: "bold", fontSize: "1.1rem", color: "white"}}>It's quiet here...</div>
                     <div style={{fontSize: "0.9rem"}}>Send a message to break the ice!</div>
                   </div>
                 ) : (
@@ -2363,7 +2364,7 @@ const App = () => {
     const isHorizontal = false;
 
     return (
-      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
+      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem'}} ref={videoTopRef}>
         {activeVideo ? (
           <div style={{display: 'grid', gap: '1.5rem', alignItems: 'start', gridTemplateColumns: `repeat(auto-fit, minmax(${isHorizontal ? '400px' : '100%'}, 1fr))`}}>
             <div className="glass lecture-video-container" style={{padding: '1rem', background: '#000', borderRadius: '20px', overflow: 'hidden', position: 'relative'}}>
@@ -2438,7 +2439,7 @@ const App = () => {
             const prog = videoProgress[video.id];
             const percent = prog ? Math.min(100, (prog.time / prog.duration) * 100) : 0;
             return (
-            <div key={video.id} className="glass subject-card" style={{display: 'flex', flexDirection: 'column', gap: '1rem', cursor: 'pointer', border: activeVideo === video.id ? '2px solid var(--accent-physics)' : ''}} onClick={() => { setActiveVideo(video.id); awardXP(10, 'Started a Lecture'); }}>
+            <div key={video.id} className="glass subject-card" style={{display: 'flex', flexDirection: 'column', gap: '1rem', cursor: 'pointer', border: activeVideo === video.id ? '2px solid var(--accent-physics)' : ''}} onClick={() => { setActiveVideo(video.id); awardXP(10, 'Started a Lecture'); setTimeout(() => videoTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>
               <div style={{position: 'relative', paddingBottom: '56.25%', borderRadius: '10px', overflow: 'hidden', background: '#111'}}>
                 <img src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`} alt="thumbnail" style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8}} />
                 <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
