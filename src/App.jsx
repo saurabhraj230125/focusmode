@@ -226,6 +226,7 @@ const App = () => {
 
   // UI Toast State
   const [toastMsg, setToastMsg] = useState(null);
+  const toastTimeoutRef = useRef(null);
 
   // ── STUDY STREAK STATE ────────────────────────────────────────────────────
   const [studyStreak, setStudyStreak] = useState(0);
@@ -853,8 +854,9 @@ const App = () => {
       }
     }));
     trackXPEarned(amount, reason);
-    setToastMsg({ amount, reason });
-    setTimeout(() => setToastMsg(null), 3000);
+    setToastMsg({ id: Date.now() + Math.random(), amount, reason });
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setToastMsg(null), 3000);
   };
 
   const calculateProgress = () => {
@@ -883,9 +885,10 @@ const App = () => {
     setStudyStreak(streak);
     setLastStudyDate(today);
     if (streak > 1) {
-      setToastMsg({ amount: 0, reason: `🔥 ${streak}-Day Streak! Keep grinding!` });
+      setToastMsg({ id: Date.now() + Math.random(), amount: 0, reason: `🔥 ${streak}-Day Streak! Keep grinding!` });
       setShowStreakAnimation(true);
-      setTimeout(() => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = setTimeout(() => {
         setToastMsg(null);
         setShowStreakAnimation(false);
       }, 3500);
@@ -985,7 +988,9 @@ const App = () => {
         setSessionUser(authUsername);
         localStorage.setItem('planmaker_session', authUsername);
         setShowAuthWall(false);
-        setToastMsg({ amount: 50, reason: 'Account Created Successfully!' });
+        setToastMsg({ id: Date.now(), amount: 50, reason: 'Account Created Successfully!' });
+        if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+        toastTimeoutRef.current = setTimeout(() => setToastMsg(null), 3000);
       } else {
         // Normal register (e.g. they explicitly logged out and are creating a new account)
         setUsersDb(prev => ({
@@ -2014,8 +2019,8 @@ const App = () => {
                               </div>
                            )}
                            <div style={{display: "flex", alignItems: "center", gap: "8px", flexDirection: isMe ? "row-reverse" : "row"}} className="chat-msg-wrapper">
-                             <div style={{background: isMe ? "linear-gradient(135deg, var(--accent-physics), #7c3aed)" : "rgba(255,255,255,0.06)", padding: "14px 18px", borderRadius: isMe ? "20px 20px 4px 20px" : "20px 20px 20px 4px", border: isMe ? "none" : "1px solid rgba(255,255,255,0.1)", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", color: "white"}}>
-                               <div style={{fontSize: "0.95rem", lineHeight: 1.5, wordBreak: "break-word"}}>{text}</div>
+                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(20, 25, 40, 0.8)", padding: "14px 20px", borderRadius: isMe ? "22px 22px 6px 22px" : "22px 22px 22px 6px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isMe ? "0 8px 25px rgba(168, 85, 247, 0.35)" : "0 8px 25px rgba(0,0,0,0.3)", backdropFilter: "blur(12px)", color: "white", transition: "transform 0.2s, box-shadow 0.2s"}} onMouseEnter={e => {e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow=isMe?'0 12px 30px rgba(168, 85, 247, 0.5)':'0 12px 30px rgba(0,0,0,0.4)';}} onMouseLeave={e => {e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow=isMe?'0 8px 25px rgba(168, 85, 247, 0.35)':'0 8px 25px rgba(0,0,0,0.3)';}}>
+                               <div style={{fontSize: "0.95rem", lineHeight: 1.6, wordBreak: "break-word", fontWeight: "500"}}>{text}</div>
                              </div>
                              {isMe && (
                                 <button onClick={() => gunDeletePost(msg.id)} className="delete-msg-btn" title="Delete Message" style={{background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s"}}>
@@ -2546,10 +2551,10 @@ const App = () => {
 
       {/* XP Toast */}
       {toastMsg && (
-        <div className="xp-toast">
+        <div key={toastMsg.id} className="xp-toast">
           <Zap size={24} color="var(--accent-success)" />
           <div>
-            <div className="xp-amount">+{toastMsg.amount} XP</div>
+            <div className="xp-amount">{toastMsg.amount > 0 ? `+${toastMsg.amount}` : ''} XP</div>
             <div className="xp-reason">{toastMsg.reason}</div>
           </div>
         </div>
