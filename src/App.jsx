@@ -2085,7 +2085,7 @@ const App = () => {
                     const text = activeChat === "global" ? msg.action : msg.action.replace(/^@DM_[^\s]+\s/, "");
                     const { level: mLvl } = getLevelData(msg.xp || 0);
                     return (
-                      <div key={msg.id} style={{display: "flex", gap: "8px", alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "85%", animation: "slideUp 0.3s ease-out forwards"}}>
+                      <div key={msg.id} style={{display: "flex", gap: "8px", marginLeft: isMe ? "auto" : "0", marginRight: isMe ? "0" : "auto", maxWidth: "85%", animation: "slideUp 0.3s ease-out forwards"}}>
                         {!isMe && (
                           <div style={{width: "36px", height: "36px", borderRadius: "12px", background: getAvatarColor(msg.user), flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", cursor: "pointer", border: "2px solid rgba(255,255,255,0.1)", fontWeight: "bold"}} onClick={() => setViewingProfile(msg.user)}>
                              {msg.user.charAt(0).toUpperCase()}
@@ -2099,8 +2099,8 @@ const App = () => {
                               </div>
                            )}
                            <div style={{display: "flex", alignItems: "center", gap: "8px", flexDirection: isMe ? "row-reverse" : "row", maxWidth: "100%"}} className="chat-msg-wrapper">
-                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(40, 48, 70, 0.95)", padding: "10px 14px", borderRadius: isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.15)", boxShadow: isMe ? "0 4px 15px rgba(168, 85, 247, 0.25)" : "0 4px 15px rgba(0,0,0,0.2)", backdropFilter: "blur(12px)", color: "white", minWidth: 0, wordBreak: "break-word", overflowWrap: "anywhere"}}>
-                               <div style={{fontSize: "0.9rem", lineHeight: 1.5, fontWeight: "500"}}>{text}</div>
+                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(40, 48, 70, 0.95)", padding: "10px 14px", borderRadius: isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.15)", boxShadow: isMe ? "0 4px 15px rgba(168, 85, 247, 0.25)" : "0 4px 15px rgba(0,0,0,0.2)", backdropFilter: "blur(12px)", color: "white", wordBreak: "break-word"}}>
+                               <div style={{fontSize: "0.95rem", lineHeight: 1.4, fontWeight: "500"}}>{text}</div>
                              </div>
                              {isMe && (
                                 <button onClick={() => gunDeletePost(msg.id)} className="delete-msg-btn" title="Delete Message" style={{background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0}}>
