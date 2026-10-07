@@ -34,8 +34,8 @@ async function sendWelcome() {
   console.log(`Found ${uniqueSubs.length} unique subscriptions.`);
   
   const payload = JSON.stringify({
-    title: 'Welcome to FocusMode! 🚀',
-    body: 'The app has been renamed and upgraded for a better mobile experience!',
+    title: 'FocusMode Update is Live! 🎉',
+    body: 'NDA Exam prep added, and the Community UI has been completely revamped. Come test it out!',
     url: '/'
   });
   
