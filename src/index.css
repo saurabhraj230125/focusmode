@@ -1485,3 +1485,57 @@ textarea { max-width: 100%; box-sizing: border-box; }
   70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
+
+/* Planner V2 Styles */
+.planner-day-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+  border-color: rgba(255,255,255,0.15) !important;
+}
+
+.planner-task-item:hover {
+  background: rgba(255,255,255,0.08) !important;
+  transform: translateX(4px);
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+.planner-task-delete:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  transform: scale(1.1);
+}
+
+/* ===================== GLOBAL UX ENHANCEMENTS ===================== */
+.glass {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease, background 0.3s ease;
+}
+
+.subject-card {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.subject-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  border-color: rgba(255,255,255,0.15) !important;
+}
+
+.btn-primary, .btn-icon {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s, box-shadow 0.2s !important;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4) !important;
+}
+
+.btn-primary:active, .btn-icon:active {
+  transform: scale(0.95);
+}
+
+.nav-item {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, color 0.2s ease !important;
+}
+
+.nav-item:hover {
+  transform: translateX(4px);
+}

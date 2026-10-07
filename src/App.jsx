@@ -1724,60 +1724,80 @@ const App = () => {
     const subjectColors = { Physics:'#8b5cf6', Chemistry:'#ec4899', Mathematics:'#3b82f6', Biology:'#10b981', History:'#f59e0b', Polity:'#06b6d4', Geography:'#8b5cf6', Economy:'#ef4444' };
 
     return (
-      <div className="animate-fade-in" style={{display:'flex', flexDirection:'column', gap:'2rem', maxWidth:'1000px'}}>
+      <div className="animate-fade-in" style={{display:'flex', flexDirection:'column', gap:'2.5rem', maxWidth:'1200px', margin: '0 auto', width: '100%'}}>
         {/* Header */}
-        <div className="glass" style={{padding:'2rem', background:'linear-gradient(135deg,rgba(139,92,246,0.1),rgba(236,72,153,0.05))', borderColor:'rgba(139,92,246,0.2)'}}>
-          <h2 style={{fontSize:'1.75rem', fontWeight:800, marginBottom:'0.5rem', display:'flex', alignItems:'center', gap:'12px'}}><Calendar size={28} color="var(--accent-physics)"/> Weekly Study Planner</h2>
-          <p style={{color:'var(--text-muted)'}}>Plan your week topic by topic. Track what you complete each day.</p>
+        <div className="glass" style={{padding:'2.5rem', background:'linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(236,72,153,0.05) 100%)', borderColor:'rgba(139,92,246,0.3)', borderRadius: '24px', position: 'relative', overflow: 'hidden'}}>
+          <div style={{position: 'absolute', top: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-physics)', filter: 'blur(80px)', opacity: 0.4}}></div>
+          <h2 style={{fontSize:'2.2rem', fontWeight:900, marginBottom:'0.75rem', display:'flex', alignItems:'center', gap:'16px', letterSpacing: '-0.5px'}}><Calendar size={36} color="var(--accent-physics)"/> Weekly Masterplan</h2>
+          <p style={{color:'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px'}}>Architect your week. Assign focus blocks, crush your targets, and visualize your victory.</p>
         </div>
 
-        {/* Add Task Form */}
-        <div className="glass" style={{padding:'1.5rem'}}>
-          <h3 style={{fontSize:'1rem', fontWeight:700, marginBottom:'1rem', display:'flex', alignItems:'center', gap:'8px'}}><Plus size={16} color="var(--accent-success)"/> Schedule a Study Block</h3>
-          <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
-            <select className="input-field" value={plannerDay} onChange={e => setPlannerDay(e.target.value)} style={{flex:'0 0 auto', minWidth:'80px'}}>
+        {/* Add Task Form - Modernized */}
+        <div className="glass" style={{padding:'1.5rem 2rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15, 23, 42, 0.6)'}}>
+          <h3 style={{fontSize:'1.1rem', fontWeight:800, marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:'8px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--accent-success)'}}><Sparkles size={18}/> Schedule a Study Block</h3>
+          <div style={{display:'flex', gap:'12px', flexWrap:'wrap', alignItems: 'center'}}>
+            <select className="input-field" value={plannerDay} onChange={e => setPlannerDay(e.target.value)} style={{flex:'0 0 auto', minWidth:'100px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)'}}>
               {days.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <input type="time" className="input-field" value={plannerTime} onChange={e => setPlannerTime(e.target.value)} style={{flex:'0 0 auto', width:'110px'}} />
-            <select className="input-field" value={plannerSubject} onChange={e => setPlannerSubject(e.target.value)} style={{flex:'0 0 auto', minWidth:'120px'}}>
+            <input type="time" className="input-field" value={plannerTime} onChange={e => setPlannerTime(e.target.value)} style={{flex:'0 0 auto', width:'130px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)'}} />
+            <select className="input-field" value={plannerSubject} onChange={e => setPlannerSubject(e.target.value)} style={{flex:'0 0 auto', minWidth:'150px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)'}}>
               <option value="">Subject...</option>
               {subjects.map(s => <option key={s.id} value={s.title}>{s.title}</option>)}
             </select>
-            <input className="input-field" placeholder="What will you study? E.g. HC Verma Ch.12" value={plannerInput} onChange={e => setPlannerInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPlannerTask()} style={{flex:'1 1 200px'}} />
-            <button className="btn-primary" onClick={addPlannerTask} style={{flex:'0 0 auto', whiteSpace:'nowrap'}}><Plus size={16}/> Add Block</button>
+            <input className="input-field" placeholder="What will you conquer? E.g. HC Verma Ch.12" value={plannerInput} onChange={e => setPlannerInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPlannerTask()} style={{flex:'1 1 250px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)'}} />
+            <button className="btn-primary" onClick={addPlannerTask} style={{flex:'0 0 auto', whiteSpace:'nowrap', borderRadius: '12px', padding: '0 24px', height: '46px', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)'}}><Plus size={18}/> Add Block</button>
           </div>
         </div>
 
-        {/* Weekly Grid */}
-        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(130px,1fr))', gap:'1rem'}}>
+        {/* Weekly Grid - Ultra Premium */}
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:'1.5rem'}}>
           {days.map(day => {
             const tasks = plannerTasks[day] || [];
             const done = tasks.filter(t => t.done).length;
             const isToday = day === todayStr;
+            const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
             return (
-              <div key={day} className="glass" style={{padding:'1rem', borderColor: isToday ? 'rgba(139,92,246,0.4)' : 'var(--card-border)', background: isToday ? 'rgba(139,92,246,0.05)' : 'var(--card-bg)', minHeight:'160px'}}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
+              <div key={day} className="glass planner-day-card" style={{padding:'1.5rem', borderRadius: '24px', borderColor: isToday ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.05)', background: isToday ? 'linear-gradient(180deg, rgba(139,92,246,0.1) 0%, rgba(15,23,42,0.8) 100%)' : 'rgba(15, 23, 42, 0.4)', minHeight:'220px', display: 'flex', flexDirection: 'column', transition: 'all 0.3s', boxShadow: isToday ? '0 10px 30px rgba(139,92,246,0.15)' : 'none', position: 'relative', overflow: 'hidden'}}>
+                {isToday && <div style={{position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #8b5cf6, #ec4899)'}}></div>}
+                
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'1.25rem'}}>
                   <div>
-                    <div style={{fontSize:'0.9rem', fontWeight:800, color: isToday ? 'var(--accent-physics)' : 'white'}}>{day}</div>
-                    {isToday && <div style={{fontSize:'0.65rem', color:'var(--accent-physics)', fontWeight:600}}>TODAY</div>}
+                    <div style={{fontSize:'1.4rem', fontWeight:900, color: isToday ? 'white' : 'var(--text-muted)', letterSpacing: '1px'}}>{day}</div>
+                    {isToday && <div style={{fontSize:'0.75rem', color:'var(--accent-physics)', fontWeight:800, textTransform: 'uppercase', letterSpacing: '2px', marginTop: '4px'}}>Today</div>}
                   </div>
-                  {tasks.length > 0 && <div style={{fontSize:'0.7rem', color: done === tasks.length ? 'var(--accent-success)' : 'var(--text-muted)', fontWeight:700}}>{done}/{tasks.length}</div>}
+                  {tasks.length > 0 && (
+                     <div style={{background: done === tasks.length ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '100px', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                        <span style={{fontSize:'0.85rem', color: done === tasks.length ? 'var(--accent-success)' : 'white', fontWeight:800}}>{done}/{tasks.length}</span>
+                     </div>
+                  )}
                 </div>
+
+                {tasks.length > 0 && (
+                   <div style={{width: '100%', height: '4px', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', marginBottom: '1.5rem', overflow: 'hidden'}}>
+                      <div style={{height: '100%', width: `${pct}%`, background: pct === 100 ? 'var(--accent-success)' : 'var(--accent-physics)', transition: 'width 0.5s ease'}}></div>
+                   </div>
+                )}
+
                 {tasks.length === 0 ? (
-                  <div style={{color:'rgba(255,255,255,0.15)', fontSize:'0.75rem', textAlign:'center', marginTop:'1.5rem'}}>No blocks yet</div>
+                  <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifySelf: 'center', marginTop: '2rem', color:'rgba(255,255,255,0.15)', gap: '10px'}}>
+                     <Calendar size={32} opacity={0.5}/>
+                     <span style={{fontSize:'0.9rem', fontWeight: 600}}>Rest Day</span>
+                  </div>
                 ) : (
-                  <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+                  <div style={{display:'flex', flexDirection:'column', gap:'12px', flex: 1}}>
                     {tasks.map(task => (
-                      <div key={task.id} style={{display:'flex', gap:'6px', alignItems:'flex-start'}}>
-                        <button onClick={() => togglePlannerTask(day, task.id)} style={{marginTop:'2px', width:'14px', height:'14px', minWidth:'14px', borderRadius:'3px', border:`2px solid ${task.done ? 'var(--accent-success)' : 'rgba(255,255,255,0.2)'}`, background: task.done ? 'var(--accent-success)' : 'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                          {task.done && <Check size={8} color="white"/>}
+                      <div key={task.id} className="planner-task-item" style={{display:'flex', gap:'12px', alignItems:'flex-start', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.03)', transition: 'all 0.2s', opacity: task.done ? 0.6 : 1}}>
+                        <button onClick={() => togglePlannerTask(day, task.id)} style={{marginTop:'2px', width:'20px', height:'20px', minWidth:'20px', borderRadius:'6px', border:`2px solid ${task.done ? 'var(--accent-success)' : 'rgba(255,255,255,0.2)'}`, background: task.done ? 'var(--accent-success)' : 'rgba(0,0,0,0.3)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition: 'all 0.2s'}}>
+                          {task.done && <Check size={14} color="white" strokeWidth={3}/>}
                         </button>
                         <div style={{flex:1, minWidth:0}}>
-                          {task.time && <div style={{fontSize:'0.62rem', color:'var(--accent-math)', fontWeight:700, marginBottom:'2px'}}>{task.time}</div>}
-                          {task.subject && <div style={{fontSize:'0.62rem', padding:'1px 5px', borderRadius:'4px', background:`${subjectColors[task.subject] || '#8b5cf6'}22`, color:subjectColors[task.subject] || 'var(--accent-physics)', marginBottom:'2px', fontWeight:600}}>{task.subject}</div>}
-                          <div style={{fontSize:'0.75rem', lineHeight:1.3, textDecoration: task.done ? 'line-through' : 'none', color: task.done ? 'var(--text-muted)' : 'white', wordBreak:'break-word'}}>{task.text}</div>
+                          <div style={{display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap'}}>
+                             {task.time && <div style={{fontSize:'0.7rem', color:'white', fontWeight:700, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px'}}><Clock size={10}/> {task.time}</div>}
+                             {task.subject && <div style={{fontSize:'0.7rem', padding:'2px 8px', borderRadius:'100px', background:`${subjectColors[task.subject] || '#8b5cf6'}22`, color:subjectColors[task.subject] || 'var(--accent-physics)', fontWeight:800}}>{task.subject}</div>}
+                          </div>
+                          <div style={{fontSize:'0.9rem', lineHeight:1.4, textDecoration: task.done ? 'line-through' : 'none', color: task.done ? 'var(--text-muted)' : 'white', wordBreak:'break-word', fontWeight: 500}}>{task.text}</div>
                         </div>
-                        <button onClick={() => deletePlannerTask(day, task.id)} style={{background:'transparent', border:'none', color:'rgba(255,255,255,0.2)', cursor:'pointer', fontSize:'0.7rem', marginTop:'2px', flexShrink:0, lineHeight:1}}>&times;</button>
+                        <button onClick={() => deletePlannerTask(day, task.id)} className="planner-task-delete" style={{background:'rgba(239, 68, 68, 0.1)', border:'none', color:'#ef4444', cursor:'pointer', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s'}}><Trash2 size={14}/></button>
                       </div>
                     ))}
                   </div>
@@ -1788,18 +1808,23 @@ const App = () => {
         </div>
 
         {/* Weekly Stats */}
-        <div className="glass" style={{padding:'1.5rem'}}>
-          <h3 style={{fontSize:'1rem', fontWeight:800, marginBottom:'1rem', display:'flex', alignItems:'center', gap:'8px'}}><Target size={16} color="var(--accent-chem)"/> Weekly Summary</h3>
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:'1rem'}}>
+        <div className="glass" style={{padding:'2rem', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(15,23,42,0.8), rgba(0,0,0,0.6))', border: '1px solid rgba(255,255,255,0.05)'}}>
+          <h3 style={{fontSize:'1.2rem', fontWeight:900, marginBottom:'1.5rem', display:'flex', alignItems:'center', gap:'10px', textTransform: 'uppercase', letterSpacing: '1px'}}><Target size={20} color="var(--accent-chem)"/> Performance Analytics</h3>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'1.5rem'}}>
             {[
-              { label:'Total Blocks', val: days.reduce((s,d) => s + (plannerTasks[d]?.length || 0), 0), color:'var(--accent-physics)'},
-              { label:'Completed', val: days.reduce((s,d) => s + (plannerTasks[d]?.filter(t=>t.done).length || 0), 0), color:'var(--accent-success)'},
-              { label:'Remaining', val: days.reduce((s,d) => s + (plannerTasks[d]?.filter(t=>!t.done).length || 0), 0), color:'#f59e0b'},
-              { label:'Active Days', val: days.filter(d => (plannerTasks[d]?.length || 0) > 0).length, color:'var(--accent-math)'},
-            ].map(stat => (
-              <div key={stat.label} style={{textAlign:'center', padding:'1rem', background:'rgba(255,255,255,0.03)', borderRadius:'12px', border:'1px solid rgba(255,255,255,0.05)'}}>
-                <div style={{fontSize:'2rem', fontWeight:800, color:stat.color}}>{stat.val}</div>
-                <div style={{fontSize:'0.8rem', color:'var(--text-muted)', marginTop:'4px'}}>{stat.label}</div>
+              { label:'Total Blocks', val: days.reduce((s,d) => s + (plannerTasks[d]?.length || 0), 0), color:'var(--accent-physics)' },
+              { label:'Completed', val: days.reduce((s,d) => s + (plannerTasks[d]?.filter(t=>t.done).length || 0), 0), color:'var(--accent-success)' },
+              { label:'Remaining', val: days.reduce((s,d) => s + (plannerTasks[d]?.filter(t=>!t.done).length || 0), 0), color:'#f59e0b' },
+              { label:'Active Days', val: days.filter(d => (plannerTasks[d]?.length || 0) > 0).length, color:'var(--accent-math)' },
+            ].map((stat, i) => (
+              <div key={stat.label} style={{display: 'flex', alignItems: 'center', gap: '1rem', padding:'1.5rem', background:'rgba(255,255,255,0.02)', borderRadius:'16px', border:'1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden'}}>
+                <div style={{width: '50px', height: '50px', borderRadius: '14px', background: `${stat.color}22`, color: stat.color, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                   <span style={{fontSize: '1.5rem', fontWeight: 900}}>{stat.val}</span>
+                </div>
+                <div>
+                  <div style={{fontSize:'0.85rem', color:'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'}}>{stat.label}</div>
+                  <div style={{fontSize:'1.5rem', fontWeight:900, color:'white', marginTop: '4px'}}>{stat.val}</div>
+                </div>
               </div>
             ))}
           </div>
