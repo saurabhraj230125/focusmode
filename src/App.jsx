@@ -2083,21 +2083,21 @@ const App = () => {
                     const text = activeChat === "global" ? msg.action : msg.action.replace(/^@DM_[^\s]+\s/, "");
                     const { level: mLvl } = getLevelData(msg.xp || 0);
                     return (
-                      <div key={msg.id} style={{display: "flex", gap: "12px", alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "90%", animation: "slideUp 0.3s ease-out forwards", width: "fit-content"}}>
+                      <div key={msg.id} style={{display: "flex", gap: "10px", alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "92%", animation: "slideUp 0.3s ease-out forwards", minWidth: 0}}>
                         {!isMe && (
                           <div style={{width: "40px", height: "40px", borderRadius: "12px", background: getAvatarColor(msg.user), flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", cursor: "pointer", border: "2px solid rgba(255,255,255,0.1)", fontWeight: "bold"}} onClick={() => setViewingProfile(msg.user)}>
                              {msg.user.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div style={{display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", maxWidth: "100%"}}>
+                        <div style={{display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", maxWidth: "100%", minWidth: 0}}>
                            {!isMe && activeChat === "global" && (
                               <div style={{display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", cursor: "pointer", maxWidth: "100%"}} onClick={() => setViewingProfile(msg.user)}>
                                  <span style={{fontSize: "0.85rem", color: "white", fontWeight: "700"}}>{msg.user}</span>
                                  <span style={{fontSize: "0.65rem", background: "rgba(139,92,246,0.2)", color: "var(--accent-physics)", padding: "2px 6px", borderRadius: "6px", fontWeight: "bold"}}>Lvl {mLvl}</span>
                               </div>
                            )}
-                           <div style={{display: "flex", alignItems: "center", gap: "8px", flexDirection: isMe ? "row-reverse" : "row"}} className="chat-msg-wrapper">
-                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(20, 25, 40, 0.8)", padding: "14px 20px", borderRadius: isMe ? "22px 22px 6px 22px" : "22px 22px 22px 6px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isMe ? "0 8px 25px rgba(168, 85, 247, 0.35)" : "0 8px 25px rgba(0,0,0,0.3)", backdropFilter: "blur(12px)", color: "white", transition: "transform 0.2s, box-shadow 0.2s"}} onMouseEnter={e => {e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow=isMe?'0 12px 30px rgba(168, 85, 247, 0.5)':'0 12px 30px rgba(0,0,0,0.4)';}} onMouseLeave={e => {e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow=isMe?'0 8px 25px rgba(168, 85, 247, 0.35)':'0 8px 25px rgba(0,0,0,0.3)';}}>
+                           <div style={{display: "flex", alignItems: "center", gap: "8px", flexDirection: isMe ? "row-reverse" : "row", maxWidth: "100%", minWidth: 0}} className="chat-msg-wrapper">
+                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(20, 25, 40, 0.8)", padding: "12px 16px", borderRadius: isMe ? "22px 22px 6px 22px" : "22px 22px 22px 6px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isMe ? "0 8px 25px rgba(168, 85, 247, 0.35)" : "0 8px 25px rgba(0,0,0,0.3)", backdropFilter: "blur(12px)", color: "white", transition: "transform 0.2s, box-shadow 0.2s", maxWidth: "100%", minWidth: 0, overflowWrap: "break-word"}} onMouseEnter={e => {e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow=isMe?'0 12px 30px rgba(168, 85, 247, 0.5)':'0 12px 30px rgba(0,0,0,0.4)';}} onMouseLeave={e => {e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow=isMe?'0 8px 25px rgba(168, 85, 247, 0.35)':'0 8px 25px rgba(0,0,0,0.3)';}}>
                                <div style={{fontSize: "0.95rem", lineHeight: 1.6, wordBreak: "break-word", fontWeight: "500"}}>{text}</div>
                              </div>
                              {isMe && (
