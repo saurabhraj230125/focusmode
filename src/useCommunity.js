@@ -126,7 +126,7 @@ const parsePostsMap = (data) => {
       likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
       comments: Array.isArray(val.comments) ? val.comments.map(c => ({...c, text: maskAbuse(c.text)})) : [],
     }))
-    .filter(p => p.action)
+    .filter(p => p.action && !p.user.startsWith('Guest_'))
     .map(p => ({...p, action: maskAbuse(p.action)}))
     .sort((a, b) => b.createdAt - a.createdAt);
 };
@@ -202,7 +202,7 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
               likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
               comments: Array.isArray(val.comments) ? val.comments.map(c => ({...c, text: maskAbuse(c.text)})) : [],
             }))
-            .filter(p => p.action)
+            .filter(p => p.action && !p.user.startsWith('Guest_'))
             .map(p => ({...p, action: maskAbuse(p.action)}))
             .sort((a, b) => b.createdAt - a.createdAt);
         });

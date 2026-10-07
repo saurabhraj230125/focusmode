@@ -1851,7 +1851,9 @@ const App = () => {
        }
     });
     
-    let allPeers = Array.from(recentUsersMap.values()).map(f => {
+    let allPeers = Array.from(recentUsersMap.values())
+       .filter(f => !f.user.startsWith('Guest_'))
+       .map(f => {
        const isOnline = f.createdAt ? (now - f.createdAt) < onlineThreshold : false;
        const { level } = getLevelData(f.xp || 0);
        return { name: f.user, xp: f.xp, level, isOnline };
