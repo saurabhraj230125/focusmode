@@ -2083,30 +2083,30 @@ const App = () => {
                     const text = activeChat === "global" ? msg.action : msg.action.replace(/^@DM_[^\s]+\s/, "");
                     const { level: mLvl } = getLevelData(msg.xp || 0);
                     return (
-                      <div key={msg.id} style={{display: "flex", gap: "10px", alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "92%", animation: "slideUp 0.3s ease-out forwards", minWidth: 0}}>
+                      <div key={msg.id} style={{display: "flex", gap: "8px", alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "85%", animation: "slideUp 0.3s ease-out forwards"}}>
                         {!isMe && (
-                          <div style={{width: "40px", height: "40px", borderRadius: "12px", background: getAvatarColor(msg.user), flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", cursor: "pointer", border: "2px solid rgba(255,255,255,0.1)", fontWeight: "bold"}} onClick={() => setViewingProfile(msg.user)}>
+                          <div style={{width: "36px", height: "36px", borderRadius: "12px", background: getAvatarColor(msg.user), flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", cursor: "pointer", border: "2px solid rgba(255,255,255,0.1)", fontWeight: "bold"}} onClick={() => setViewingProfile(msg.user)}>
                              {msg.user.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div style={{display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", maxWidth: "100%", minWidth: 0}}>
+                        <div style={{display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", minWidth: 0, flex: 1}}>
                            {!isMe && activeChat === "global" && (
                               <div style={{display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", cursor: "pointer", maxWidth: "100%"}} onClick={() => setViewingProfile(msg.user)}>
-                                 <span style={{fontSize: "0.85rem", color: "white", fontWeight: "700"}}>{msg.user}</span>
-                                 <span style={{fontSize: "0.65rem", background: "rgba(139,92,246,0.2)", color: "var(--accent-physics)", padding: "2px 6px", borderRadius: "6px", fontWeight: "bold"}}>Lvl {mLvl}</span>
+                                 <span style={{fontSize: "0.8rem", color: "white", fontWeight: "700", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{msg.user}</span>
+                                 <span style={{fontSize: "0.6rem", background: "rgba(139,92,246,0.2)", color: "var(--accent-physics)", padding: "2px 6px", borderRadius: "6px", fontWeight: "bold", whiteSpace: "nowrap"}}>Lvl {mLvl}</span>
                               </div>
                            )}
-                           <div style={{display: "flex", alignItems: "center", gap: "8px", flexDirection: isMe ? "row-reverse" : "row", maxWidth: "100%", minWidth: 0}} className="chat-msg-wrapper">
-                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(20, 25, 40, 0.8)", padding: "12px 16px", borderRadius: isMe ? "22px 22px 6px 22px" : "22px 22px 22px 6px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isMe ? "0 8px 25px rgba(168, 85, 247, 0.35)" : "0 8px 25px rgba(0,0,0,0.3)", backdropFilter: "blur(12px)", color: "white", transition: "transform 0.2s, box-shadow 0.2s", maxWidth: "100%", minWidth: 0, overflowWrap: "break-word"}} onMouseEnter={e => {e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow=isMe?'0 12px 30px rgba(168, 85, 247, 0.5)':'0 12px 30px rgba(0,0,0,0.4)';}} onMouseLeave={e => {e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow=isMe?'0 8px 25px rgba(168, 85, 247, 0.35)':'0 8px 25px rgba(0,0,0,0.3)';}}>
-                               <div style={{fontSize: "0.95rem", lineHeight: 1.6, wordBreak: "break-word", fontWeight: "500"}}>{text}</div>
+                           <div style={{display: "flex", alignItems: "center", gap: "8px", flexDirection: isMe ? "row-reverse" : "row", maxWidth: "100%"}} className="chat-msg-wrapper">
+                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(20, 25, 40, 0.8)", padding: "10px 14px", borderRadius: isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isMe ? "0 4px 15px rgba(168, 85, 247, 0.25)" : "0 4px 15px rgba(0,0,0,0.2)", backdropFilter: "blur(12px)", color: "white", minWidth: 0, wordBreak: "break-word", overflowWrap: "anywhere"}}>
+                               <div style={{fontSize: "0.9rem", lineHeight: 1.5, fontWeight: "500"}}>{text}</div>
                              </div>
                              {isMe && (
-                                <button onClick={() => gunDeletePost(msg.id)} className="delete-msg-btn" title="Delete Message" style={{background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s"}}>
+                                <button onClick={() => gunDeletePost(msg.id)} className="delete-msg-btn" title="Delete Message" style={{background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0}}>
                                    <Trash2 size={14}/>
                                 </button>
                              )}
                            </div>
-                           <div style={{fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "6px", fontWeight: "600"}}><TimeAgo date={msg.createdAt} fallback={msg.time}/></div>
+                           <div style={{fontSize: "0.65rem", color: "var(--text-muted)", marginTop: "4px", fontWeight: "600"}}><TimeAgo date={msg.createdAt} fallback={msg.time}/></div>
                         </div>
                       </div>
                     );
