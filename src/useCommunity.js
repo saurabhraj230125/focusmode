@@ -63,17 +63,26 @@ const patchPost = async (id, patch) => {
 const BAD_WORDS_LONG = [
   'madharchod', 'maderchod', 'randi', 'bsdk', 'gendu', 'gandu', 'chutiya', 
   'bhenchod', 'behenchod', 'bhosdike', 'bhosadi', 'laude', 'nigger', 'faggot',
-  'muthiya', 'mutth', 'raand', 'bhosda', 'bhosada', 'machod', 'madarchod'
+  'muthiya', 'mutth', 'raand', 'bhosda', 'bhosada', 'machod', 'madarchod',
+  'lawda', 'lond', 'loda', 'lode', 'lund', 'bhadwa', 'bhadwe', 'bhadwi',
+  'bhand', 'chod', 'chut', 'chutiye', 'gaandu', 'haramkhor', 
+  'harami', 'kuttiya', 'kameena', 'kaminey', 'kamine', 'machuda',
+  'betichod', 'gand', 'gaand', 'gaande', 'gande', 'tatte', 'tatta', 'ullukepatthe',
+  'chamar', 'bhangi', 'chinal', 'chinnal', 'bhosadike'
 ];
 const BAD_WORDS_STRICT = [
   'mc', 'bc', 'mkc', 'tmkc', 'fuck', 'shit', 'bitch', 'whore', 'slut', 'dick', 
   'pussy', 'cunt', 'loda', 'lode', 'bastard', 'asshole', 'chut', 'chooth', 'choot',
-  'sexy', 'porn', 'nude', 'boobs', 'tits', 'cock', 'horny', 'lawda'
+  'sexy', 'porn', 'nude', 'boobs', 'tits', 'cock', 'horny', 'lawda', 'lund', 'land',
+  'bsdk', 'gandu', 'randi', 'bhenchod', 'madarchod'
 ];
 
 const BAD_PHRASES = [
-  'teri maa', 'teri ma', 'maa ka', 'ma ka','chut','chuti','chutiya','kutte',
-  'teri behen', 'teri bahan', 'teri bhen', 'behen ki', 'bhen ki', 'bahan ki'
+  'teri maa', 'teri ma', 'maa ka', 'ma ka', 'kutte',
+  'teri behen', 'teri bahan', 'teri bhen', 'behen ki', 'bhen ki', 'bahan ki',
+  'maa ki', 'ma ki', 'bhosdike', 'maa chuda', 'ma chuda', 'gand mara', 'gaand mara',
+  'teri maka', 'teri maa ka', 'bhen ke lode', 'beti chod', 'maa ki chut', 'ma ki chut',
+  'madar chod', 'bhen ki chut', 'ullu ke patthe', 'chutiya'
 ];
 
 export const containsAbuse = (text) => {
