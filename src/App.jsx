@@ -911,6 +911,12 @@ const App = () => {
     }
   }, [sessionUser]);
 
+  useEffect(() => {
+    if (sessionUser) {
+      updateStreak();
+    }
+  }, [sessionUser, updateStreak]);
+
   // ── PLANNER FUNCTIONS ───────────────────────────────────────────────────
   const addPlannerTask = () => {
     if (!plannerInput.trim()) return;
