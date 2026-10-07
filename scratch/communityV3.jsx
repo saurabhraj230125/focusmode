@@ -8,17 +8,37 @@
     const onlineThreshold = 5 * 60 * 1000;
     const now = Date.now();
     
-    // Build unique users from feed and mark them online if active recently
+    // Build unique users from feed and usersDb, and mark them online if active recently
     const recentUsersMap = new Map();
+    
+    // First add default/dummy users so UI is never empty
+    defaultCommunityFeed.forEach(f => {
+       if (f.user !== sessionUser) {
+          recentUsersMap.set(f.user, f);
+       }
+    });
+
+    // Merge in actual feed activity
     feed.forEach(f => {
        if (f.user !== sessionUser) {
           if (!recentUsersMap.has(f.user)) recentUsersMap.set(f.user, f);
-          else if (f.createdAt > recentUsersMap.get(f.user).createdAt) recentUsersMap.set(f.user, f);
+          else if (f.createdAt > (recentUsersMap.get(f.user).createdAt || 0)) recentUsersMap.set(f.user, f);
+       }
+    });
+
+    // Also ensure all registered users are in the list
+    Object.keys(usersDb || {}).forEach(username => {
+       if (username !== sessionUser && !recentUsersMap.has(username)) {
+          recentUsersMap.set(username, {
+             user: username,
+             xp: usersDb[username].profile?.xp || 0,
+             createdAt: 0 // Default to offline if no recent activity
+          });
        }
     });
     
     const allPeers = Array.from(recentUsersMap.values()).map(f => {
-       const isOnline = (now - f.createdAt) < onlineThreshold;
+       const isOnline = f.createdAt ? (now - f.createdAt) < onlineThreshold : false;
        const { level } = getLevelData(f.xp || 0);
        return { name: f.user, xp: f.xp, level, isOnline };
     }).sort((a,b) => b.isOnline - a.isOnline);

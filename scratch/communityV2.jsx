@@ -1,4 +1,4 @@
-﻿  const renderCommunity = () => {
+  const renderCommunity = () => {
     const getProfileData = (username) => {
       if (usersDb[username]) return usersDb[username].profile;
       const post = feed.find(f => f.user === username);
@@ -8,19 +8,38 @@
     const onlineThreshold = 5 * 60 * 1000;
     const now = Date.now();
     
-    // Build unique users from feed and mark them online if active recently
+    // Build unique users from feed and usersDb, and mark them online if active recently
     const recentUsersMap = new Map();
+    
+    // First add default/dummy users so UI is never empty
+    defaultCommunityFeed.forEach(f => {
+       if (f.user !== sessionUser) {
+          recentUsersMap.set(f.user, f.createdAt || 0);
+       }
+    });
+
+    // Merge in actual feed activity
     feed.forEach(f => {
        if (f.user !== sessionUser) {
           if (!recentUsersMap.has(f.user)) recentUsersMap.set(f.user, f.createdAt);
           else if (f.createdAt > recentUsersMap.get(f.user)) recentUsersMap.set(f.user, f.createdAt);
        }
     });
+
+    // Also ensure all registered users are in the list
+    Object.keys(usersDb || {}).forEach(username => {
+       if (username !== sessionUser && !recentUsersMap.has(username)) {
+          recentUsersMap.set(username, 0); // Default to offline if no recent activity
+       }
+    });
     
-    const allPeers = Array.from(recentUsersMap.keys()).map(user => ({
-       name: user,
-       isOnline: (now - recentUsersMap.get(user)) < onlineThreshold
-    })).sort((a,b) => b.isOnline - a.isOnline); // Online first
+    const allPeers = Array.from(recentUsersMap.keys()).map(user => {
+       const lastActive = recentUsersMap.get(user);
+       return {
+          name: user,
+          isOnline: lastActive ? (now - lastActive) < onlineThreshold : false
+       };
+    }).sort((a,b) => b.isOnline - a.isOnline); // Online first
 
     const chatMessages = feed.filter(f => {
        if (activeChat === "global") return !f.action.startsWith("@DM_");
