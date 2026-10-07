@@ -10,8 +10,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const FIREBASE_URL = 'https://studentmesh-878b5-default-rtdb.asia-southeast1.firebasedatabase.app';
 const POSTS_PATH = `${FIREBASE_URL}/focusmode/community`;
 
-const MAX_POSTS = 80;
-
 /**
  * Reads all posts once via REST GET
  */
@@ -96,8 +94,7 @@ const parsePostsMap = (data) => {
       comments: Array.isArray(val.comments) ? val.comments.filter(c => !containsAbuse(c.text)) : [],
     }))
     .filter(p => p.action && !containsAbuse(p.action))
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, MAX_POSTS);
+    .sort((a, b) => b.createdAt - a.createdAt);
 };
 
 export const useCommunity = (sessionUser, currentXP, prepType) => {
@@ -172,8 +169,7 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
               comments: Array.isArray(val.comments) ? val.comments.filter(c => !containsAbuse(c.text)) : [],
             }))
             .filter(p => p.action && !containsAbuse(p.action))
-            .sort((a, b) => b.createdAt - a.createdAt)
-            .slice(0, MAX_POSTS);
+            .sort((a, b) => b.createdAt - a.createdAt);
         });
       } catch {}
     };
@@ -208,7 +204,7 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     };
     
     // Optimistic UI update
-    setPosts(prev => [{ ...newPost, id }, ...prev].slice(0, MAX_POSTS));
+    setPosts(prev => [{ ...newPost, id }, ...prev]);
 
     try {
       await writePost(id, newPost);

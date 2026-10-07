@@ -1824,6 +1824,26 @@ const App = () => {
 
     allPeers = allPeers.sort((a,b) => b.isOnline - a.isOnline);
 
+    const conversationNames = new Set();
+    feed.forEach(message => {
+      if (!message.action.startsWith('@DM_')) return;
+      const messagePrefix = `@DM_${sessionUser}_`;
+      const reversePrefix = '@DM_';
+      if (message.action.startsWith(messagePrefix)) {
+        const target = message.action.slice(messagePrefix.length).split(' ')[0];
+        if (target) conversationNames.add(target);
+      } else if (message.action.startsWith(reversePrefix)) {
+        const header = message.action.slice(reversePrefix.length).split(' ')[0];
+        const separator = header.lastIndexOf(`_${sessionUser}`);
+        if (separator > 0) conversationNames.add(header.slice(0, separator));
+      }
+    });
+
+    const conversationPeers = allPeers
+      .filter(peer => conversationNames.has(peer.name))
+      .sort((a, b) => b.isOnline - a.isOnline);
+    const otherPeers = allPeers.filter(peer => !conversationNames.has(peer.name));
+
     const chatMessages = feed.filter(f => {
        if (activeChat === "global") return !f.action.startsWith("@DM_");
        const targetUser = activeChat.split(":")[1];
@@ -1924,7 +1944,7 @@ const App = () => {
         })()}
 
         {/* Top Navigation Tabs */}
-        <div style={{display: "flex", flexWrap: "wrap", gap: "0.75rem", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "10px", flexShrink: 0, alignItems: "center"}}>
+        <div className="community-tabs" style={{display: "flex", flexWrap: "wrap", gap: "0.75rem", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "10px", flexShrink: 0, alignItems: "center"}}>
            <button onClick={() => setActiveCommunityTab("chat")} style={{padding: "8px 16px", borderRadius: "100px", background: activeCommunityTab === "chat" ? "linear-gradient(135deg, var(--accent-physics), #c026d3)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.3s", boxShadow: activeCommunityTab === "chat" ? "0 4px 15px rgba(139, 92, 246, 0.4)" : "none", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.9rem"}}><MessageSquare size={16}/> Live Lounge</button>
            <button onClick={() => setActiveCommunityTab("squads")} style={{padding: "8px 16px", borderRadius: "100px", background: activeCommunityTab === "squads" ? "linear-gradient(135deg, var(--accent-math), #2563eb)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.3s", boxShadow: activeCommunityTab === "squads" ? "0 4px 15px rgba(59, 130, 246, 0.4)" : "none", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.9rem"}}><Target size={16}/> Squad Missions</button>
            
@@ -1951,10 +1971,10 @@ const App = () => {
                   </div>
                 </div>
 
-                <h3 style={{fontSize: "0.75rem", color: "var(--text-muted)", margin: "1rem 0 0.75rem 0", paddingLeft: "4px", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold"}}>Online Peers ({allPeers.filter(p => p.isOnline).length})</h3>
+                <h3 style={{fontSize: "0.75rem", color: "var(--text-muted)", margin: "1rem 0 0.75rem 0", paddingLeft: "4px", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold"}}>Your conversations ({conversationPeers.length})</h3>
                 
                 <div style={{display: "flex", flexDirection: "column", gap: "6px"}}>
-                  {allPeers.map(peer => (
+                  {conversationPeers.map(peer => (
                     <div key={peer.name} className={`peer-item ${activeChat === `user:${peer.name}` ? "active" : ""}`} onClick={() => setActiveChat(`user:${peer.name}`)} style={{display: "flex", alignItems: "center", gap: "12px", padding: "10px", borderRadius: "16px", cursor: "pointer", transition: "all 0.2s", background: activeChat === `user:${peer.name}` ? "rgba(255,255,255,0.05)" : "transparent"}}>
                       <div style={{position: "relative"}}>
                          <div style={{width: "38px", height: "38px", borderRadius: "12px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: "bold", flexShrink: 0, border: peer.isOnline ? "2px solid #10b981" : "2px solid rgba(255,255,255,0.1)"}}>{peer.name.charAt(0).toUpperCase()}</div>
@@ -1963,6 +1983,22 @@ const App = () => {
                       <div style={{display: "flex", flexDirection: "column", flex: 1, minWidth: 0}}>
                          <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: peer.isOnline ? "white" : "var(--text-muted)", fontWeight: "600", fontSize: "0.9rem"}}>{peer.name}</span>
                          <span style={{fontSize: "0.65rem", color: "var(--accent-physics)", fontWeight: "bold"}}>Lvl {peer.level}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <h3 style={{fontSize: "0.75rem", color: "var(--text-muted)", margin: "1rem 0 0.75rem 0", paddingLeft: "4px", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold"}}>Students ({otherPeers.length})</h3>
+                <div style={{display: "flex", flexDirection: "column", gap: "6px"}}>
+                  {otherPeers.map(peer => (
+                    <div key={peer.name} className={`peer-item ${activeChat === `user:${peer.name}` ? "active" : ""}`} onClick={() => setActiveChat(`user:${peer.name}`)} style={{display: "flex", alignItems: "center", gap: "12px", padding: "10px", borderRadius: "16px", cursor: "pointer", transition: "all 0.2s", background: activeChat === `user:${peer.name}` ? "rgba(255,255,255,0.05)" : "transparent"}}>
+                      <div style={{position: "relative"}}>
+                        <div style={{width: "38px", height: "38px", borderRadius: "12px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: "bold", flexShrink: 0, border: peer.isOnline ? "2px solid #10b981" : "2px solid rgba(255,255,255,0.1)"}}>{peer.name.charAt(0).toUpperCase()}</div>
+                        {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "12px", height: "12px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
+                      </div>
+                      <div style={{display: "flex", flexDirection: "column", flex: 1, minWidth: 0}}>
+                        <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: peer.isOnline ? "white" : "var(--text-muted)", fontWeight: "600", fontSize: "0.9rem"}}>{peer.name}</span>
+                        <span style={{fontSize: "0.65rem", color: "var(--accent-physics)", fontWeight: "bold"}}>Lvl {peer.level}</span>
                       </div>
                     </div>
                   ))}
@@ -1990,7 +2026,7 @@ const App = () => {
               </div>
 
               {/* Chat Header */}
-              <div style={{padding: "1.25rem 2rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)", display: "flex", alignItems: "center", gap: "16px", backdropFilter: "blur(10px)"}}>
+              <div className="chat-header" style={{padding: "1.25rem 2rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)", display: "flex", alignItems: "center", gap: "16px", backdropFilter: "blur(10px)"}}>
                 <div style={{width: "48px", height: "48px", borderRadius: "14px", background: activeChat === "global" ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : getAvatarColor(activeChat.split(":")[1]), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", boxShadow: "0 4px 15px rgba(0,0,0,0.3)"}}>{activeChat === "global" ? "🌍" : activeChat.split(":")[1].charAt(0).toUpperCase()}</div>
                 <div>
                   <h2 style={{fontSize: "1.25rem", fontWeight: "800", margin: 0, letterSpacing: "0.5px"}}>{activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}</h2>
@@ -1999,7 +2035,7 @@ const App = () => {
               </div>
               
               {/* Chat Messages Body */}
-              <div className="custom-scrollbar" style={{flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column-reverse", gap: "1rem", overflowX: "hidden", width: "100%", boxSizing: "border-box"}}>
+              <div className="chat-messages custom-scrollbar" style={{flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column-reverse", gap: "1rem", overflowX: "hidden", width: "100%", boxSizing: "border-box"}}>
                 {chatMessages.length === 0 ? (
                   <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px"}}>
                     <span style={{fontSize: "3rem"}}>👋</span>
@@ -2044,7 +2080,7 @@ const App = () => {
               </div>
               
               {/* Chat Input */}
-              <div style={{padding: "1rem", background: "rgba(0,0,0,0.3)", borderTop: "1px solid rgba(255,255,255,0.05)", width: "100%", maxWidth: "100%", boxSizing: "border-box"}}>
+              <div className="chat-composer" style={{padding: "1rem", background: "rgba(0,0,0,0.3)", borderTop: "1px solid rgba(255,255,255,0.05)", width: "100%", maxWidth: "100%", boxSizing: "border-box"}}>
                 <form onSubmit={handleSendMessage} style={{display: "flex", gap: "8px", width: "100%"}}>
                   <input type="text" className="input-field" placeholder={`Message ${activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}...`} value={chatInput} onChange={e => setChatInput(e.target.value)} style={{flex: 1, padding: "14px 16px", borderRadius: "100px", fontSize: "0.95rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", transition: "all 0.3s", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.1)", outline: "none", minWidth: 0}} onFocus={(e) => e.target.style.boxShadow = "0 0 0 2px var(--accent-physics), inset 0 2px 10px rgba(0,0,0,0.1)"} onBlur={(e) => e.target.style.boxShadow = "inset 0 2px 10px rgba(0,0,0,0.1)"} />
                   <button type="submit" className="btn-primary" style={{borderRadius: "100px", padding: "0 16px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "bold", fontSize: "0.95rem", boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)", transition: "all 0.2s", flexShrink: 0}} disabled={!chatInput.trim()}><Send size={16}/></button>
