@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
-  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle, ArrowUp, Search, MessageSquare
+  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle, ArrowUp, Search, MessageSquare, Shield
 } from 'lucide-react';
 import {
   trackSignUp, trackLogin, trackLogout, trackGuestSession,
@@ -66,6 +66,10 @@ const examTemplates = {
     { id: 'polity', title: 'Polity & Governance', icon: 'polity', tasks: [] },
     { id: 'geo', title: 'Geography', icon: 'geo', tasks: [] },
     { id: 'current', title: 'Current Affairs', icon: 'current', tasks: [] }
+  ],
+  NDA: [
+    { id: 'math', title: 'Mathematics', icon: 'math', tasks: [] },
+    { id: 'gat', title: 'General Ability Test', icon: 'current', tasks: [] }
   ],
   SAT: [
     { id: 'math', title: 'Mathematics', icon: 'math', tasks: [] },
@@ -1450,6 +1454,7 @@ const App = () => {
       JEE: { Physics: ['Mechanics','Thermodynamics','Electrostatics','Magnetism','Modern Physics','Waves & Optics'], Chemistry: ['Mole Concept','Equilibrium','Organic Reactions','Electrochemistry','P-Block','D-Block'], Mathematics: ['Calculus','Algebra','Trigonometry','Coordinate Geometry','Probability','Vectors'] },
       NEET: { Physics: ['Mechanics','Thermodynamics','Optics','Modern Physics','Magnetism'], Chemistry: ['Organic Chem','Physical Chem','Inorganic Chem'], Biology: ['Cell Biology','Genetics','Ecology','Plant Physiology','Human Physiology'] },
       UPSC: { History: ['Ancient India','Medieval India','Modern India'], Polity: ['Constitution','Parliament','Judiciary'], Geography: ['Physical','Indian Geo','World Geo'], Economy: ['Macro Econ','Micro Econ','Govt Schemes'] },
+      NDA: { Mathematics: ['Algebra', 'Calculus', 'Trigonometry', 'Statistics'], General_Ability: ['English', 'Physics', 'Chemistry', 'History & Geo'] },
     };
     const syllabus = syllabusMap[currentUserProfile?.prepType] || syllabusMap.JEE;
     const allSyllabusTopics = Object.entries(syllabus).flatMap(([sub, topics]) => topics.map(t => `${sub}::${t}`));
@@ -1811,11 +1816,27 @@ const App = () => {
        }
     });
     
-    const allPeers = Array.from(recentUsersMap.values()).map(f => {
+    let allPeers = Array.from(recentUsersMap.values()).map(f => {
        const isOnline = (now - f.createdAt) < onlineThreshold;
        const { level } = getLevelData(f.xp || 0);
        return { name: f.user, xp: f.xp, level, isOnline };
-    }).sort((a,b) => b.isOnline - a.isOnline);
+    });
+
+    // Inject simulated peers to make community always look active and populated
+    const simulatedPeers = [
+      { name: 'Aryan_IIT', xp: 450, level: 5, isOnline: true },
+      { name: 'Priya_NEET', xp: 820, level: 9, isOnline: true },
+      { name: 'Rahul_UPSC', xp: 210, level: 3, isOnline: true },
+      { name: 'Kavya_NDA', xp: 150, level: 2, isOnline: true }
+    ];
+
+    simulatedPeers.forEach(sim => {
+      if (!allPeers.find(p => p.name === sim.name) && sim.name !== sessionUser) {
+        allPeers.push(sim);
+      }
+    });
+
+    allPeers = allPeers.sort((a,b) => b.isOnline - a.isOnline);
 
     const chatMessages = feed.filter(f => {
        if (activeChat === "global") return !f.action.startsWith("@DM_");
@@ -2114,6 +2135,7 @@ const App = () => {
       { id: 'JEE', label: 'JEE Aspirants', color: 'var(--accent-physics)', desc: 'Physics · Chemistry · Maths', icon: <Calculator size={28}/> },
       { id: 'NEET', label: 'NEET Aspirants', color: 'var(--accent-chem)', desc: 'Physics · Chemistry · Biology', icon: <Stethoscope size={28}/> },
       { id: 'UPSC', label: 'UPSC Aspirants', color: 'var(--accent-math)', desc: 'History · Polity · Geography', icon: <Landmark size={28}/> },
+      { id: 'NDA', label: 'NDA Aspirants', color: '#14b8a6', desc: 'Maths · General Ability', icon: <Shield size={28}/> },
       { id: 'SAT', label: 'SAT / ACT', color: '#3b82f6', desc: 'Global College Admissions', icon: <BookOpen size={28}/> },
       { id: 'MCAT', label: 'MCAT Prep', color: '#10b981', desc: 'Medical College Admissions', icon: <Stethoscope size={28}/> },
       { id: 'GRE', label: 'GRE / GMAT', color: '#f59e0b', desc: 'Grad School Admissions', icon: <BrainCircuit size={28}/> },
