@@ -639,7 +639,15 @@ const App = () => {
   useEffect(() => {
     let savedUsersStr = localStorage.getItem('planmaker_users');
     let db = savedUsersStr ? JSON.parse(savedUsersStr) : {};
-    if (savedUsersStr) setUsersDb(db);
+    if (savedUsersStr) {
+      setUsersDb(db);
+      // Sync all existing local users to Firebase so they appear globally
+      Object.keys(db).forEach(username => {
+        if (!db[username].profile?.isGuest) {
+          syncUserToFirebase(username, db[username].profile);
+        }
+      });
+    }
 
     const activeSession = localStorage.getItem('planmaker_session');
     const explicitLogout = localStorage.getItem('planmaker_explicit_logout');
