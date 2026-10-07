@@ -1832,15 +1832,13 @@ const App = () => {
 
     // Merge in actual feed activity
     feed.forEach(f => {
-       if (f.user !== sessionUser) {
-          if (!recentUsersMap.has(f.user)) recentUsersMap.set(f.user, f);
-          else if (f.createdAt > (recentUsersMap.get(f.user).createdAt || 0)) recentUsersMap.set(f.user, f);
-       }
+       if (!recentUsersMap.has(f.user)) recentUsersMap.set(f.user, f);
+       else if (f.createdAt > (recentUsersMap.get(f.user).createdAt || 0)) recentUsersMap.set(f.user, f);
     });
 
     // Also ensure all registered users (local) are in the list
     Object.keys(usersDb || {}).forEach(username => {
-       if (username !== sessionUser && !recentUsersMap.has(username)) {
+       if (!recentUsersMap.has(username)) {
           recentUsersMap.set(username, {
              user: username,
              xp: usersDb[username].profile?.xp || 0,
@@ -1851,15 +1849,13 @@ const App = () => {
 
     // Merge global firebase users
     Object.keys(firebaseUsers || {}).forEach(username => {
-       if (username !== sessionUser) {
-          const fbUser = firebaseUsers[username];
-          if (!recentUsersMap.has(username) || fbUser.lastActive > (recentUsersMap.get(username).createdAt || 0)) {
-             recentUsersMap.set(username, {
-                user: username,
-                xp: fbUser.xp || 0,
-                createdAt: fbUser.lastActive || 0
-             });
-          }
+       const fbUser = firebaseUsers[username];
+       if (!recentUsersMap.has(username) || fbUser.lastActive > (recentUsersMap.get(username).createdAt || 0)) {
+          recentUsersMap.set(username, {
+             user: username,
+             xp: fbUser.xp || 0,
+             createdAt: fbUser.lastActive || 0
+          });
        }
     });
     
