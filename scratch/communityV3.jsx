@@ -10,13 +10,6 @@
     
     // Build unique users from feed and usersDb, and mark them online if active recently
     const recentUsersMap = new Map();
-    
-    // First add default/dummy users so UI is never empty
-    defaultCommunityFeed.forEach(f => {
-       if (f.user !== sessionUser) {
-          recentUsersMap.set(f.user, f);
-       }
-    });
 
     // Merge in actual feed activity
     feed.forEach(f => {
