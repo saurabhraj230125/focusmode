@@ -1395,6 +1395,10 @@ textarea { max-width: 100%; box-sizing: border-box; }
     padding: 10px 0.75rem !important;
     gap: 12px !important;
     flex: 0 0 auto;
+    scrollbar-width: none;
+  }
+  .mobile-peers-list::-webkit-scrollbar {
+    display: none;
   }
   .mobile-peers-list > div { min-width: 52px; }
   .chat-header {

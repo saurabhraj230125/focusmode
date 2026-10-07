@@ -16,7 +16,7 @@ import {
   trackJournalSaved, trackPostCreated, trackPostLiked, trackCommentPosted,
   trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned
 } from './analytics.js';
-import { useCommunity, containsAbuse } from './useCommunity.js';
+import { useCommunity, containsAbuse, useFirebaseUsers, syncUserToFirebase } from './useCommunity.js';
 import { useEvents } from './useEvents.js';
 import { usePushNotifications } from './usePushNotifications.js';
 
@@ -160,6 +160,14 @@ const App = () => {
     addComment: gunAddComment,
     deletePost: gunDeletePost,
   } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
+  
+  const firebaseUsers = useFirebaseUsers();
+
+  useEffect(() => {
+    if (sessionUser && usersDb[sessionUser] && !usersDb[sessionUser].profile.isGuest) {
+      syncUserToFirebase(sessionUser, usersDb[sessionUser].profile);
+    }
+  }, [sessionUser, usersDb]);
 
   // ── Scheduled Events (Firebase) ──────────────────────────────────────────
   const { events: studyEvents, isLoading: isEventsLoading, createEvent, joinEvent, deleteEvent } = useEvents(sessionUser);
@@ -644,6 +652,8 @@ const App = () => {
       let visits = parseInt(localStorage.getItem('planmaker_visits') || '0');
       visits++;
       localStorage.setItem('planmaker_visits', visits.toString());
+      
+      syncUserToFirebase(activeSession, db[activeSession].profile);
 
     } else if (!explicitLogout) {
       // Auto-create a Guest Session for first-timers
@@ -658,6 +668,7 @@ const App = () => {
       setUsersDb(db);
       setSessionUser(guestName);
       localStorage.setItem('planmaker_session', guestName);
+      syncUserToFirebase(guestName, db[guestName].profile);
       localStorage.setItem('planmaker_users', JSON.stringify(db));
       localStorage.setItem('planmaker_visits', '1');
     }
@@ -1825,7 +1836,7 @@ const App = () => {
        }
     });
 
-    // Also ensure all registered users are in the list
+    // Also ensure all registered users (local) are in the list
     Object.keys(usersDb || {}).forEach(username => {
        if (username !== sessionUser && !recentUsersMap.has(username)) {
           recentUsersMap.set(username, {
@@ -1833,6 +1844,20 @@ const App = () => {
              xp: usersDb[username].profile?.xp || 0,
              createdAt: 0 // Default to offline if no recent activity
           });
+       }
+    });
+
+    // Merge global firebase users
+    Object.keys(firebaseUsers || {}).forEach(username => {
+       if (username !== sessionUser) {
+          const fbUser = firebaseUsers[username];
+          if (!recentUsersMap.has(username) || fbUser.lastActive > (recentUsersMap.get(username).createdAt || 0)) {
+             recentUsersMap.set(username, {
+                user: username,
+                xp: fbUser.xp || 0,
+                createdAt: fbUser.lastActive || 0
+             });
+          }
        }
     });
     
