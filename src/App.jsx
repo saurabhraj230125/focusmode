@@ -1822,20 +1822,6 @@ const App = () => {
        return { name: f.user, xp: f.xp, level, isOnline };
     });
 
-    // Inject simulated peers to make community always look active and populated
-    const simulatedPeers = [
-      { name: 'Aryan_IIT', xp: 450, level: 5, isOnline: true },
-      { name: 'Priya_NEET', xp: 820, level: 9, isOnline: true },
-      { name: 'Rahul_UPSC', xp: 210, level: 3, isOnline: true },
-      { name: 'Kavya_NDA', xp: 150, level: 2, isOnline: true }
-    ];
-
-    simulatedPeers.forEach(sim => {
-      if (!allPeers.find(p => p.name === sim.name) && sim.name !== sessionUser) {
-        allPeers.push(sim);
-      }
-    });
-
     allPeers = allPeers.sort((a,b) => b.isOnline - a.isOnline);
 
     const chatMessages = feed.filter(f => {
