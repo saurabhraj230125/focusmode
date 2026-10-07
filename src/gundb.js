@@ -1,4 +1,4 @@
-// ── FocusModePlayer — Real-time Community via Gun.js CDN ─────────────────────
+// ── FocusMode — Real-time Community via Gun.js CDN ─────────────────────
 // Gun.js is loaded via CDN script tag in index.html as window.Gun
 // This avoids the Node.js compatibility crash from the npm package in browsers.
 
@@ -17,7 +17,7 @@ const initGun = () => {
       ],
       localStorage: true,
     });
-    communityDb = gun.get('focusmodeplayer-v2').get('community');
+    communityDb = gun.get('focusmode-v2').get('community');
   }
   return gun;
 };

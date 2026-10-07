@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Reusing the same Firebase URL provided earlier
 const FIREBASE_URL = 'https://studentmesh-878b5-default-rtdb.asia-southeast1.firebasedatabase.app';
-const EVENTS_PATH = `${FIREBASE_URL}/focusmodeplayer/events`;
+const EVENTS_PATH = `${FIREBASE_URL}/focusmode/events`;
 
 const fetchEvents = async () => {
   try {

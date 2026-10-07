@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const FIREBASE_URL = 'https://studentmesh-878b5-default-rtdb.asia-southeast1.firebasedatabase.app';
-const SUBS_PATH = `${FIREBASE_URL}/focusmodeplayer/push_subscriptions`;
+const SUBS_PATH = `${FIREBASE_URL}/focusmode/push_subscriptions`;
 
 // VAPID Public Key (generated once, safe to expose in client)
 const VAPID_PUBLIC_KEY = 'BPS9sGE_QZvbXKRg0d-0Ue8xVByFUfa70QKxLnUo3k6sE3n9Nv0YIhA7Qzr79D5zDRcOpyjCLXgSVFI278YD6QU';

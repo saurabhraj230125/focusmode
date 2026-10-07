@@ -132,7 +132,7 @@ const App = () => {
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeCommunityTab, setActiveCommunityTab] = useState('chat');
-  const [squadMissions, setSquadMissions] = useState(() => { try { return JSON.parse(localStorage.getItem('pm_squads')) || [{ id: '1', admin: 'PlanMaker', title: 'Complete Calculus Integration', desc: 'Solve all PYQs and read theory.', target: 100, members: [{user: 'PlanMaker', progress: 85}, {user: 'TestUser', progress: 40}] }]; } catch { return []; } });
+  const [squadMissions, setSquadMissions] = useState(() => { try { return JSON.parse(localStorage.getItem('pm_squads')) || [{ id: '1', admin: 'FocusMode', title: 'Complete Calculus Integration', desc: 'Solve all PYQs and read theory.', target: 100, members: [{user: 'FocusMode', progress: 85}, {user: 'TestUser', progress: 40}] }]; } catch { return []; } });
   const [activeChat, setActiveChat] = useState('global');
   const [chatInput, setChatInput] = useState('');
   const [activeSubreddit, setActiveSubreddit] = useState('All');
@@ -394,9 +394,9 @@ const App = () => {
       return `You're welcome! 😊 That's what I'm here for. Got another question? Ask away — whether it's a concept, a problem, or just study advice!`;
     }
 
-    // ── ABOUT APP / PLANMAKER ─────────────────────────────────────────────────
-    if (t.match(/what is this (app|website)|about (planmaker|focusmodeplayer)|who created (you|this)|how to use this|what can i do here/)) {
-      return `Welcome to **FocusModePlayer (PlanMaker)**! 🚀 This is the ultimate study dashboard for JEE, NEET & UPSC aspirants. Here's what you can do:\n\n1. **Plan:** Track daily tasks, study modules, and track your syllabus progress.\n2. **Journal:** Write daily reflections and download your notes.\n3. **Lectures:** Add YouTube links to watch ad-free without distractions.\n4. **Connect:** Join P2P video study rooms with other students.\n5. **Community:** Share updates and ask questions in real-time!\n\nI'm FocusBot, your AI guide. Let me know if you need help!`;
+    // ── ABOUT APP / FOCUSMODE ─────────────────────────────────────────────────
+    if (t.match(/what is this (app|website)|about (planmaker|focusmodeplayer|focusmode)|who created (you|this)|how to use this|what can i do here/)) {
+      return `Welcome to **FocusMode**! 🚀 This is the ultimate study dashboard for JEE, NEET & UPSC aspirants. Here's what you can do:\n\n1. **Plan:** Track daily tasks, study modules, and track your syllabus progress.\n2. **Journal:** Write daily reflections and download your notes.\n3. **Lectures:** Add YouTube links to watch ad-free without distractions.\n4. **Connect:** Join P2P video study rooms with other students.\n5. **Community:** Share updates and ask questions in real-time!\n\nI'm FocusBot, your AI guide. Let me know if you need help!`;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -512,7 +512,7 @@ const App = () => {
     }
 
     if (t.match(/memor|forget|remember|retain|recall|revision|spaced repetition|flashcard|notes/)) {
-      return `**Memory & Retention Science** 🧠\n\nYour brain forgets 80% of new information within 24 hours (Ebbinghaus Forgetting Curve) — unless you actively fight it.\n\n**The 3 Most Powerful Techniques:**\n\n**1. Active Recall:** Don't re-read. Close the book and write/say everything you remember. Then check what you missed.\n\n**2. Spaced Repetition:** Review material at increasing intervals:\n• 1 day after learning → 3 days → 7 days → 21 days → 2 months\n• Use Anki app (free) for flashcards that auto-schedule this\n\n**3. The Feynman Technique:** Explain the concept in simple language as if teaching a child. Where you stumble = your gap.\n\n**Notes Strategy:** Don't copy textbook notes. Write in your own words. Use mind maps for interconnected topics.\n\n**For FocusModePlayer:** Use the Journal tab to write what you learned today — this forces active recall! 📓`;
+      return `**Memory & Retention Science** 🧠\n\nYour brain forgets 80% of new information within 24 hours (Ebbinghaus Forgetting Curve) — unless you actively fight it.\n\n**The 3 Most Powerful Techniques:**\n\n**1. Active Recall:** Don't re-read. Close the book and write/say everything you remember. Then check what you missed.\n\n**2. Spaced Repetition:** Review material at increasing intervals:\n• 1 day after learning → 3 days → 7 days → 21 days → 2 months\n• Use Anki app (free) for flashcards that auto-schedule this\n\n**3. The Feynman Technique:** Explain the concept in simple language as if teaching a child. Where you stumble = your gap.\n\n**Notes Strategy:** Don't copy textbook notes. Write in your own words. Use mind maps for interconnected topics.\n\n**For FocusMode:** Use the Journal tab to write what you learned today — this forces active recall! 📓`;
     }
 
     if (t.match(/sleep|tired|exhaust|sleep schedule|nap|wake up|morning|night study/)) {
@@ -541,8 +541,8 @@ const App = () => {
 
     // ── WEBSITE / APP FEATURE ALIGNMENT ─────────────────────────────────────
     
-    if (t.match(/how to use|what is this website|what is focusmodeplayer|guide|tutorial|how does this work|features/)) {
-      return `**Welcome to FocusModePlayer!** 🚀\n\nI am designed to be your ultimate study ecosystem. Here is how to use me for maximum productivity:\n\n**1. Dashboard (The Core):** Break your giant syllabus into Subjects → Modules → Subtasks. Check them off to earn XP.\n**2. Pomodoro Timer:** Use the 25-minute timer for intense focus sessions. Earning 50 XP per session builds a habit loop.\n**3. Community (Live):** Click the globe icon! It's a real-time feed of all aspirants worldwide. Share wins and tips.\n**4. Live Study Connect:** Join a virtual room to study silently with others (body doubling). It kills procrastination.\n**5. Journal & Mistakes:** At the end of the day, log what you learned and the mistakes you made. Active recall!\n**6. Lectures:** Paste any YouTube video URL. It blocks comments/recommendations and lets you take timestamped notes.\n\nStart by adding your first task on the Dashboard!`;
+    if (t.match(/how to use|what is this website|what is focusmodeplayer|what is focusmode|guide|tutorial|how does this work|features/)) {
+      return `**Welcome to FocusMode!** 🚀\n\nI am designed to be your ultimate study ecosystem. Here is how to use me for maximum productivity:\n\n**1. Dashboard (The Core):** Break your giant syllabus into Subjects → Modules → Subtasks. Check them off to earn XP.\n**2. Pomodoro Timer:** Use the 25-minute timer for intense focus sessions. Earning 50 XP per session builds a habit loop.\n**3. Community (Live):** Click the globe icon! It's a real-time feed of all aspirants worldwide. Share wins and tips.\n**4. Live Study Connect:** Join a virtual room to study silently with others (body doubling). It kills procrastination.\n**5. Journal & Mistakes:** At the end of the day, log what you learned and the mistakes you made. Active recall!\n**6. Lectures:** Paste any YouTube video URL. It blocks comments/recommendations and lets you take timestamped notes.\n\nStart by adding your first task on the Dashboard!`;
     }
 
     if (t.match(/community|chat|feed|other students|talk to|social/)) {
@@ -1175,7 +1175,7 @@ const App = () => {
     if (!inCall || !connectRoom || !jitsiContainerRef.current) return;
     if (jitsiApiRef.current) return; // already initialized
 
-    const roomName = `FocusModePlayer-${connectRoom}-Study`.replace(/[^a-zA-Z0-9-]/g, '');
+    const roomName = `FocusMode-${connectRoom}-Study`.replace(/[^a-zA-Z0-9-]/g, '');
 
     const loadJitsi = () => {
       if (!window.JitsiMeetExternalAPI) {
@@ -1251,7 +1251,7 @@ const App = () => {
     trackNoteDownloaded(video.title);
     const data = videoNotes[video.id] || { notes: '', mistakes: '', lastUpdated: '' };
     const dateStr = data.lastUpdated || new Date().toLocaleDateString();
-    let content = `FocusModePlayer — Lecture Notes\n${'='.repeat(40)}\nVideo: ${video.title}\nDate: ${dateStr}\n${'='.repeat(40)}\n\n`;
+    let content = `FocusMode — Lecture Notes\n${'='.repeat(40)}\nVideo: ${video.title}\nDate: ${dateStr}\n${'='.repeat(40)}\n\n`;
     if (data.notes) content += `[📝 NOTES]\n${data.notes}\n\n`;
     if (data.mistakes) content += `[⚠️ MISTAKES & DOUBTS]\n${data.mistakes}\n\n`;
     if (!data.notes && !data.mistakes) content += 'No notes written yet.';
@@ -1304,7 +1304,7 @@ const App = () => {
       <div className="auth-wrapper">
         <div className="glass auth-card animate-fade-in">
           <Headphones size={48} color="var(--accent-physics)" style={{marginBottom: '1rem'}} />
-          <h1 className="greeting" style={{fontSize: '2rem'}}>FocusModePlayer</h1>
+          <h1 className="greeting" style={{fontSize: '2rem'}}>FocusMode</h1>
           <p className="subtitle" style={{marginBottom: '2rem', textAlign: 'center'}}>Welcome back to your dashboard.</p>
           
           <form className="auth-form" onSubmit={handleAuth}>
@@ -2026,7 +2026,7 @@ const App = () => {
               <div style={{padding: "1rem", background: "rgba(0,0,0,0.3)", borderTop: "1px solid rgba(255,255,255,0.05)", width: "100%", maxWidth: "100%", boxSizing: "border-box"}}>
                 <form onSubmit={handleSendMessage} style={{display: "flex", gap: "8px", width: "100%"}}>
                   <input type="text" className="input-field" placeholder={`Message ${activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}...`} value={chatInput} onChange={e => setChatInput(e.target.value)} style={{flex: 1, padding: "14px 16px", borderRadius: "100px", fontSize: "0.95rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", transition: "all 0.3s", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.1)", outline: "none", minWidth: 0}} onFocus={(e) => e.target.style.boxShadow = "0 0 0 2px var(--accent-physics), inset 0 2px 10px rgba(0,0,0,0.1)"} onBlur={(e) => e.target.style.boxShadow = "inset 0 2px 10px rgba(0,0,0,0.1)"} />
-                  <button type="submit" onMouseDown={e => { e.preventDefault(); handleSendMessage(e); }} onTouchStart={e => { e.preventDefault(); handleSendMessage(e); }} className="btn-primary" style={{borderRadius: "100px", padding: "0 16px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "bold", fontSize: "0.95rem", boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)", transition: "all 0.2s", flexShrink: 0}} disabled={!chatInput.trim()}><Send size={16}/></button>
+                  <button type="submit" className="btn-primary" style={{borderRadius: "100px", padding: "0 16px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "bold", fontSize: "0.95rem", boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)", transition: "all 0.2s", flexShrink: 0}} disabled={!chatInput.trim()}><Send size={16}/></button>
                 </form>
               </div>
             </div>
@@ -2105,7 +2105,7 @@ const App = () => {
       { id: 'GRE', label: 'GRE / GMAT', color: '#f59e0b', desc: 'Grad School Admissions', icon: <BrainCircuit size={28}/> },
       { id: 'IB', label: 'IB / AP', color: '#ec4899', desc: 'Global High School Curriculum', icon: <Globe size={28}/> },
     ];
-    const buildJitsiRoom = (roomId) => `FocusModePlayer-${roomId}-Study`;
+    const buildJitsiRoom = (roomId) => `FocusMode-${roomId}-Study`;
 
     if (inCall && connectRoom) {
       const jitsiRoom = buildJitsiRoom(connectRoom);
@@ -2574,7 +2574,7 @@ const App = () => {
 
       {/* Desktop Sidebar */}
       <nav className="app-sidebar">
-        <div className="brand"><Headphones size={24} color="var(--accent-physics)" /> FocusModePlayer</div>
+        <div className="brand"><Headphones size={24} color="var(--accent-physics)" /> FocusMode</div>
         {isFullyOnboarded && (
            <div style={{background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', textAlign: 'center'}}>
              <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Lvl {level}: {title}</div>
@@ -2597,7 +2597,7 @@ const App = () => {
       <main className="main-content">
         {/* Mobile Header */}
         <div className="mobile-header">
-          <div className="mobile-brand"><Headphones size={20} color="var(--accent-physics)" /> FocusModePlayer</div>
+          <div className="mobile-brand"><Headphones size={20} color="var(--accent-physics)" /> FocusMode</div>
           {isFullyOnboarded && <div className="mobile-xp-badge">⚡ {currentXP} XP</div>}
         </div>
 

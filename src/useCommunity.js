@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 // ⚠️ REPLACE THIS with your Firebase Realtime Database URL
 // Example: https://your-project-default-rtdb.firebaseio.com
 const FIREBASE_URL = 'https://studentmesh-878b5-default-rtdb.asia-southeast1.firebasedatabase.app';
-const POSTS_PATH = `${FIREBASE_URL}/focusmodeplayer/community`;
+const POSTS_PATH = `${FIREBASE_URL}/focusmode/community`;
 
 const MAX_POSTS = 80;
 

@@ -1,4 +1,4 @@
-// ── FocusModePlayer — Google Analytics 4 Utility ─────────────────────────────
+// ── FocusMode — Google Analytics 4 Utility ─────────────────────────────
 // Measurement ID: G-MB8B9DZ03B
 // All tracking calls go through this file for easy maintenance.
 
@@ -46,7 +46,7 @@ export const trackOnboarding = (prepType, targetYear) => {
 export const trackTabChange = (tabName) => {
   gtag('event', 'tab_view', { tab_name: tabName });
   gtag('event', 'page_view', {
-    page_title: `FocusModePlayer — ${tabName}`,
+    page_title: `FocusMode — ${tabName}`,
     page_location: `${window.location.origin}/#${tabName}`,
   });
 };

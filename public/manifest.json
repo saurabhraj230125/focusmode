@@ -1,6 +1,6 @@
 {
-  "name": "PlanMaker",
-  "short_name": "PlanMaker",
+  "name": "FocusMode",
+  "short_name": "FocusMode",
   "description": "The ultimate study dashboard for JEE, NEET & UPSC aspirants.",
   "start_url": "/",
   "display": "standalone",

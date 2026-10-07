@@ -106,7 +106,7 @@ const PWAInstallPrompt = () => {
           <div className="pwa-app-info">
             <img src="/icon.jpg" alt="FocusMode App Icon" className="pwa-app-icon" />
             <div className="pwa-app-text">
-              <h3 className="pwa-app-name">FocusModePlayer</h3>
+              <h3 className="pwa-app-name">FocusMode</h3>
               <p className="pwa-app-desc">Install as an app for the best experience</p>
               <div className="pwa-badges" style={{marginTop: '4px'}}>
                 <span className="pwa-badge">📴 Works Offline</span>
