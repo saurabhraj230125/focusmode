@@ -68,7 +68,9 @@ const BAD_WORDS_LONG = [
   'bhand', 'chod', 'chut', 'chutiye', 'gaandu', 'haramkhor', 
   'harami', 'kuttiya', 'kameena', 'kaminey', 'kamine', 'machuda',
   'betichod', 'gand', 'gaand', 'gaande', 'gande', 'tatte', 'tatta', 'ullukepatthe',
-  'chamar', 'bhangi', 'chinal', 'chinnal', 'bhosadike'
+  'chamar', 'bhangi', 'chinal', 'chinnal', 'bhosadike',
+  'bhakchod', 'bakchod', 'bakchodi', 'bakaiti', 'chapri', 'chhapri', 'nibba', 'nibbi',
+  'jhaat', 'jhatu', 'jhaatu', 'rand', 'dalal', 'kutta', 'kutti', 'chutiyapa'
 ];
 const BAD_WORDS_STRICT = [
   'mc', 'bc', 'mkc', 'tmkc', 'fuck', 'shit', 'bitch', 'whore', 'slut', 'dick', 
@@ -82,7 +84,8 @@ const BAD_PHRASES = [
   'teri behen', 'teri bahan', 'teri bhen', 'behen ki', 'bhen ki', 'bahan ki',
   'maa ki', 'ma ki', 'bhosdike', 'maa chuda', 'ma chuda', 'gand mara', 'gaand mara',
   'teri maka', 'teri maa ka', 'bhen ke lode', 'beti chod', 'maa ki chut', 'ma ki chut',
-  'madar chod', 'bhen ki chut', 'ullu ke patthe', 'chutiya'
+  'madar chod', 'bhen ki chut', 'ullu ke patthe', 'chutiya', 'teri keh ke', 'keh ke lunga',
+  'muth maar', 'mutth maar'
 ];
 
 export const containsAbuse = (text) => {
