@@ -268,5 +268,16 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     }
   }, [sessionUser]);
 
-  return { posts, isLoading, postMessage, toggleLike, addComment };
+  const deletePost = useCallback(async (postId) => {
+    // Optimistic UI update
+    setPosts(prev => prev.filter(p => p.id !== postId));
+
+    try {
+      await fetch(`${POSTS_PATH}/${postId}.json`, { method: 'DELETE' });
+    } catch (err) {
+      console.error("Failed to delete post:", err);
+    }
+  }, []);
+
+  return { posts, isLoading, postMessage, toggleLike, addComment, deletePost };
 };

@@ -154,6 +154,7 @@ const App = () => {
     postMessage: gunPostMessage,
     toggleLike: gunToggleLike,
     addComment: gunAddComment,
+    deletePost: gunDeletePost,
   } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
 
   // ── Scheduled Events (Firebase) ──────────────────────────────────────────
@@ -1822,6 +1823,8 @@ const App = () => {
       if (!chatInput.trim()) return;
       
       let finalMsg = chatInput;
+      setChatInput(""); // Clear immediately for snappy UX
+
       if (activeChat !== "global") {
         const targetUser = activeChat.split(":")[1];
         finalMsg = `@DM_${sessionUser}_${targetUser} ${finalMsg}`;
@@ -1837,7 +1840,6 @@ const App = () => {
       if (id) {
         awardXP(2, 'Community Post');
       }
-      setChatInput("");
     };
 
     const handleCreateMission = () => {
@@ -2011,8 +2013,15 @@ const App = () => {
                                  <span style={{fontSize: "0.65rem", background: "rgba(139,92,246,0.2)", color: "var(--accent-physics)", padding: "2px 6px", borderRadius: "6px", fontWeight: "bold"}}>Lvl {mLvl}</span>
                               </div>
                            )}
-                           <div style={{background: isMe ? "linear-gradient(135deg, var(--accent-physics), #7c3aed)" : "rgba(255,255,255,0.06)", padding: "14px 18px", borderRadius: isMe ? "20px 20px 4px 20px" : "20px 20px 20px 4px", border: isMe ? "none" : "1px solid rgba(255,255,255,0.1)", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", color: "white"}}>
-                             <div style={{fontSize: "0.95rem", lineHeight: 1.5, wordBreak: "break-word"}}>{text}</div>
+                           <div style={{display: "flex", alignItems: "center", gap: "8px", flexDirection: isMe ? "row-reverse" : "row"}} className="chat-msg-wrapper">
+                             <div style={{background: isMe ? "linear-gradient(135deg, var(--accent-physics), #7c3aed)" : "rgba(255,255,255,0.06)", padding: "14px 18px", borderRadius: isMe ? "20px 20px 4px 20px" : "20px 20px 20px 4px", border: isMe ? "none" : "1px solid rgba(255,255,255,0.1)", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", color: "white"}}>
+                               <div style={{fontSize: "0.95rem", lineHeight: 1.5, wordBreak: "break-word"}}>{text}</div>
+                             </div>
+                             {isMe && (
+                                <button onClick={() => gunDeletePost(msg.id)} className="delete-msg-btn" title="Delete Message" style={{background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s"}}>
+                                   <Trash2 size={14}/>
+                                </button>
+                             )}
                            </div>
                            <div style={{fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "6px", fontWeight: "600"}}><TimeAgo date={msg.createdAt} fallback={msg.time}/></div>
                         </div>

@@ -12,7 +12,7 @@ const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'ztF0Q7Jd44IJbcfMcGsL8a34bW7W
 webpush.setVapidDetails('mailto:saurabhraj230125@gmail.com', VAPID_PUBLIC, VAPID_PRIVATE);
 
 const FIREBASE_URL = 'https://studentmesh-878b5-default-rtdb.asia-southeast1.firebasedatabase.app';
-const SUBS_PATH = FIREBASE_URL + '/focusmodeplayer/push_subscriptions.json';
+const SUBS_PATH = FIREBASE_URL + '/focusmode/push_subscriptions.json';
 
 async function getAllSubscriptions() {
   const res = await fetch(SUBS_PATH);
@@ -62,7 +62,7 @@ app.post('/notify-user', async (req, res) => {
 let lastMsgTime = Date.now();
 async function watchMessages() {
   try {
-    const res = await fetch(FIREBASE_URL + '/focusmodeplayer/community.json?orderBy=%22createdAt%22&limitToLast=3');
+    const res = await fetch(FIREBASE_URL + '/focusmode/community.json?orderBy=%22createdAt%22&limitToLast=3');
     if (!res.ok) return;
     const data = await res.json();
     if (!data) return;
