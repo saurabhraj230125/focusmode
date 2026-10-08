@@ -133,10 +133,67 @@ const getAvatarColor = (name) => {
   return avatarColors[Math.abs(h)%avatarColors.length]; 
 };
 
+const StudyUniverseBackground = () => {
+  const floatingIcons = [
+    { Icon: BookOpen, color: '#8b5cf6', size: 60, x: [0, 40, -30, 0], y: [0, -50, 20, 0], duration: 20, delay: 0, top: '15%', left: '15%' },
+    { Icon: FlaskConical, color: '#ec4899', size: 55, x: [0, -30, 40, 0], y: [0, 40, -30, 0], duration: 25, delay: 2, top: '25%', right: '20%' },
+    { Icon: Calculator, color: '#3b82f6', size: 70, x: [0, 50, -50, 0], y: [0, -60, 40, 0], duration: 22, delay: 4, bottom: '25%', left: '10%' },
+    { Icon: Globe, color: '#10b981', size: 65, x: [0, -40, 30, 0], y: [0, 50, -20, 0], duration: 28, delay: 1, bottom: '20%', right: '15%' },
+    { Icon: BrainCircuit, color: '#f59e0b', size: 50, x: [0, 30, -40, 0], y: [0, -40, 50, 0], duration: 18, delay: 5, top: '45%', left: '80%' },
+    { Icon: Target, color: '#8b5cf6', size: 65, x: [0, -50, 40, 0], y: [0, 30, -50, 0], duration: 24, delay: 3, top: '75%', left: '35%' },
+    { Icon: Sparkles, color: '#ec4899', size: 45, x: [0, 40, -30, 0], y: [0, -50, 30, 0], duration: 15, delay: 0, top: '50%', left: '10%' },
+    { Icon: MonitorPlay, color: '#3b82f6', size: 50, x: [0, -30, 50, 0], y: [0, 50, -40, 0], duration: 26, delay: 2, top: '10%', left: '60%' },
+  ];
+
+  return (
+    <div className="study-universe-bg" style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: -5, pointerEvents: 'none', background: 'radial-gradient(circle at center, #13082b 0%, #050510 100%)' }}>
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }} style={{ position: 'absolute', borderRadius: '50%', filter: 'blur(100px)', background: '#8b5cf6', top: '-10%', left: '-10%', width: '500px', height: '500px' }} />
+      <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.15, 0.35, 0.15] }} transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', borderRadius: '50%', filter: 'blur(100px)', background: '#3b82f6', bottom: '-20%', right: '-10%', width: '600px', height: '600px' }} />
+      <motion.div animate={{ scale: [1, 1.4, 1], opacity: [0.1, 0.25, 0.1] }} transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut', delay: 4 }} style={{ position: 'absolute', borderRadius: '50%', filter: 'blur(100px)', background: '#ec4899', top: '40%', left: '50%', width: '400px', height: '400px', transform: 'translate(-50%, -50%)' }} />
+
+      {floatingIcons.map((item, i) => (
+        <motion.div
+          key={i}
+          animate={{ x: item.x, y: item.y, rotate: [0, 15, -15, 0] }}
+          transition={{ duration: item.duration, repeat: Infinity, ease: "linear", delay: item.delay }}
+          style={{ position: 'absolute', top: item.top, bottom: item.bottom, left: item.left, right: item.right, color: item.color, opacity: 0.15, filter: 'drop-shadow(0 0 15px currentColor)' }}
+        >
+          <item.Icon size={item.size} />
+        </motion.div>
+      ))}
+
+      {[...Array(40)].map((_, i) => (
+        <motion.div
+          key={`star-${i}`}
+          animate={{ opacity: [0.1, 0.8, 0.1], scale: [0.8, 1.2, 0.8] }}
+          transition={{ duration: Math.random() * 3 + 2, repeat: Infinity, delay: Math.random() * 5 }}
+          style={{
+            position: 'absolute', top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%`,
+            width: Math.random() > 0.5 ? '2px' : '3px', height: Math.random() > 0.5 ? '2px' : '3px',
+            backgroundColor: '#fff', borderRadius: '50%', boxShadow: '0 0 8px #fff'
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, authPassword, setAuthPassword, authError, setAuthError, handleAuth, onQuickSetup }) => {
-  const [step, setStep] = useState(0); 
+  const [step, setStep] = useState(() => {
+    return localStorage.getItem('planmaker_explicit_logout') ? 3 : 0;
+  }); 
   const [guestName, setGuestName] = useState('');
   const [guestPrep, setGuestPrep] = useState('JEE');
+
+  useEffect(() => {
+    if (step === 1) {
+      const timer = setTimeout(() => {
+        setStep(2);
+      }, 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
 
   if (step === 3) {
     return (
@@ -175,47 +232,130 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
   }
 
   return (
-    <div className="welcome-container">
+    <div className="welcome-container" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, background: '#050510' }}>
+      <StudyUniverseBackground />
       <AnimatePresence mode="wait">
         {step === 0 && (
-          <motion.div key="hero" initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}} exit={{opacity:0, y:-50}} transition={{duration: 0.5}} className="welcome-step">
-            <motion.div animate={{y: [0, -10, 0]}} transition={{repeat: Infinity, duration: 4, ease: "easeInOut"}}>
-              <Sparkles size={64} color="var(--accent-math)" style={{marginBottom:'1.5rem'}} />
+          <motion.div key="hero" initial="hidden" animate="visible" exit={{opacity:0, scale:1.1, filter:'blur(10px)'}} transition={{duration: 0.8}} className="welcome-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', zIndex: 10, padding: '2rem' }}>
+            
+            <motion.div 
+               variants={{ hidden: { opacity: 0, y: 40, scale: 0.8 }, visible: { opacity: 1, y: 0, scale: 1 } }}
+               transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+               style={{ position: 'relative', marginBottom: '1rem' }}
+            >
+              <motion.div animate={{y: [0, -15, 0]}} transition={{repeat: Infinity, duration: 5, ease: "easeInOut"}}>
+                <div style={{ position: 'absolute', inset: -20, background: 'var(--accent-physics)', filter: 'blur(40px)', opacity: 0.6, borderRadius: '50%' }}></div>
+                <div style={{ position: 'relative', zIndex: 1, width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', borderRadius: '24px', boxShadow: '0 10px 30px rgba(139,92,246,0.4)', border: '2px solid rgba(255,255,255,0.3)', transform: 'rotate(-5deg)' }}>
+                  <Headphones size={42} color="#fff" style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.3))' }} />
+                </div>
+              </motion.div>
             </motion.div>
-            <h1 className="welcome-title">Focus Mode Player</h1>
-            <p className="welcome-subtitle">The ultimate interactive study dashboard for competitive exams.</p>
-            <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} className="btn-glow" onClick={() => setStep(1)}>
-              Start Journey <ArrowRight size={20} />
-            </motion.button>
-            <p className="login-link" onClick={() => setStep(3)}>Already have an account? Log in</p>
+            
+            <motion.h1 
+              variants={{ hidden: { opacity: 0, y: 30, filter: 'blur(12px)' }, visible: { opacity: 1, y: 0, filter: 'blur(0px)' } }}
+              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+              style={{ 
+                fontSize: 'clamp(2rem, 5vw, 4rem)', 
+                fontWeight: '800', 
+                lineHeight: 1.1,
+                marginBottom: '1.5rem',
+                letterSpacing: '-1px',
+                background: 'linear-gradient(to right, #fff 0%, #a5b4fc 50%, #c084fc 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 0 25px rgba(165,180,252,0.3))',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Focus Mode Player
+            </motion.h1>
+            
+            <motion.p 
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
+              style={{ 
+                fontSize: 'clamp(1rem, 3vw, 1.3rem)', 
+                color: 'var(--text-muted)', 
+                maxWidth: '650px', 
+                marginBottom: '3.5rem',
+                lineHeight: 1.6,
+                letterSpacing: '0.5px'
+              }}
+            >
+              Your hyper-focused study universe. Step into deep work, destroy distractions, and conquer your competitive exams.
+            </motion.p>
+            
+            <motion.div
+              variants={{ hidden: { opacity: 0, y: 20, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1 } }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.7 }}
+            >
+              <motion.button 
+                whileHover={{ scale: 1.05, boxShadow: '0 0 35px rgba(139,92,246,0.6)' }} 
+                whileTap={{ scale: 0.95 }} 
+                style={{
+                  padding: '16px 36px',
+                  fontSize: '1.2rem',
+                  fontWeight: '700',
+                  borderRadius: '50px',
+                  background: 'linear-gradient(45deg, #8b5cf6, #ec4899)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: '2rem'
+                }}
+                onClick={() => setStep(1)}
+              >
+                Start Journey <ArrowRight size={24} />
+              </motion.button>
+            </motion.div>
           </motion.div>
         )}
 
         {step === 1 && (
-          <motion.div key="features" initial={{opacity:0, x:100}} animate={{opacity:1, x:0}} exit={{opacity:0, x:-100}} className="welcome-step">
-            <h2 className="welcome-title" style={{fontSize: '2.5rem'}}>What's Next?</h2>
-            <div className="features-grid">
-              <div className="feature-item">
-                <Target size={32} color="var(--accent-physics)" />
-                <h3>Smart Planner</h3>
-                <p>Track modules and daily tasks effortlessly.</p>
-              </div>
-              <div className="feature-item">
-                <Users size={32} color="var(--accent-chem)" />
-                <h3>Study Rooms</h3>
-                <p>Join P2P live video rooms.</p>
-              </div>
-              <div className="feature-item">
-                <Bot size={32} color="var(--accent-success)" />
-                <h3>FocusBot AI</h3>
-                <p>Get personalized study tips & answers.</p>
-              </div>
-            </div>
-            <div className="button-group">
-              <button className="btn-secondary" onClick={() => setStep(0)}>Back</button>
-              <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} className="btn-glow" onClick={() => setStep(2)}>
-                Let's set it up! <Zap size={20} />
-              </motion.button>
+          <motion.div key="features" exit={{opacity:0, scale: 0.5, filter: 'blur(10px)'}} transition={{ duration: 0.8, ease: "easeInOut" }} style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', zIndex: 100, padding: '5vh 5vw', gap: '8vh' }}>
+            
+            <motion.h2 
+              initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              transition={{ duration: 1.2, ease: "easeOut" }}
+              className="welcome-title" 
+              style={{ fontSize: 'clamp(2.5rem, 6vmin, 4.5rem)', color: '#fff', zIndex: 10, textAlign: 'center', letterSpacing: '1px', textShadow: "0 0 25px rgba(139,92,246,0.6)", fontWeight: '600', margin: 0 }}
+            >
+              What's Next?
+            </motion.h2>
+
+            <div style={{ display: 'flex', gap: '3vmin', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', width: '100%', maxWidth: '1400px', padding: '20px 0' }}>
+              {[
+                { icon: Target, title: 'Smart Planner', desc: 'Auto-schedule tasks', color: '#8b5cf6' },
+                { icon: Users, title: 'Study Rooms', desc: 'Focus with peers', color: '#ec4899' },
+                { icon: MonitorPlay, title: 'Ad-Free Lectures', desc: 'Zero distractions', color: '#3b82f6' },
+                { icon: BookHeart, title: 'Deep Journal', desc: 'Track progress', color: '#10b981' },
+                { icon: Bot, title: 'FocusBot AI', desc: 'Instant doubts', color: '#f59e0b' }
+              ].map((feat, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -50, scale: 0.8 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  transition={{ duration: 0.8, delay: i * 0.15 + 0.4, type: 'spring', bounce: 0.4 }}
+                  style={{ 
+                    flex: '1 1 200px', minWidth: '180px', maxWidth: '240px', aspectRatio: '1',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+                    background: 'rgba(255,255,255,0.03)', border: `1px solid ${feat.color}40`, 
+                    borderRadius: '24px', boxShadow: `0 10px 30px rgba(0,0,0,0.2), inset 0 0 20px ${feat.color}15`, 
+                    backdropFilter: 'blur(12px)', padding: '2rem 1.5rem', gap: '1rem',
+                    textAlign: 'center'
+                  }}
+                >
+                  <feat.icon size={48} color={feat.color} style={{ filter: `drop-shadow(0 0 15px ${feat.color})`, flexShrink: 0 }} />
+                  <div>
+                    <h3 style={{ fontSize: 'clamp(1rem, 2vmin, 1.25rem)', fontWeight: '700', color: '#fff', margin: '0 0 0.5rem 0', textShadow: '0 2px 5px rgba(0,0,0,0.6)' }}>{feat.title}</h3>
+                    <p style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 0.95rem)', color: 'var(--text-muted)', margin: 0, lineHeight: 1.3 }}>{feat.desc}</p>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </motion.div>
         )}
