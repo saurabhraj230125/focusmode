@@ -448,7 +448,7 @@ const App = () => {
   const [bgTheme, setBgTheme] = useState(() => localStorage.getItem('pm_bgTheme') || 'solid-dark-bg');
 
   useEffect(() => {
-    const bgElement = document.querySelector('.universe-bg, .solid-dark-bg, .mesh-bg');
+    const bgElement = document.getElementById('app-background');
     if (bgElement) {
       bgElement.className = bgTheme;
       localStorage.setItem('pm_bgTheme', bgTheme);
