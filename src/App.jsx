@@ -1696,7 +1696,7 @@ const App = () => {
     );
   }
 
-  const isFullyOnboarded = !!currentUserProfile?.prepType;
+  const isFullyOnboarded = true;
   const isGuest = currentUserProfile?.isGuest;
   const { level, title } = getLevelData(currentXP);
 
@@ -1736,130 +1736,6 @@ const App = () => {
     setCommentingOn(null);
     awardXP(1, 'Commented on a Post');
   };
-
-  if (!isFullyOnboarded) {
-    // Reusable orb for background
-    const Orb = ({ color, size, top, left, delay, duration }) => (
-      <motion.div
-        animate={{ y: [0, -40, 0], x: [0, 20, 0], scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
-        transition={{ repeat: Infinity, duration, delay, ease: "easeInOut" }}
-        style={{
-          position: 'absolute', top, left, width: size, height: size,
-          borderRadius: '50%',
-          background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
-          filter: 'blur(50px)', opacity: 0.25, zIndex: 0, pointerEvents: 'none'
-        }}
-      />
-    );
-
-    return (
-      <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', background: '#050510', zIndex: 1000, padding: 'clamp(2rem, 5vh, 4rem) clamp(1rem, 5vw, 2rem)' }}>
-        <StudyUniverseBackground />
-        <Orb color="#ec4899" size="500px" top="-10%" left="10%" delay={0} duration={12} />
-        <Orb color="#8b5cf6" size="600px" top="40%" left="60%" delay={2} duration={15} />
-        <Orb color="#3b82f6" size="450px" top="70%" left="-10%" delay={1} duration={14} />
-
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 30 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-          style={{ margin: 'auto', position: 'relative', zIndex: 10, width: '100%', maxWidth: '900px', background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '32px', padding: 'clamp(1.5rem, 5vw, 3.5rem)', boxShadow: '0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)' }}
-        >
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%)', borderRadius: '32px', pointerEvents: 'none' }} />
-
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3rem)', fontWeight: 800, textAlign: 'center', marginBottom: '1rem', letterSpacing: '-1px', lineHeight: 1.2 }}>
-              <span style={{ color: '#fff' }}>Let's build your profile, </span>
-              <span style={{ background: 'linear-gradient(to right, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 4px 10px rgba(236,72,153,0.3))' }}>{sessionUser}</span>
-            </h1>
-            <p style={{ fontSize: '1.15rem', color: '#94a3b8', textAlign: 'center', marginBottom: '3.5rem', maxWidth: '600px', margin: '0 auto 3.5rem', lineHeight: 1.6 }}>Answer a few questions to deeply customize your dashboard.</p>
-          </motion.div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-            {/* Step 1 */}
-            <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-                 <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(139,92,246,0.2)', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '1px solid rgba(139,92,246,0.4)', flexShrink: 0 }}>1</div>
-                 <h3 style={{ fontSize: '1.3rem', color: '#fff', fontWeight: 700, margin: 0 }}>Select your target</h3>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '1rem' }}>
-                {Object.keys(examTemplates).map(exam => (
-                  <motion.div key={exam} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setOnboardPrep(exam)}
-                    style={{ 
-                      padding: '1.25rem 1rem', borderRadius: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', transition: 'all 0.3s',
-                      background: onboardPrep === exam ? 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2))' : 'rgba(255,255,255,0.02)',
-                      border: onboardPrep === exam ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.05)',
-                      boxShadow: onboardPrep === exam ? '0 10px 25px rgba(139,92,246,0.3)' : 'none'
-                    }}
-                  >
-                    <div style={{ color: onboardPrep === exam ? '#fff' : '#94a3b8', filter: onboardPrep === exam ? 'drop-shadow(0 0 10px #a855f7)' : 'none', transition: 'all 0.3s' }}>
-                      {exam === 'JEE' || exam === 'SAT' || exam === 'GMAT' ? <Calculator size={32}/> : 
-                       exam === 'NEET' || exam === 'MCAT' ? <Stethoscope size={32}/> : 
-                       exam === 'GRE' || exam === 'AP' ? <BrainCircuit size={32}/> : 
-                       exam === 'IB' ? <Globe size={32}/> : 
-                       exam === 'General' ? <BookOpen size={32}/> : <Landmark size={32}/>}
-                    </div>
-                    <span style={{ fontSize: '1.05rem', fontWeight: 600, color: onboardPrep === exam ? '#fff' : '#94a3b8' }}>{exam}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Step 2 & 3 in a grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2.5rem' }}>
-              <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-                   <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(236,72,153,0.2)', color: '#ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '1px solid rgba(236,72,153,0.4)', flexShrink: 0 }}>2</div>
-                   <h3 style={{ fontSize: '1.3rem', color: '#fff', fontWeight: 700, margin: 0 }}>Target Year</h3>
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <Calendar size={20} color="#94a3b8" style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input type="number" placeholder="e.g. 2025" value={onboardYear} onChange={e => setOnboardYear(e.target.value)} 
-                    style={{ width: '100%', padding: '20px 20px 20px 56px', background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.05)', borderRadius: '16px', color: '#fff', fontSize: '1.15rem', outline: 'none', transition: 'all 0.3s' }}
-                    onFocus={(e) => { e.target.style.borderColor = '#ec4899'; e.target.style.boxShadow = '0 0 20px rgba(236,72,153,0.2)'; }}
-                    onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.05)'; e.target.style.boxShadow = 'none'; }}
-                  />
-                </div>
-              </motion.div>
-
-              <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-                   <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(59,130,246,0.2)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '1px solid rgba(59,130,246,0.4)', flexShrink: 0 }}>3</div>
-                   <h3 style={{ fontSize: '1.3rem', color: '#fff', fontWeight: 700, margin: 0 }}>Current Weakness</h3>
-                </div>
-                <textarea placeholder="e.g. Silly mistakes in Physics, time management..." value={onboardWeakness} onChange={e => setOnboardWeakness(e.target.value)} 
-                  style={{ width: '100%', minHeight: '120px', padding: '20px', background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.05)', borderRadius: '16px', color: '#fff', fontSize: '1.05rem', outline: 'none', transition: 'all 0.3s', resize: 'vertical', fontFamily: 'inherit' }}
-                  onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 20px rgba(59,130,246,0.2)'; }}
-                  onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.05)'; e.target.style.boxShadow = 'none'; }}
-                />
-              </motion.div>
-            </div>
-          </div>
-
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} style={{ display: 'flex', gap: '1.5rem', marginTop: '4rem', flexWrap: 'wrap' }}>
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => submitOnboarding(true)} 
-              style={{ flex: '1 1 200px', padding: '20px', background: 'rgba(255,255,255,0.03)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseOver={(e) => { e.target.style.background = 'rgba(255,255,255,0.08)'; e.target.style.color = '#fff'; }}
-              onMouseOut={(e) => { e.target.style.background = 'rgba(255,255,255,0.03)'; e.target.style.color = '#94a3b8'; }}
-            >
-              Skip for now
-            </motion.button>
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => submitOnboarding(false)} disabled={!onboardPrep || !onboardYear} 
-              style={{ flex: '2 1 300px', padding: '20px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', color: '#fff', border: 'none', borderRadius: '16px', fontSize: '1.2rem', fontWeight: 700, cursor: (!onboardPrep || !onboardYear) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: (!onboardPrep || !onboardYear) ? 0.5 : 1, boxShadow: (!onboardPrep || !onboardYear) ? 'none' : '0 10px 25px rgba(139,92,246,0.4)' }}
-            >
-              Initialize Dashboard <ArrowRight size={20} />
-            </motion.button>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} style={{ textAlign: 'center', marginTop: '2.5rem' }}>
-             <button onClick={() => { localStorage.removeItem('planmaker_session'); window.location.reload(); }} style={{ background: 'transparent', border: 'none', color: 'rgba(239, 68, 68, 0.8)', cursor: 'pointer', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', padding: '8px' }} onMouseOver={(e) => e.target.style.color = '#ef4444'} onMouseOut={(e) => e.target.style.color = 'rgba(239, 68, 68, 0.8)'}>
-               <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} /> Start Over (Clear Session)
-             </button>
-          </motion.div>
-        </motion.div>
-      </div>
-    );
-  }
 
   // Generate dynamic leaderboard with real users (Global from feed + Local)
   const realUsersMap = {};
@@ -3144,7 +3020,7 @@ const App = () => {
       {/* Desktop Sidebar */}
       <nav className="app-sidebar">
         <div className="brand"><Headphones size={24} color="var(--accent-physics)" /> <span>Focus Mode <span style={{background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800}}>Player</span></span></div>
-        {isFullyOnboarded && (
+        {true && (
            <div style={{background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', textAlign: 'center'}}>
              <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Lvl {level}: {title}</div>
              <div style={{fontWeight: 'bold', color: 'var(--accent-success)', fontSize: '1.1rem', marginTop: '4px'}}>{currentXP} XP</div>
@@ -3167,13 +3043,13 @@ const App = () => {
         {/* Mobile Header */}
         <div className="mobile-header">
           <div className="mobile-brand"><Headphones size={20} color="var(--accent-physics)" /> <span>Focus Mode <span style={{background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800}}>Player</span></span></div>
-          {isFullyOnboarded && <div className="mobile-xp-badge">⚡ {currentXP} XP</div>}
+          {true && <div className="mobile-xp-badge">⚡ {currentXP} XP</div>}
         </div>
 
         <header className="page-header" style={{paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem'}}>
           <div>
             <h1 className="greeting">
-              {activeTab === 'dashboard' && `Mission ${currentUserProfile.prepType}`}
+              {activeTab === 'dashboard' && 'Dashboard'}
               {activeTab === 'planner' && 'Study Planner'}
               {activeTab === 'journal' && 'Learning Journal'}
               {activeTab === 'lectures' && 'Ad-Free Lectures'}
