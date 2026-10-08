@@ -52,6 +52,11 @@ const TimeAgo = ({ date, fallback }) => {
 
 // Default templates for different exams
 const examTemplates = {
+  General: [
+    { id: 'focus', title: 'Deep Work', icon: 'physics', tasks: [] },
+    { id: 'study', title: 'Study', icon: 'current', tasks: [] },
+    { id: 'projects', title: 'Projects', icon: 'math', tasks: [] }
+  ],
   JEE: [
     { id: 'physics', title: 'Physics', icon: 'physics', tasks: [] },
     { id: 'chem', title: 'Chemistry', icon: 'chem', tasks: [] },
@@ -184,69 +189,108 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
     return localStorage.getItem('planmaker_explicit_logout') ? 3 : 0;
   }); 
   const [guestName, setGuestName] = useState('');
-  const [guestPrep, setGuestPrep] = useState('JEE');
 
   useEffect(() => {
     if (step === 1) {
       const timer = setTimeout(() => {
         setStep(2);
-      }, 4500);
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [step]);
 
+  // Premium Animated Floating Elements
+  const FloatingOrb = ({ color, size, top, left, delay, duration }) => (
+    <motion.div
+      animate={{ y: [0, -30, 0], x: [0, 15, 0], scale: [1, 1.1, 1] }}
+      transition={{ repeat: Infinity, duration, delay, ease: "easeInOut" }}
+      style={{
+        position: 'absolute',
+        top, left,
+        width: size, height: size,
+        borderRadius: '50%',
+        background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
+        filter: 'blur(40px)',
+        opacity: 0.3,
+        zIndex: 0,
+        pointerEvents: 'none'
+      }}
+    />
+  );
+
   if (step === 3) {
     return (
-      <div className="auth-wrapper">
-        <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="glass auth-card">
-          <h1 className="greeting" style={{fontSize: '2rem'}}>Focus Mode Player</h1>
-          <p className="subtitle" style={{marginBottom: '2rem', textAlign: 'center'}}>Welcome back to your dashboard.</p>
+      <div className="auth-wrapper" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050510', zIndex: 1000, overflow: 'hidden' }}>
+        <StudyUniverseBackground />
+        <FloatingOrb color="#8b5cf6" size="400px" top="10%" left="10%" delay={0} duration={8} />
+        <FloatingOrb color="#ec4899" size="300px" top="60%" left="60%" delay={2} duration={10} />
+        <FloatingOrb color="#3b82f6" size="500px" top="20%" left="50%" delay={1} duration={12} />
+        
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 20 }} 
+          animate={{ opacity: 1, scale: 1, y: 0 }} 
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          className="glass auth-card" 
+          style={{ position: 'relative', zIndex: 10, padding: 'clamp(1.5rem, 5vw, 3rem)', borderRadius: '24px', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', width: '100%', maxWidth: '420px', overflow: 'hidden' }}
+        >
+          {/* Animated border glow */}
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 8, ease: "linear" }} style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'conic-gradient(transparent, transparent, transparent, #8b5cf6)', zIndex: -1, opacity: 0.2 }} />
+          <div style={{ position: 'absolute', inset: '1px', background: 'rgba(15, 23, 42, 0.8)', borderRadius: '23px', zIndex: -1 }} />
+
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, textAlign: 'center', marginBottom: '0.5rem', background: 'linear-gradient(to right, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Welcome</h1>
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '2rem' }}>Sign in to continue your journey.</p>
           
-          <form className="auth-form" onSubmit={handleAuth}>
-            <div className="input-group">
-              <User size={18} className="input-icon" />
-              <input type="text" placeholder="Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="input-field with-icon" />
+          <form className="auth-form" onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="input-group" style={{ position: 'relative' }}>
+              <User size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input type="text" placeholder="Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} style={{ width: '100%', padding: '16px 16px 16px 48px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', fontSize: '1rem', outline: 'none', transition: 'all 0.3s' }} onFocus={(e) => e.target.style.borderColor = '#8b5cf6'} onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'} />
             </div>
-            <div className="input-group">
-              <Lock size={18} className="input-icon" />
-              <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="input-field with-icon" />
+            <div className="input-group" style={{ position: 'relative' }}>
+              <Lock size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} style={{ width: '100%', padding: '16px 16px 16px 48px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', fontSize: '1rem', outline: 'none', transition: 'all 0.3s' }} onFocus={(e) => e.target.style.borderColor = '#ec4899'} onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'} />
             </div>
-            {authError && <p className="auth-error">{authError}</p>}
-            <button type="submit" className="btn-primary" style={{width: '100%', padding: '14px', marginTop: '10px'}}>
+            {authError && <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ color: '#ef4444', fontSize: '0.9rem', textAlign: 'center', margin: 0 }}>{authError}</motion.p>}
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" style={{ width: '100%', padding: '16px', marginTop: '10px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(139,92,246,0.3)' }}>
               {authMode === 'login' ? 'Login' : 'Create Account'}
-            </button>
+            </motion.button>
           </form>
 
-          <p className="auth-toggle">
+          <p style={{ textAlign: 'center', marginTop: '1.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-            <span onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}>
+            <span style={{ color: '#a855f7', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}>
               {authMode === 'login' ? 'Sign up' : 'Log in'}
             </span>
           </p>
-          <button className="text-muted" style={{marginTop:'1.5rem', background:'transparent', border:'none', cursor:'pointer'}} onClick={() => setStep(0)}>
-            ← Back to Welcome
-          </button>
+          <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+             <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setStep(0)}>
+               <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} /> Back to Welcome
+             </button>
+          </div>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="welcome-container" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, background: '#050510' }}>
+    <div className="welcome-container" style={{ position: 'fixed', inset: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, background: '#050510' }}>
       <StudyUniverseBackground />
+      <FloatingOrb color="#8b5cf6" size="600px" top="-10%" left="-10%" delay={0} duration={10} />
+      <FloatingOrb color="#ec4899" size="400px" top="50%" left="70%" delay={2} duration={12} />
+      <FloatingOrb color="#3b82f6" size="500px" top="70%" left="10%" delay={1} duration={14} />
+
       <AnimatePresence mode="wait">
         {step === 0 && (
-          <motion.div key="hero" initial="hidden" animate="visible" exit={{opacity:0, scale:1.1, filter:'blur(10px)'}} transition={{duration: 0.8}} className="welcome-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', zIndex: 10, padding: '2rem' }}>
+          <motion.div key="hero" initial="hidden" animate="visible" exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }} transition={{ duration: 0.8 }} className="welcome-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', zIndex: 10, padding: 'clamp(1rem, 5vw, 2rem)' }}>
             
             <motion.div 
                variants={{ hidden: { opacity: 0, y: 40, scale: 0.8 }, visible: { opacity: 1, y: 0, scale: 1 } }}
                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-               style={{ position: 'relative', marginBottom: '1rem' }}
+               style={{ position: 'relative', marginBottom: '2rem' }}
             >
-              <motion.div animate={{y: [0, -15, 0]}} transition={{repeat: Infinity, duration: 5, ease: "easeInOut"}}>
-                <div style={{ position: 'absolute', inset: -20, background: 'var(--accent-physics)', filter: 'blur(40px)', opacity: 0.6, borderRadius: '50%' }}></div>
-                <div style={{ position: 'relative', zIndex: 1, width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', borderRadius: '24px', boxShadow: '0 10px 30px rgba(139,92,246,0.4)', border: '2px solid rgba(255,255,255,0.3)', transform: 'rotate(-5deg)' }}>
-                  <Headphones size={42} color="#fff" style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.3))' }} />
+              <motion.div animate={{ y: [0, -20, 0], rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}>
+                <div style={{ position: 'absolute', inset: -30, background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', filter: 'blur(40px)', opacity: 0.5, borderRadius: '50%' }}></div>
+                <div style={{ position: 'relative', zIndex: 1, width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0))', backdropFilter: 'blur(10px)', borderRadius: '30px', boxShadow: '0 15px 35px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.2)' }}>
+                  <Headphones size={50} color="#fff" style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))' }} />
                 </div>
               </motion.div>
             </motion.div>
@@ -254,124 +298,140 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
             <motion.h1 
               variants={{ hidden: { opacity: 0, y: 30, filter: 'blur(12px)' }, visible: { opacity: 1, y: 0, filter: 'blur(0px)' } }}
               transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-              style={{ 
-                fontSize: 'clamp(2rem, 5vw, 4rem)', 
-                fontWeight: '800', 
-                lineHeight: 1.1,
-                marginBottom: '1.5rem',
-                letterSpacing: '-1px',
-                background: 'linear-gradient(to right, #fff 0%, #a5b4fc 50%, #c084fc 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                filter: 'drop-shadow(0 0 25px rgba(165,180,252,0.3))',
-                whiteSpace: 'nowrap'
-              }}
+              style={{ fontSize: 'clamp(2.5rem, 6vw, 5rem)', fontWeight: '800', lineHeight: 1.1, marginBottom: '1.5rem', letterSpacing: '-2px', textShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
             >
-              Focus Mode Player
+              <span style={{ background: 'linear-gradient(to right, #fff, #a5b4fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Focus Mode </span>
+              <span style={{ background: 'linear-gradient(to right, #c084fc, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Player</span>
             </motion.h1>
             
             <motion.p 
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
-              style={{ 
-                fontSize: 'clamp(1rem, 3vw, 1.3rem)', 
-                color: 'var(--text-muted)', 
-                maxWidth: '650px', 
-                marginBottom: '3.5rem',
-                lineHeight: 1.6,
-                letterSpacing: '0.5px'
-              }}
+              style={{ fontSize: 'clamp(1.1rem, 3vw, 1.4rem)', color: '#94a3b8', maxWidth: '700px', marginBottom: '3.5rem', lineHeight: 1.6 }}
             >
-              Your hyper-focused study universe. Step into deep work, destroy distractions, and conquer your competitive exams.
+              Your hyper-focused study universe. Step into deep work, destroy distractions, and conquer your goals.
             </motion.p>
             
-            <motion.div
-              variants={{ hidden: { opacity: 0, y: 20, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1 } }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.7 }}
-            >
+            <motion.div variants={{ hidden: { opacity: 0, y: 20, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1 } }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.7 }} style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
               <motion.button 
-                whileHover={{ scale: 1.05, boxShadow: '0 0 35px rgba(139,92,246,0.6)' }} 
-                whileTap={{ scale: 0.95 }} 
-                style={{
-                  padding: '16px 36px',
-                  fontSize: '1.2rem',
-                  fontWeight: '700',
-                  borderRadius: '50px',
-                  background: 'linear-gradient(45deg, #8b5cf6, #ec4899)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  color: 'white',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  marginBottom: '2rem'
-                }}
+                whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(139,92,246,0.6)' }} whileTap={{ scale: 0.95 }} 
+                style={{ padding: '18px 40px', fontSize: '1.2rem', fontWeight: '700', borderRadius: '50px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
                 onClick={() => setStep(1)}
               >
                 Start Journey <ArrowRight size={24} />
+              </motion.button>
+              <motion.button 
+                whileHover={{ scale: 1.05, background: 'rgba(255,255,255,0.1)' }} whileTap={{ scale: 0.95 }} 
+                style={{ padding: '18px 40px', fontSize: '1.2rem', fontWeight: '700', borderRadius: '50px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', backdropFilter: 'blur(10px)' }}
+                onClick={() => setStep(3)}
+              >
+                Login
               </motion.button>
             </motion.div>
           </motion.div>
         )}
 
         {step === 1 && (
-          <motion.div key="features" exit={{opacity:0, scale: 0.5, filter: 'blur(10px)'}} transition={{ duration: 0.8, ease: "easeInOut" }} style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', zIndex: 100, padding: '5vh 5vw', gap: '8vh' }}>
+          <motion.div key="features" exit={{ opacity: 0, scale: 0.8, filter: 'blur(10px)' }} transition={{ duration: 0.8, ease: "easeInOut" }} style={{ width: '100vw', height: '100vh', position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 'clamp(2vh, 5vw, 5vh) clamp(1rem, 5vw, 3rem)', gap: '6vh' }}>
             
+            {/* 5-second progress bar */}
+            <div style={{ position: 'absolute', top: 0, left: 0, height: '4px', background: 'rgba(255,255,255,0.1)', width: '100%' }}>
+              <motion.div initial={{ width: '0%' }} animate={{ width: '100%' }} transition={{ duration: 5, ease: 'linear' }} style={{ height: '100%', background: 'linear-gradient(90deg, #8b5cf6, #ec4899)', boxShadow: '0 0 10px rgba(236,72,153,0.5)' }} />
+            </div>
+
+            <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1, type: 'spring' }} style={{ background: 'rgba(139, 92, 246, 0.2)', padding: '16px', borderRadius: '50%', marginBottom: '-2vh' }}>
+               <Sparkles size={32} color="#c084fc" />
+            </motion.div>
+
             <motion.h2 
-              initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              transition={{ duration: 1.2, ease: "easeOut" }}
-              className="welcome-title" 
-              style={{ fontSize: 'clamp(2.5rem, 6vmin, 4.5rem)', color: '#fff', zIndex: 10, textAlign: 'center', letterSpacing: '1px', textShadow: "0 0 25px rgba(139,92,246,0.6)", fontWeight: '600', margin: 0 }}
+              initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ duration: 1.2, ease: "easeOut" }}
+              style={{ fontSize: 'clamp(2.5rem, 5vmin, 4rem)', color: '#fff', zIndex: 10, textAlign: 'center', fontWeight: '800', margin: 0, textShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
             >
-              What's Next?
+              Supercharge your study
             </motion.h2>
 
-            <div style={{ display: 'flex', gap: '3vmin', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', width: '100%', maxWidth: '1400px', padding: '20px 0' }}>
+            <div style={{ display: 'flex', gap: '2vmin', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', width: '100%', maxWidth: '1200px' }}>
               {[
-                { icon: Target, title: 'Smart Planner', desc: 'Auto-schedule tasks', color: '#8b5cf6' },
+                { icon: Target, title: 'Smart Planner', desc: 'Auto-schedule tasks', color: '#a855f7' },
                 { icon: Users, title: 'Study Rooms', desc: 'Focus with peers', color: '#ec4899' },
                 { icon: MonitorPlay, title: 'Ad-Free Lectures', desc: 'Zero distractions', color: '#3b82f6' },
-                { icon: BookHeart, title: 'Deep Journal', desc: 'Track progress', color: '#10b981' },
-                { icon: Bot, title: 'FocusBot AI', desc: 'Instant doubts', color: '#f59e0b' }
+                { icon: BookHeart, title: 'Deep Journal', desc: 'Track progress', color: '#10b981' }
               ].map((feat, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, x: -50, scale: 0.8 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  transition={{ duration: 0.8, delay: i * 0.15 + 0.4, type: 'spring', bounce: 0.4 }}
+                  initial={{ opacity: 0, y: 50, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.8, delay: i * 0.15 + 0.2, type: 'spring', bounce: 0.4 }}
                   style={{ 
-                    flex: '1 1 200px', minWidth: '180px', maxWidth: '240px', aspectRatio: '1',
+                    flex: '1 1 200px', minWidth: '220px', maxWidth: '260px', 
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
-                    background: 'rgba(255,255,255,0.03)', border: `1px solid ${feat.color}40`, 
-                    borderRadius: '24px', boxShadow: `0 10px 30px rgba(0,0,0,0.2), inset 0 0 20px ${feat.color}15`, 
-                    backdropFilter: 'blur(12px)', padding: '2rem 1.5rem', gap: '1rem',
-                    textAlign: 'center'
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)', 
+                    border: `1px solid rgba(255,255,255,0.05)`, borderTop: `1px solid rgba(255,255,255,0.1)`,
+                    borderRadius: '24px', boxShadow: `0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)`, 
+                    backdropFilter: 'blur(20px)', padding: '2.5rem 1.5rem', gap: '1.2rem', textAlign: 'center'
                   }}
                 >
-                  <feat.icon size={48} color={feat.color} style={{ filter: `drop-shadow(0 0 15px ${feat.color})`, flexShrink: 0 }} />
+                  <div style={{ background: `linear-gradient(135deg, ${feat.color}40, transparent)`, padding: '16px', borderRadius: '20px', border: `1px solid ${feat.color}30` }}>
+                    <feat.icon size={36} color={feat.color} style={{ filter: `drop-shadow(0 0 10px ${feat.color})` }} />
+                  </div>
                   <div>
-                    <h3 style={{ fontSize: 'clamp(1rem, 2vmin, 1.25rem)', fontWeight: '700', color: '#fff', margin: '0 0 0.5rem 0', textShadow: '0 2px 5px rgba(0,0,0,0.6)' }}>{feat.title}</h3>
-                    <p style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 0.95rem)', color: 'var(--text-muted)', margin: 0, lineHeight: 1.3 }}>{feat.desc}</p>
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: '700', color: '#fff', margin: '0 0 0.5rem 0' }}>{feat.title}</h3>
+                    <p style={{ fontSize: '0.95rem', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>{feat.desc}</p>
                   </div>
                 </motion.div>
               ))}
             </div>
+
+            <motion.button 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 1 }}
+              whileHover={{ scale: 1.05, background: 'rgba(255,255,255,0.15)' }} whileTap={{ scale: 0.95 }}
+              onClick={() => setStep(2)}
+              style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '100px', color: '#fff', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 10 }}
+            >
+              Skip <ArrowRight size={16} />
+            </motion.button>
           </motion.div>
         )}
 
         {step === 2 && (
-          <motion.div key="setup" initial={{opacity:0, y:50}} animate={{opacity:1, y:0}} className="welcome-step">
-            <h2 className="welcome-title" style={{fontSize: '2.2rem'}}>Welcome Aspirant!</h2>
-            <p className="welcome-subtitle" style={{marginBottom: '2rem'}}>What should we call you?</p>
-            
-            <div className="setup-form">
-              <input type="text" placeholder="e.g. Aman" value={guestName} onChange={e => setGuestName(e.target.value)} className="welcome-input" />
+          <motion.div key="setup" initial={{ opacity: 0, scale: 0.9, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="welcome-step" style={{ zIndex: 10 }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(25px)', border: '1px solid rgba(255,255,255,0.1)', padding: 'clamp(2rem, 5vw, 4rem) clamp(1.5rem, 5vw, 3rem)', borderRadius: '32px', boxShadow: '0 30px 60px rgba(0,0,0,0.5)', width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
+              
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: 'linear' }} style={{ position: 'absolute', top: -150, left: -150, right: -150, bottom: -150, background: 'conic-gradient(from 0deg, transparent, transparent, transparent, rgba(139,92,246,0.1), transparent)', zIndex: -1, borderRadius: '50%', pointerEvents: 'none' }} />
 
-              <div className="button-group">
-                <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
-                <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} className="btn-glow" disabled={!guestName.trim()} onClick={() => onQuickSetup(guestName)}>
-                  Continue <ArrowRight size={20} />
+              <div style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', padding: '20px', borderRadius: '50%', marginBottom: '2rem', boxShadow: '0 10px 25px rgba(139,92,246,0.5)' }}>
+                <User size={40} color="#fff" />
+              </div>
+              
+              <h2 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>Welcome, Aspirant!</h2>
+              <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '3rem', textAlign: 'center' }}>What should we call you?</p>
+              
+              <div style={{ width: '100%', position: 'relative' }}>
+                <input 
+                  type="text" 
+                  placeholder="Enter your hero name..." 
+                  value={guestName} 
+                  onChange={e => setGuestName(e.target.value)} 
+                  style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '20px 24px', fontSize: '1.2rem', color: '#fff', outline: 'none', transition: 'all 0.3s', textAlign: 'center' }}
+                  onFocus={(e) => { e.target.style.borderColor = '#8b5cf6'; e.target.style.background = 'rgba(0,0,0,0.5)'; e.target.style.boxShadow = '0 0 20px rgba(139,92,246,0.3)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.background = 'rgba(0,0,0,0.3)'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '3rem', width: '100%' }}>
+                <button 
+                  onClick={() => setStep(1)} 
+                  style={{ padding: '16px', flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                  onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                >
+                  Back
+                </button>
+                <motion.button 
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} 
+                  disabled={!guestName.trim()} 
+                  onClick={() => onQuickSetup(guestName)}
+                  style={{ padding: '16px', flex: 2, background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '16px', color: '#fff', fontSize: '1.1rem', fontWeight: 700, cursor: guestName.trim() ? 'pointer' : 'not-allowed', opacity: guestName.trim() ? 1 : 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: guestName.trim() ? '0 10px 25px rgba(139,92,246,0.4)' : 'none' }}
+                >
+                  Dive In <ArrowRight size={20} />
                 </motion.button>
               </div>
             </div>
@@ -926,22 +986,9 @@ const App = () => {
       
       syncUserToFirebase(activeSession, db[activeSession].profile);
 
-    } else if (!explicitLogout) {
-      // Auto-create a Guest Session for first-timers
-      const guestName = `Guest_${Math.floor(Math.random() * 90000 + 10000)}`;
-      db = {
-        ...db,
-        [guestName]: {
-          password: '',
-          profile: { isGuest: true, prepType: '', targetYear: '', weakness: '', xp: 0, joined: new Date().toLocaleDateString() }
-        }
-      };
-      setUsersDb(db);
-      setSessionUser(guestName);
-      localStorage.setItem('planmaker_session', guestName);
-      syncUserToFirebase(guestName, db[guestName].profile);
-      localStorage.setItem('planmaker_users', JSON.stringify(db));
-      localStorage.setItem('planmaker_visits', '1');
+    } else if (explicitLogout) {
+      // If explicit logout was set, we do nothing and let the user stay logged out.
+      // (We can just remove this block or leave it empty, but checking activeSession is enough)
     }
   }, []);
 
@@ -1341,13 +1388,21 @@ const App = () => {
   };
 
   // Onboarding Functions
-  const submitOnboarding = () => {
-    if (!onboardPrep || !onboardYear) return;
-    trackOnboarding(onboardPrep, onboardYear);
+  const submitOnboarding = (skip = false) => {
+    let prep = onboardPrep;
+    let year = onboardYear;
+    let weakness = onboardWeakness;
+    if (skip) {
+       prep = 'General';
+       year = new Date().getFullYear();
+       weakness = 'None';
+    } else if (!onboardPrep || !onboardYear) return;
+    
+    trackOnboarding(prep, year);
     setUsersDb(prev => ({
-      ...prev, [sessionUser]: { ...prev[sessionUser], profile: { ...prev[sessionUser].profile, prepType: onboardPrep, targetYear: onboardYear, weakness: onboardWeakness } }
+      ...prev, [sessionUser]: { ...prev[sessionUser], profile: { ...prev[sessionUser].profile, prepType: prep, targetYear: year, weakness: weakness } }
     }));
-    const initialSubjects = examTemplates[onboardPrep] || examTemplates['JEE'];
+    const initialSubjects = examTemplates[prep] || examTemplates['General'];
     setSubjects(initialSubjects);
     setExpandedSubjects(initialSubjects.map(s => s.id));
     setNewTaskSubject(initialSubjects[0].id);
@@ -1683,41 +1738,125 @@ const App = () => {
   };
 
   if (!isFullyOnboarded) {
+    // Reusable orb for background
+    const Orb = ({ color, size, top, left, delay, duration }) => (
+      <motion.div
+        animate={{ y: [0, -40, 0], x: [0, 20, 0], scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
+        transition={{ repeat: Infinity, duration, delay, ease: "easeInOut" }}
+        style={{
+          position: 'absolute', top, left, width: size, height: size,
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
+          filter: 'blur(50px)', opacity: 0.25, zIndex: 0, pointerEvents: 'none'
+        }}
+      />
+    );
+
     return (
-      <div className="onboarding-wrapper">
-        <div className="glass onboarding-card animate-fade-in" style={{maxWidth: '800px'}}>
-          <h1 className="greeting" style={{fontSize: '2rem', marginBottom: '0.5rem'}}>Let's build your profile, {sessionUser}</h1>
-          <p className="subtitle" style={{marginBottom: '3rem', textAlign: 'center'}}>Answer a few questions to deeply customize your dashboard.</p>
-          
-          <div className="onboard-grid">
-            <div className="onboard-step">
-              <h3>1. What are you preparing for?</h3>
-              <div className="exam-options" style={{justifyContent: 'flex-start', flexWrap: 'wrap'}}>
+      <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', background: '#050510', zIndex: 1000, padding: 'clamp(2rem, 5vh, 4rem) clamp(1rem, 5vw, 2rem)' }}>
+        <StudyUniverseBackground />
+        <Orb color="#ec4899" size="500px" top="-10%" left="10%" delay={0} duration={12} />
+        <Orb color="#8b5cf6" size="600px" top="40%" left="60%" delay={2} duration={15} />
+        <Orb color="#3b82f6" size="450px" top="70%" left="-10%" delay={1} duration={14} />
+
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 30 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+          style={{ margin: 'auto', position: 'relative', zIndex: 10, width: '100%', maxWidth: '900px', background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '32px', padding: 'clamp(1.5rem, 5vw, 3.5rem)', boxShadow: '0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)' }}
+        >
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%)', borderRadius: '32px', pointerEvents: 'none' }} />
+
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3rem)', fontWeight: 800, textAlign: 'center', marginBottom: '1rem', letterSpacing: '-1px', lineHeight: 1.2 }}>
+              <span style={{ color: '#fff' }}>Let's build your profile, </span>
+              <span style={{ background: 'linear-gradient(to right, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 4px 10px rgba(236,72,153,0.3))' }}>{sessionUser}</span>
+            </h1>
+            <p style={{ fontSize: '1.15rem', color: '#94a3b8', textAlign: 'center', marginBottom: '3.5rem', maxWidth: '600px', margin: '0 auto 3.5rem', lineHeight: 1.6 }}>Answer a few questions to deeply customize your dashboard.</p>
+          </motion.div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+            {/* Step 1 */}
+            <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
+                 <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(139,92,246,0.2)', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '1px solid rgba(139,92,246,0.4)', flexShrink: 0 }}>1</div>
+                 <h3 style={{ fontSize: '1.3rem', color: '#fff', fontWeight: 700, margin: 0 }}>Select your target</h3>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '1rem' }}>
                 {Object.keys(examTemplates).map(exam => (
-                  <button key={exam} className={`exam-btn ${onboardPrep === exam ? 'selected' : ''}`} onClick={() => setOnboardPrep(exam)} style={{padding: '1rem', width: 'auto'}}>
-                    {exam === 'JEE' || exam === 'SAT' || exam === 'GMAT' ? <Calculator size={20}/> : 
-                     exam === 'NEET' || exam === 'MCAT' ? <Stethoscope size={20}/> : 
-                     exam === 'GRE' || exam === 'AP' ? <BrainCircuit size={20}/> : 
-                     exam === 'IB' ? <Globe size={20}/> : <Landmark size={20}/>}
-                    {exam}
-                  </button>
+                  <motion.div key={exam} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setOnboardPrep(exam)}
+                    style={{ 
+                      padding: '1.25rem 1rem', borderRadius: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', transition: 'all 0.3s',
+                      background: onboardPrep === exam ? 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2))' : 'rgba(255,255,255,0.02)',
+                      border: onboardPrep === exam ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.05)',
+                      boxShadow: onboardPrep === exam ? '0 10px 25px rgba(139,92,246,0.3)' : 'none'
+                    }}
+                  >
+                    <div style={{ color: onboardPrep === exam ? '#fff' : '#94a3b8', filter: onboardPrep === exam ? 'drop-shadow(0 0 10px #a855f7)' : 'none', transition: 'all 0.3s' }}>
+                      {exam === 'JEE' || exam === 'SAT' || exam === 'GMAT' ? <Calculator size={32}/> : 
+                       exam === 'NEET' || exam === 'MCAT' ? <Stethoscope size={32}/> : 
+                       exam === 'GRE' || exam === 'AP' ? <BrainCircuit size={32}/> : 
+                       exam === 'IB' ? <Globe size={32}/> : 
+                       exam === 'General' ? <BookOpen size={32}/> : <Landmark size={32}/>}
+                    </div>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 600, color: onboardPrep === exam ? '#fff' : '#94a3b8' }}>{exam}</span>
+                  </motion.div>
                 ))}
               </div>
-            </div>
-            <div className="onboard-step">
-              <h3>2. What is your target year?</h3>
-              <div className="input-group">
-                <Calendar size={18} className="input-icon" />
-                <input type="number" placeholder="e.g. 2025" value={onboardYear} onChange={e => setOnboardYear(e.target.value)} className="input-field with-icon" />
-              </div>
-            </div>
-            <div className="onboard-step">
-              <h3>3. What is your biggest weakness right now?</h3>
-              <textarea className="journal-textarea" style={{minHeight: '80px', marginTop: '10px'}} placeholder="e.g. Silly calculation mistakes in Physics, or struggling with Organic Chem memorization..." value={onboardWeakness} onChange={e => setOnboardWeakness(e.target.value)} />
+            </motion.div>
+
+            {/* Step 2 & 3 in a grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2.5rem' }}>
+              <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
+                   <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(236,72,153,0.2)', color: '#ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '1px solid rgba(236,72,153,0.4)', flexShrink: 0 }}>2</div>
+                   <h3 style={{ fontSize: '1.3rem', color: '#fff', fontWeight: 700, margin: 0 }}>Target Year</h3>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <Calendar size={20} color="#94a3b8" style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input type="number" placeholder="e.g. 2025" value={onboardYear} onChange={e => setOnboardYear(e.target.value)} 
+                    style={{ width: '100%', padding: '20px 20px 20px 56px', background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.05)', borderRadius: '16px', color: '#fff', fontSize: '1.15rem', outline: 'none', transition: 'all 0.3s' }}
+                    onFocus={(e) => { e.target.style.borderColor = '#ec4899'; e.target.style.boxShadow = '0 0 20px rgba(236,72,153,0.2)'; }}
+                    onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.05)'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
+                   <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(59,130,246,0.2)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '1px solid rgba(59,130,246,0.4)', flexShrink: 0 }}>3</div>
+                   <h3 style={{ fontSize: '1.3rem', color: '#fff', fontWeight: 700, margin: 0 }}>Current Weakness</h3>
+                </div>
+                <textarea placeholder="e.g. Silly mistakes in Physics, time management..." value={onboardWeakness} onChange={e => setOnboardWeakness(e.target.value)} 
+                  style={{ width: '100%', minHeight: '120px', padding: '20px', background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.05)', borderRadius: '16px', color: '#fff', fontSize: '1.05rem', outline: 'none', transition: 'all 0.3s', resize: 'vertical', fontFamily: 'inherit' }}
+                  onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 20px rgba(59,130,246,0.2)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.05)'; e.target.style.boxShadow = 'none'; }}
+                />
+              </motion.div>
             </div>
           </div>
-          <button className="btn-primary" onClick={submitOnboarding} disabled={!onboardPrep || !onboardYear} style={{marginTop: '2rem', width: '100%', padding: '15px'}}>Complete Setup <ArrowRight size={18} /></button>
-        </div>
+
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} style={{ display: 'flex', gap: '1.5rem', marginTop: '4rem', flexWrap: 'wrap' }}>
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => submitOnboarding(true)} 
+              style={{ flex: '1 1 200px', padding: '20px', background: 'rgba(255,255,255,0.03)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseOver={(e) => { e.target.style.background = 'rgba(255,255,255,0.08)'; e.target.style.color = '#fff'; }}
+              onMouseOut={(e) => { e.target.style.background = 'rgba(255,255,255,0.03)'; e.target.style.color = '#94a3b8'; }}
+            >
+              Skip for now
+            </motion.button>
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => submitOnboarding(false)} disabled={!onboardPrep || !onboardYear} 
+              style={{ flex: '2 1 300px', padding: '20px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', color: '#fff', border: 'none', borderRadius: '16px', fontSize: '1.2rem', fontWeight: 700, cursor: (!onboardPrep || !onboardYear) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: (!onboardPrep || !onboardYear) ? 0.5 : 1, boxShadow: (!onboardPrep || !onboardYear) ? 'none' : '0 10px 25px rgba(139,92,246,0.4)' }}
+            >
+              Initialize Dashboard <ArrowRight size={20} />
+            </motion.button>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} style={{ textAlign: 'center', marginTop: '2.5rem' }}>
+             <button onClick={() => { localStorage.removeItem('planmaker_session'); window.location.reload(); }} style={{ background: 'transparent', border: 'none', color: 'rgba(239, 68, 68, 0.8)', cursor: 'pointer', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', padding: '8px' }} onMouseOver={(e) => e.target.style.color = '#ef4444'} onMouseOut={(e) => e.target.style.color = 'rgba(239, 68, 68, 0.8)'}>
+               <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} /> Start Over (Clear Session)
+             </button>
+          </motion.div>
+        </motion.div>
       </div>
     );
   }
@@ -2685,10 +2824,15 @@ const App = () => {
               <button className="pip-close-btn" onClick={() => setActiveVideo(null)}><X size={14}/></button>
               <div style={{position: 'relative', paddingBottom: '56.25%', height: 0, background: '#111', borderRadius: '12px', overflow: 'hidden'}}>
                 {isVideoLoading && (
-                  <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', zIndex: 10}}>
-                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px'}}>
-                       <BrainCircuit size={40} className="spin-slow" color="var(--accent-physics)" />
-                       <div style={{color: 'white', fontWeight: 'bold', letterSpacing: '1px'}}>Loading Lecture...</div>
+                  <div className="premium-loader-overlay">
+                    <div className="premium-loader-container">
+                      <div className="premium-loader-orb">
+                         <BrainCircuit size={28} className="premium-loader-icon" />
+                      </div>
+                      <div className="premium-loader-text">Loading Lecture</div>
+                      <div className="premium-loader-progress-container">
+                        <div className="premium-loader-progress-bar"></div>
+                      </div>
                     </div>
                   </div>
                 )}
