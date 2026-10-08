@@ -2195,15 +2195,30 @@ const App = () => {
     const conversationNames = new Set();
     feed.forEach(message => {
       if (!message.action.startsWith('@DM_')) return;
-      const messagePrefix = `@DM_${sessionUser}_`;
-      const reversePrefix = '@DM_';
-      if (message.action.startsWith(messagePrefix)) {
-        const target = message.action.slice(messagePrefix.length).split(' ')[0];
-        if (target) conversationNames.add(target);
-      } else if (message.action.startsWith(reversePrefix)) {
-        const header = message.action.slice(reversePrefix.length).split(' ')[0];
-        const separator = header.lastIndexOf(`_${sessionUser}`);
-        if (separator > 0) conversationNames.add(header.slice(0, separator));
+      
+      let matched = false;
+      for (const peer of allPeers) {
+        if (peer.name === sessionUser) continue;
+        const p1 = `@DM_${sessionUser}_${peer.name} `;
+        const p2 = `@DM_${peer.name}_${sessionUser} `;
+        if (message.action.startsWith(p1) || message.action.startsWith(p2)) {
+          conversationNames.add(peer.name);
+          matched = true;
+          break;
+        }
+      }
+      
+      if (!matched) {
+        const messagePrefix = `@DM_${sessionUser}_`;
+        const reversePrefix = '@DM_';
+        if (message.action.startsWith(messagePrefix)) {
+          const target = message.action.slice(messagePrefix.length).split(' ')[0];
+          if (target) conversationNames.add(target);
+        } else if (message.action.startsWith(reversePrefix)) {
+          const header = message.action.slice(reversePrefix.length).split(' ')[0];
+          const separator = header.lastIndexOf(`_${sessionUser}`);
+          if (separator > 0) conversationNames.add(header.slice(0, separator));
+        }
       }
     });
 
@@ -2215,7 +2230,7 @@ const App = () => {
     const chatMessages = feed.filter(f => {
        if (activeChat === "global") return !f.action.startsWith("@DM_");
        const targetUser = activeChat.split(":")[1];
-       return f.action.startsWith(`@DM_${sessionUser}_${targetUser}`) || f.action.startsWith(`@DM_${targetUser}_${sessionUser}`);
+       return f.action.startsWith(`@DM_${sessionUser}_${targetUser} `) || f.action.startsWith(`@DM_${targetUser}_${sessionUser} `);
     });
 
     const handleSendMessage = async (e) => {
@@ -2414,7 +2429,15 @@ const App = () => {
                 ) : (
                   chatMessages.map(msg => {
                     const isMe = msg.user === sessionUser;
-                    const text = activeChat === "global" ? msg.action : msg.action.replace(/^@DM_[^\s]+\s/, "");
+                    let text = msg.action;
+                    if (activeChat !== "global") {
+                      const targetUser = activeChat.split(":")[1];
+                      const p1 = `@DM_${sessionUser}_${targetUser} `;
+                      const p2 = `@DM_${targetUser}_${sessionUser} `;
+                      if (text.startsWith(p1)) text = text.slice(p1.length);
+                      else if (text.startsWith(p2)) text = text.slice(p2.length);
+                      else text = text.replace(/^@DM_.*?_.*?\s/, "");
+                    }
                     const { level: mLvl } = getLevelData(msg.xp || 0);
                     return (
                       <div key={msg.id} style={{display: "flex", gap: "8px", marginLeft: isMe ? "auto" : "0", marginRight: isMe ? "0" : "auto", maxWidth: "85%", animation: "slideUp 0.3s ease-out forwards"}}>
