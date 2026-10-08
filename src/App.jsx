@@ -253,6 +253,20 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
 const App = () => {
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [bgTheme, setBgTheme] = useState(() => localStorage.getItem('pm_bgTheme') || 'universe-bg');
+
+  useEffect(() => {
+    const bgElement = document.querySelector('.universe-bg, .solid-dark-bg, .mesh-bg');
+    if (bgElement) {
+      bgElement.className = bgTheme;
+      localStorage.setItem('pm_bgTheme', bgTheme);
+      const nebulae = bgElement.querySelectorAll('.nebula');
+      nebulae.forEach(n => {
+        n.style.display = bgTheme === 'solid-dark-bg' || bgTheme === 'mesh-bg' ? 'none' : 'block';
+      });
+    }
+  }, [bgTheme]);
+
   const [activeCommunityTab, setActiveCommunityTab] = useState('chat');
   const [squadMissions, setSquadMissions] = useState(() => { try { return JSON.parse(localStorage.getItem('pm_squads')) || [{ id: '1', admin: 'FocusMode', title: 'Complete Calculus Integration', desc: 'Solve all PYQs and read theory.', target: 100, members: [{user: 'FocusMode', progress: 85}, {user: 'TestUser', progress: 40}] }]; } catch { return []; } });
   const [activeChat, setActiveChat] = useState('global');
@@ -1623,6 +1637,8 @@ const App = () => {
       <div className="dashboard-grid animate-fade-in">
         <div className="left-col">
 
+
+
           {/* Streak + Stats Banner */}
           <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:'1rem', marginBottom:'1rem'}}>
             <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(239,68,68,0.12),rgba(251,146,60,0.08))', borderColor:'rgba(239,68,68,0.2)'}}>
@@ -2550,7 +2566,7 @@ const App = () => {
                     </div>
                   </div>
                 )}
-                <div id="youtube-player" style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%'}}></div>
+                <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%'}} dangerouslySetInnerHTML={{ __html: '<div id="youtube-player" style="width:100%;height:100%"></div>' }} />
                 <div className="pip-expand-overlay" onClick={() => handleTabChange('lectures')}>
                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
                      <Columns size={32} />
@@ -2769,6 +2785,28 @@ const App = () => {
 
         </div>
         
+        {/* Theme Selection */}
+        <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+          <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '0.5rem'}}><Sparkles size={20} color="var(--accent-math)"/> Dashboard Theme</h2>
+          <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
+            <button 
+              onClick={() => setBgTheme('universe-bg')} 
+              style={{flex: 1, padding: '1rem', background: bgTheme === 'universe-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'universe-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '150px'}}>
+              🌌 Deep Universe
+            </button>
+            <button 
+              onClick={() => setBgTheme('solid-dark-bg')} 
+              style={{flex: 1, padding: '1rem', background: bgTheme === 'solid-dark-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'solid-dark-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '150px'}}>
+              🌑 Solid Dark
+            </button>
+            <button 
+              onClick={() => setBgTheme('mesh-bg')} 
+              style={{flex: 1, padding: '1rem', background: bgTheme === 'mesh-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'mesh-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '150px'}}>
+              🕸️ Grid Mesh
+            </button>
+          </div>
+        </div>
+
         {/* Actions Row */}
         <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
           {isGuest ? (
@@ -2862,25 +2900,70 @@ const App = () => {
           {isFullyOnboarded && <div className="mobile-xp-badge">⚡ {currentXP} XP</div>}
         </div>
 
-        <header className="page-header" style={{paddingTop: '1rem'}}>
-          <h1 className="greeting">
-            {activeTab === 'dashboard' && `Mission ${currentUserProfile.prepType}`}
-            {activeTab === 'planner' && 'Study Planner'}
-            {activeTab === 'journal' && 'Learning Journal'}
-            {activeTab === 'lectures' && 'Ad-Free Lectures'}
-            {activeTab === 'connect' && 'Study Connect'}
-            {activeTab === 'community' && 'Community'}
-            {activeTab === 'profile' && 'My Profile'}
-          </h1>
-          <p className="subtitle">
-            {activeTab === 'dashboard' && "Crush your tasks for today."}
-            {activeTab === 'planner' && "Plan your weekly study schedule."}
-            {activeTab === 'journal' && "Log your learnings and mistakes."}
-            {activeTab === 'lectures' && "Watch lectures ad-free."}
-            {activeTab === 'connect' && "Video rooms with fellow aspirants."}
-            {activeTab === 'community' && "Compete, share, and grow."}
-            {activeTab === 'profile' && "Your stats and progress."}
-          </p>
+        <header className="page-header" style={{paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem'}}>
+          <div>
+            <h1 className="greeting">
+              {activeTab === 'dashboard' && `Mission ${currentUserProfile.prepType}`}
+              {activeTab === 'planner' && 'Study Planner'}
+              {activeTab === 'journal' && 'Learning Journal'}
+              {activeTab === 'lectures' && 'Ad-Free Lectures'}
+              {activeTab === 'connect' && 'Study Connect'}
+              {activeTab === 'community' && 'Community'}
+              {activeTab === 'profile' && 'My Profile'}
+            </h1>
+            <p className="subtitle">
+              {activeTab === 'dashboard' && "Crush your tasks for today."}
+              {activeTab === 'planner' && "Plan your weekly study schedule."}
+              {activeTab === 'journal' && "Log your learnings and mistakes."}
+              {activeTab === 'lectures' && "Watch lectures ad-free."}
+              {activeTab === 'connect' && "Video rooms with fellow aspirants."}
+              {activeTab === 'community' && "Compete, share, and grow."}
+              {activeTab === 'profile' && "Your stats and progress."}
+            </p>
+          </div>
+          
+          {/* Global Theme Selector Pill */}
+          <div className="glass" style={{
+            display: 'flex', 
+            alignItems: 'center', 
+            padding: '6px', 
+            borderRadius: '100px',
+            background: 'rgba(0,0,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.4)',
+            gap: '4px'
+          }}>
+            <button 
+              onClick={() => setBgTheme('universe-bg')} 
+              style={{
+                padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none',
+                background: bgTheme === 'universe-bg' ? 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))' : 'transparent', 
+                color: bgTheme === 'universe-bg' ? 'white' : 'var(--text-muted)', 
+                boxShadow: bgTheme === 'universe-bg' ? '0 4px 15px rgba(139,92,246,0.4)' : 'none',
+                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >🌌 Universe</button>
+            <button 
+              onClick={() => setBgTheme('solid-dark-bg')} 
+              style={{
+                padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none',
+                background: bgTheme === 'solid-dark-bg' ? 'linear-gradient(135deg, var(--accent-success), #059669)' : 'transparent', 
+                color: bgTheme === 'solid-dark-bg' ? 'white' : 'var(--text-muted)', 
+                boxShadow: bgTheme === 'solid-dark-bg' ? '0 4px 15px rgba(16,185,129,0.4)' : 'none',
+                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >🌑 Dark</button>
+            <button 
+              onClick={() => setBgTheme('mesh-bg')} 
+              style={{
+                padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none',
+                background: bgTheme === 'mesh-bg' ? 'linear-gradient(135deg, var(--accent-math), #2563eb)' : 'transparent', 
+                color: bgTheme === 'mesh-bg' ? 'white' : 'var(--text-muted)', 
+                boxShadow: bgTheme === 'mesh-bg' ? '0 4px 15px rgba(59,130,246,0.4)' : 'none',
+                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >🕸️ Mesh</button>
+          </div>
         </header>
         {activeTab === 'dashboard' && renderDashboard()}
         {activeTab === 'planner' && renderPlanner()}
@@ -3040,7 +3123,7 @@ const App = () => {
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
-            boxShadow: '0 15px 35px rgba(168,85,247,0.6), inset 0 2px 5px rgba(255,255,255,0.5)', 
+            boxShadow: '0 8px 20px rgba(168,85,247,0.3), inset 0 1px 3px rgba(255,255,255,0.3)', 
             background: 'linear-gradient(135deg, #a855f7, #ec4899)',
             border: 'none',
             color: 'white',
