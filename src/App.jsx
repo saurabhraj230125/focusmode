@@ -210,6 +210,7 @@ const App = () => {
   // Lectures State
   const [playlist, setPlaylist] = useState([]);
   const [activeVideo, setActiveVideo] = useState(null);
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoTitle, setNewVideoTitle] = useState('');
   
@@ -275,6 +276,13 @@ const App = () => {
   ]);
   const [aiTyping, setAiTyping] = useState(false);
   const aiEndRef = useRef(null);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    if (activeTab === 'community' && activeCommunityTab === 'chat' && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [feed, activeChat, activeTab, activeCommunityTab]);
 
 
 
@@ -709,6 +717,8 @@ const App = () => {
       return;
     }
 
+    setIsVideoLoading(true);
+
     const startProgressTracking = (player) => {
       if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
       ytIntervalRef.current = setInterval(() => {
@@ -733,6 +743,7 @@ const App = () => {
       }
 
       if (ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === 'function') {
+        setIsVideoLoading(true);
         ytPlayerRef.current.loadVideoById({
           videoId: activeVideo,
           startSeconds: Math.floor(videoProgress[activeVideo]?.time || 0)
@@ -747,8 +758,10 @@ const App = () => {
             start: Math.floor(videoProgress[activeVideo]?.time || 0)
           },
           events: {
+            onReady: () => setIsVideoLoading(false),
             onStateChange: (event) => {
               if (event.data === window.YT.PlayerState.PLAYING) {
+                setIsVideoLoading(false);
                 startProgressTracking(event.target);
               } else {
                 if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
@@ -2105,6 +2118,7 @@ const App = () => {
               
               {/* Chat Messages Body */}
               <div className="chat-messages custom-scrollbar" style={{flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column-reverse", gap: "1rem", overflowX: "hidden", width: "100%", boxSizing: "border-box"}}>
+                <div ref={chatEndRef} style={{ height: 0, width: "100%" }} />
                 {chatMessages.length === 0 ? (
                   <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px"}}>
                     <span style={{fontSize: "3rem"}}>👋</span>
@@ -2401,6 +2415,14 @@ const App = () => {
             <div className="glass lecture-video-container" style={{padding: '1rem', background: '#000', borderRadius: '20px', overflow: 'hidden', position: 'relative'}}>
               <button className="pip-close-btn" onClick={() => setActiveVideo(null)}><X size={14}/></button>
               <div style={{position: 'relative', paddingBottom: '56.25%', height: 0, background: '#111', borderRadius: '12px', overflow: 'hidden'}}>
+                {isVideoLoading && (
+                  <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', zIndex: 10}}>
+                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px'}}>
+                       <BrainCircuit size={40} className="spin-slow" color="var(--accent-physics)" />
+                       <div style={{color: 'white', fontWeight: 'bold', letterSpacing: '1px'}}>Loading Lecture...</div>
+                    </div>
+                  </div>
+                )}
                 <div id="youtube-player" style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%'}}></div>
                 <div className="pip-expand-overlay" onClick={() => handleTabChange('lectures')}>
                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>

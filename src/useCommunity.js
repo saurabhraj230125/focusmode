@@ -162,10 +162,17 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
 
     // SSE real-time listener — Firebase Realtime Database natively supports SSE
     const url = `${POSTS_PATH}.json`;
-    const es = new EventSource(url);
-    sseRef.current = es;
+    let isComponentMounted = true;
+    let es;
 
-    const handleEvent = (event) => {
+    const connectSSE = () => {
+      if (!isComponentMounted) return;
+      if (es) es.close();
+
+      es = new EventSource(url);
+      sseRef.current = es;
+
+      const handleEvent = (event) => {
       try {
         const payload = JSON.parse(event.data);
         if (payload.data === undefined) return;
@@ -219,13 +226,23 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
             .sort((a, b) => b.createdAt - a.createdAt);
         });
       } catch {}
+      };
+
+      es.addEventListener('put', handleEvent);
+      es.addEventListener('patch', handleEvent);
+
+      es.onerror = () => {
+        console.warn('SSE posts connection error, reconnecting...');
+        es.close();
+        setTimeout(connectSSE, 3000);
+      };
     };
 
-    es.addEventListener('put', handleEvent);
-    es.addEventListener('patch', handleEvent);
+    connectSSE();
 
     return () => {
-      es.close();
+      isComponentMounted = false;
+      if (es) es.close();
     };
   }, []);
 
@@ -337,10 +354,17 @@ export const useFirebaseUsers = () => {
       })
       .catch(err => console.error("Error fetching users", err));
 
-    const es = new EventSource(`${USERS_PATH}.json`);
-    sseRef.current = es;
+    let isComponentMounted = true;
+    let es;
 
-    const handleEvent = (event) => {
+    const connectSSE = () => {
+      if (!isComponentMounted) return;
+      if (es) es.close();
+
+      es = new EventSource(`${USERS_PATH}.json`);
+      sseRef.current = es;
+
+      const handleEvent = (event) => {
       try {
         const payload = JSON.parse(event.data);
         if (payload.data === undefined) return;
@@ -372,12 +396,24 @@ export const useFirebaseUsers = () => {
           return updated;
         });
       } catch {}
+      };
+
+      es.addEventListener('put', handleEvent);
+      es.addEventListener('patch', handleEvent);
+
+      es.onerror = () => {
+        console.warn('SSE users connection error, reconnecting...');
+        es.close();
+        setTimeout(connectSSE, 3000);
+      };
     };
 
-    es.addEventListener('put', handleEvent);
-    es.addEventListener('patch', handleEvent);
+    connectSSE();
 
-    return () => es.close();
+    return () => {
+      isComponentMounted = false;
+      if (es) es.close();
+    };
   }, []);
 
   return firebaseUsers;
