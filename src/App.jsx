@@ -133,7 +133,7 @@ const getAvatarColor = (name) => {
   return avatarColors[Math.abs(h)%avatarColors.length]; 
 };
 
-const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, authPassword, setAuthPassword, authError, setAuthError, handleAuth, onQuickSetup }) => {
+const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, authPassword, setAuthPassword, authError, setAuthError, handleAuth, onQuickSetup, bgTheme, setBgTheme }) => {
   const [step, setStep] = useState(0); 
   const [guestName, setGuestName] = useState('');
   const [guestPrep, setGuestPrep] = useState('JEE');
@@ -176,6 +176,19 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
 
   return (
     <div className="welcome-container">
+      {/* Global Theme Selector Pill for Welcome Screen */}
+      <div className="glass" style={{
+        position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100,
+        display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '100px',
+        background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)',
+        boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.4)', gap: '4px',
+        width: 'max-content'
+      }}>
+        <button onClick={() => setBgTheme('universe-bg')} style={{ padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none', background: bgTheme === 'universe-bg' ? 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))' : 'transparent', color: bgTheme === 'universe-bg' ? 'white' : 'var(--text-muted)', boxShadow: bgTheme === 'universe-bg' ? '0 4px 15px rgba(139,92,246,0.4)' : 'none', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>🌌 Universe</button>
+        <button onClick={() => setBgTheme('solid-dark-bg')} style={{ padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none', background: bgTheme === 'solid-dark-bg' ? 'linear-gradient(135deg, var(--accent-success), #059669)' : 'transparent', color: bgTheme === 'solid-dark-bg' ? 'white' : 'var(--text-muted)', boxShadow: bgTheme === 'solid-dark-bg' ? '0 4px 15px rgba(16,185,129,0.4)' : 'none', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>🌑 Dark</button>
+        <button onClick={() => setBgTheme('mesh-bg')} style={{ padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none', background: bgTheme === 'mesh-bg' ? 'linear-gradient(135deg, var(--accent-math), #2563eb)' : 'transparent', color: bgTheme === 'mesh-bg' ? 'white' : 'var(--text-muted)', boxShadow: bgTheme === 'mesh-bg' ? '0 4px 15px rgba(59,130,246,0.4)' : 'none', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>🕸️ Mesh</button>
+      </div>
+
       <AnimatePresence mode="wait">
         {step === 0 && (
           <motion.div key="hero" initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}} exit={{opacity:0, y:-50}} transition={{duration: 0.5}} className="welcome-step">
@@ -1493,6 +1506,7 @@ const App = () => {
         authPassword={authPassword} setAuthPassword={setAuthPassword}
         authError={authError} setAuthError={setAuthError}
         handleAuth={handleAuth}
+        bgTheme={bgTheme} setBgTheme={setBgTheme}
         onQuickSetup={(name, prep) => {
            trackGuestSession();
            const guestId = name.trim() || 'Guest' + Math.floor(Math.random()*10000);
