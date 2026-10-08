@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, ChevronDown, BookOpen, FlaskConical, Calculator, 
   Play, Pause, RotateCcw, BrainCircuit, Target, Plus, Clock,
@@ -130,6 +131,123 @@ const getAvatarColor = (name) => {
   let h = 0; 
   for (let c of name) h = c.charCodeAt(0) + ((h<<5)-h); 
   return avatarColors[Math.abs(h)%avatarColors.length]; 
+};
+
+const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, authPassword, setAuthPassword, authError, setAuthError, handleAuth, onQuickSetup }) => {
+  const [step, setStep] = useState(0); 
+  const [guestName, setGuestName] = useState('');
+  const [guestPrep, setGuestPrep] = useState('JEE');
+
+  if (step === 3) {
+    return (
+      <div className="auth-wrapper">
+        <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="glass auth-card">
+          <h1 className="greeting" style={{fontSize: '2rem'}}>Focus Mode Player</h1>
+          <p className="subtitle" style={{marginBottom: '2rem', textAlign: 'center'}}>Welcome back to your dashboard.</p>
+          
+          <form className="auth-form" onSubmit={handleAuth}>
+            <div className="input-group">
+              <User size={18} className="input-icon" />
+              <input type="text" placeholder="Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="input-field with-icon" />
+            </div>
+            <div className="input-group">
+              <Lock size={18} className="input-icon" />
+              <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="input-field with-icon" />
+            </div>
+            {authError && <p className="auth-error">{authError}</p>}
+            <button type="submit" className="btn-primary" style={{width: '100%', padding: '14px', marginTop: '10px'}}>
+              {authMode === 'login' ? 'Login' : 'Create Account'}
+            </button>
+          </form>
+
+          <p className="auth-toggle">
+            {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
+            <span onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}>
+              {authMode === 'login' ? 'Sign up' : 'Log in'}
+            </span>
+          </p>
+          <button className="text-muted" style={{marginTop:'1.5rem', background:'transparent', border:'none', cursor:'pointer'}} onClick={() => setStep(0)}>
+            ← Back to Welcome
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="welcome-container">
+      <AnimatePresence mode="wait">
+        {step === 0 && (
+          <motion.div key="hero" initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}} exit={{opacity:0, y:-50}} transition={{duration: 0.5}} className="welcome-step">
+            <motion.div animate={{y: [0, -10, 0]}} transition={{repeat: Infinity, duration: 4, ease: "easeInOut"}}>
+              <Sparkles size={64} color="var(--accent-math)" style={{marginBottom:'1.5rem'}} />
+            </motion.div>
+            <h1 className="welcome-title">Focus Mode Player</h1>
+            <p className="welcome-subtitle">The ultimate interactive study dashboard for competitive exams.</p>
+            <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} className="btn-glow" onClick={() => setStep(1)}>
+              Start Journey <ArrowRight size={20} />
+            </motion.button>
+            <p className="login-link" onClick={() => setStep(3)}>Already have an account? Log in</p>
+          </motion.div>
+        )}
+
+        {step === 1 && (
+          <motion.div key="features" initial={{opacity:0, x:100}} animate={{opacity:1, x:0}} exit={{opacity:0, x:-100}} className="welcome-step">
+            <h2 className="welcome-title" style={{fontSize: '2.5rem'}}>What's Next?</h2>
+            <div className="features-grid">
+              <div className="feature-item">
+                <Target size={32} color="var(--accent-physics)" />
+                <h3>Smart Planner</h3>
+                <p>Track modules and daily tasks effortlessly.</p>
+              </div>
+              <div className="feature-item">
+                <Users size={32} color="var(--accent-chem)" />
+                <h3>Study Rooms</h3>
+                <p>Join P2P live video rooms.</p>
+              </div>
+              <div className="feature-item">
+                <Bot size={32} color="var(--accent-success)" />
+                <h3>FocusBot AI</h3>
+                <p>Get personalized study tips & answers.</p>
+              </div>
+            </div>
+            <div className="button-group">
+              <button className="btn-secondary" onClick={() => setStep(0)}>Back</button>
+              <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} className="btn-glow" onClick={() => setStep(2)}>
+                Let's set it up! <Zap size={20} />
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 2 && (
+          <motion.div key="setup" initial={{opacity:0, y:50}} animate={{opacity:1, y:0}} className="welcome-step">
+            <h2 className="welcome-title" style={{fontSize: '2.2rem'}}>Your Study Profile</h2>
+            <p className="welcome-subtitle" style={{marginBottom: '2rem'}}>Let's quickly get you into the dashboard.</p>
+            
+            <div className="setup-form">
+              <input type="text" placeholder="What should we call you? (e.g. Aman)" value={guestName} onChange={e => setGuestName(e.target.value)} className="welcome-input" />
+              
+              <div className="exam-selection">
+                {['JEE', 'NEET', 'UPSC', 'SAT'].map(exam => (
+                  <button key={exam} className={`exam-pill ${guestPrep === exam ? 'active' : ''}`} onClick={() => setGuestPrep(exam)}>
+                    {exam}
+                  </button>
+                ))}
+              </div>
+
+              <div className="button-group">
+                <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
+                <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} className="btn-glow" disabled={!guestName.trim()} onClick={() => onQuickSetup(guestName, guestPrep)}>
+                  Enter Dashboard <ArrowRight size={20} />
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
 const App = () => {
@@ -411,7 +529,7 @@ const App = () => {
 
     // ── ABOUT APP / FOCUSMODE ─────────────────────────────────────────────────
     if (t.match(/what is this (app|website)|about (planmaker|focusmodeplayer|focusmode)|who created (you|this)|how to use this|what can i do here/)) {
-      return `Welcome to **FocusMode**! 🚀 This is the ultimate study dashboard for JEE, NEET & UPSC aspirants. Here's what you can do:\n\n1. **Plan:** Track daily tasks, study modules, and track your syllabus progress.\n2. **Journal:** Write daily reflections and download your notes.\n3. **Lectures:** Add YouTube links to watch ad-free without distractions.\n4. **Connect:** Join P2P video study rooms with other students.\n5. **Community:** Share updates and ask questions in real-time!\n\nI'm FocusBot, your AI guide. Let me know if you need help!`;
+      return `Welcome to **Focus Mode Player**! 🚀 This is the ultimate study dashboard for JEE, NEET & UPSC aspirants. Here's what you can do:\n\n1. **Plan:** Track daily tasks, study modules, and track your syllabus progress.\n2. **Journal:** Write daily reflections and download your notes.\n3. **Lectures:** Add YouTube links to watch ad-free without distractions.\n4. **Connect:** Join P2P video study rooms with other students.\n5. **Community:** Share updates and ask questions in real-time!\n\nI'm FocusBot, your AI guide. Let me know if you need help!`;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -527,7 +645,7 @@ const App = () => {
     }
 
     if (t.match(/memor|forget|remember|retain|recall|revision|spaced repetition|flashcard|notes/)) {
-      return `**Memory & Retention Science** 🧠\n\nYour brain forgets 80% of new information within 24 hours (Ebbinghaus Forgetting Curve) — unless you actively fight it.\n\n**The 3 Most Powerful Techniques:**\n\n**1. Active Recall:** Don't re-read. Close the book and write/say everything you remember. Then check what you missed.\n\n**2. Spaced Repetition:** Review material at increasing intervals:\n• 1 day after learning → 3 days → 7 days → 21 days → 2 months\n• Use Anki app (free) for flashcards that auto-schedule this\n\n**3. The Feynman Technique:** Explain the concept in simple language as if teaching a child. Where you stumble = your gap.\n\n**Notes Strategy:** Don't copy textbook notes. Write in your own words. Use mind maps for interconnected topics.\n\n**For FocusMode:** Use the Journal tab to write what you learned today — this forces active recall! 📓`;
+      return `**Memory & Retention Science** 🧠\n\nYour brain forgets 80% of new information within 24 hours (Ebbinghaus Forgetting Curve) — unless you actively fight it.\n\n**The 3 Most Powerful Techniques:**\n\n**1. Active Recall:** Don't re-read. Close the book and write/say everything you remember. Then check what you missed.\n\n**2. Spaced Repetition:** Review material at increasing intervals:\n• 1 day after learning → 3 days → 7 days → 21 days → 2 months\n• Use Anki app (free) for flashcards that auto-schedule this\n\n**3. The Feynman Technique:** Explain the concept in simple language as if teaching a child. Where you stumble = your gap.\n\n**Notes Strategy:** Don't copy textbook notes. Write in your own words. Use mind maps for interconnected topics.\n\n**For Focus Mode Player:** Use the Journal tab to write what you learned today — this forces active recall! 📓`;
     }
 
     if (t.match(/sleep|tired|exhaust|sleep schedule|nap|wake up|morning|night study/)) {
@@ -554,10 +672,8 @@ const App = () => {
       return `**Brain Nutrition for Exam Prep** 🍎\n\n**Foods that boost cognitive function:**\n• **Walnuts & Almonds:** Omega-3 + Vitamin E → improve memory and focus\n• **Blueberries:** Antioxidants → protect brain cells, improve learning\n• **Dark Chocolate (>70%):** Flavonoids + caffeine → attention and blood flow\n• **Eggs:** Choline → neurotransmitter production (memory)\n• **Green tea:** L-Theanine + caffeine → calm focus without jitteriness\n\n**What to AVOID:**\n• Heavy, oily food before study → blood goes to digestion, brain gets sluggish\n• Sugar spikes (chips, sweets) → energy crash after 30 min\n• Too much caffeine → anxiety, disrupts sleep\n\n**Hydration:** Your brain is 73% water. Even 1-2% dehydration reduces cognitive performance by 20%. Keep a water bottle on your desk. Drink 2.5-3L/day.\n\n**Caffeine timing:** Don't drink coffee for the first 90 min after waking (let natural cortisol peak first).`;
     }
 
-    // ── WEBSITE / APP FEATURE ALIGNMENT ─────────────────────────────────────
-    
     if (t.match(/how to use|what is this website|what is focusmodeplayer|what is focusmode|guide|tutorial|how does this work|features/)) {
-      return `**Welcome to FocusMode!** 🚀\n\nI am designed to be your ultimate study ecosystem. Here is how to use me for maximum productivity:\n\n**1. Dashboard (The Core):** Break your giant syllabus into Subjects → Modules → Subtasks. Check them off to earn XP.\n**2. Pomodoro Timer:** Use the 25-minute timer for intense focus sessions. Earning 50 XP per session builds a habit loop.\n**3. Community (Live):** Click the globe icon! It's a real-time feed of all aspirants worldwide. Share wins and tips.\n**4. Live Study Connect:** Join a virtual room to study silently with others (body doubling). It kills procrastination.\n**5. Journal & Mistakes:** At the end of the day, log what you learned and the mistakes you made. Active recall!\n**6. Lectures:** Paste any YouTube video URL. It blocks comments/recommendations and lets you take timestamped notes.\n\nStart by adding your first task on the Dashboard!`;
+      return `**Welcome to Focus Mode Player!** 🚀\n\nI am designed to be your ultimate study ecosystem. Here is how to use me for maximum productivity:\n\n**1. Dashboard (The Core):** Break your giant syllabus into Subjects → Modules → Subtasks. Check them off to earn XP.\n**2. Pomodoro Timer:** Use the 25-minute timer for intense focus sessions. Earning 50 XP per session builds a habit loop.\n**3. Community (Live):** Click the globe icon! It's a real-time feed of all aspirants worldwide. Share wins and tips.\n**4. Live Study Connect:** Join a virtual room to study silently with others (body doubling). It kills procrastination.\n**5. Journal & Mistakes:** At the end of the day, log what you learned and the mistakes you made. Active recall!\n**6. Lectures:** Paste any YouTube video URL. It blocks comments/recommendations and lets you take timestamped notes.\n\nStart by adding your first task on the Dashboard!`;
     }
 
     if (t.match(/community|chat|feed|other students|talk to|social/)) {
@@ -988,7 +1104,7 @@ const App = () => {
       return;
     }
 
-    if (authMode === 'register' || (showAuthWall && usersDb[sessionUser]?.profile?.isGuest)) {
+    if (authMode === 'register') {
       trackSignUp();
       if (usersDb[authUsername] && authUsername !== sessionUser) {
         setAuthError('Username already exists'); return;
@@ -1040,12 +1156,27 @@ const App = () => {
         localStorage.removeItem('planmaker_explicit_logout');
       }
     } else {
-      // Normal Login
+      // Login flow
       const user = usersDb[authUsername];
       if (!user || user.password !== authPassword) {
         setAuthError('Invalid username or password'); return;
       }
       trackLogin();
+      
+      // If logging in as an existing user from the Guest Auth Wall
+      if (showAuthWall && usersDb[sessionUser]?.profile?.isGuest) {
+        // Discard guest session and clean up
+        localStorage.removeItem(`pm_sub_${sessionUser}`);
+        localStorage.removeItem(`pm_jour_${sessionUser}`);
+        localStorage.removeItem(`pm_playlist_${sessionUser}`);
+        setUsersDb(prev => {
+          const newDb = { ...prev };
+          delete newDb[sessionUser];
+          return newDb;
+        });
+        setShowAuthWall(false);
+      }
+      
       setSessionUser(authUsername);
       localStorage.setItem('planmaker_session', authUsername);
       localStorage.removeItem('planmaker_explicit_logout');
@@ -1292,7 +1423,7 @@ const App = () => {
     trackNoteDownloaded(video.title);
     const data = videoNotes[video.id] || { notes: '', mistakes: '', lastUpdated: '' };
     const dateStr = data.lastUpdated || new Date().toLocaleDateString();
-    let content = `FocusMode — Lecture Notes\n${'='.repeat(40)}\nVideo: ${video.title}\nDate: ${dateStr}\n${'='.repeat(40)}\n\n`;
+    let content = `Focus Mode Player — Lecture Notes\n${'='.repeat(40)}\nVideo: ${video.title}\nDate: ${dateStr}\n${'='.repeat(40)}\n\n`;
     if (data.notes) content += `[📝 NOTES]\n${data.notes}\n\n`;
     if (data.mistakes) content += `[⚠️ MISTAKES & DOUBTS]\n${data.mistakes}\n\n`;
     if (!data.notes && !data.mistakes) content += 'No notes written yet.';
@@ -1342,35 +1473,31 @@ const App = () => {
   // Views
   if (!sessionUser) {
     return (
-      <div className="auth-wrapper">
-        <div className="glass auth-card animate-fade-in">
-          <Headphones size={48} color="var(--accent-physics)" style={{marginBottom: '1rem'}} />
-          <h1 className="greeting" style={{fontSize: '2rem'}}>FocusMode</h1>
-          <p className="subtitle" style={{marginBottom: '2rem', textAlign: 'center'}}>Welcome back to your dashboard.</p>
-          
-          <form className="auth-form" onSubmit={handleAuth}>
-            <div className="input-group">
-              <User size={18} className="input-icon" />
-              <input type="text" placeholder="Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="input-field with-icon" />
-            </div>
-            <div className="input-group">
-              <Lock size={18} className="input-icon" />
-              <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="input-field with-icon" />
-            </div>
-            {authError && <p className="auth-error">{authError}</p>}
-            <button type="submit" className="btn-primary" style={{width: '100%', padding: '14px', marginTop: '10px'}}>
-              {authMode === 'login' ? 'Login' : 'Create Account'}
-            </button>
-          </form>
-
-          <p className="auth-toggle">
-            {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-            <span onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}>
-              {authMode === 'login' ? 'Sign up' : 'Log in'}
-            </span>
-          </p>
-        </div>
-      </div>
+      <WelcomeScreen 
+        authMode={authMode} setAuthMode={setAuthMode}
+        authUsername={authUsername} setAuthUsername={setAuthUsername}
+        authPassword={authPassword} setAuthPassword={setAuthPassword}
+        authError={authError} setAuthError={setAuthError}
+        handleAuth={handleAuth}
+        onQuickSetup={(name, prep) => {
+           trackGuestSession();
+           const guestId = name.trim() || 'Guest' + Math.floor(Math.random()*10000);
+           setUsersDb(prev => ({
+             ...prev, [guestId]: {
+               password: 'none',
+               profile: { isGuest: true, prepType: prep || 'JEE', xp: 0, joined: new Date().toLocaleDateString() }
+             }
+           }));
+           setSessionUser(guestId);
+           localStorage.setItem('planmaker_session', guestId);
+           
+           const initialSubjects = examTemplates[prep || 'JEE'] || examTemplates['JEE'];
+           setSubjects(initialSubjects);
+           setExpandedSubjects(initialSubjects.map(s => s.id));
+           setNewTaskSubject(initialSubjects[0].id);
+           localStorage.setItem(`pm_sub_${guestId}`, JSON.stringify(initialSubjects));
+        }}
+      />
     );
   }
 
@@ -1499,7 +1626,7 @@ const App = () => {
           {/* Streak + Stats Banner */}
           <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:'1rem', marginBottom:'1rem'}}>
             <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(239,68,68,0.12),rgba(251,146,60,0.08))', borderColor:'rgba(239,68,68,0.2)'}}>
-              <div style={{fontSize:'2rem', marginBottom:'4px'}}>{'🔥'.repeat(Math.min(studyStreak,5)) || '🔥'}</div>
+              <div style={{fontSize:'2.5rem', marginBottom:'4px', lineHeight:1}}>🔥</div>
               <div style={{fontSize:'1.8rem', fontWeight:800, color:'#fb923c', lineHeight:1}}>{studyStreak}</div>
               <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'4px', fontWeight:600}}>Day Streak</div>
             </div>
@@ -2685,24 +2812,30 @@ const App = () => {
             <form className="auth-form" onSubmit={handleAuth}>
               <div className="input-group">
                 <User size={18} className="input-icon" />
-                <input type="text" placeholder="Choose a Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="input-field with-icon" />
+                <input type="text" placeholder={authMode === 'login' ? "Username" : "Choose a Username"} value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="input-field with-icon" />
               </div>
               <div className="input-group">
                 <Lock size={18} className="input-icon" />
-                <input type="password" placeholder="Create a Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="input-field with-icon" />
+                <input type="password" placeholder={authMode === 'login' ? "Password" : "Create a Password"} value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="input-field with-icon" />
               </div>
               {authError && <p className="auth-error">{authError}</p>}
               <button type="submit" className="btn-primary" style={{width: '100%', padding: '14px', marginTop: '10px'}}>
-                Create Account & Save Progress
+                {authMode === 'login' ? 'Log in & Join' : 'Create Account & Save Progress'}
               </button>
             </form>
+            <p className="auth-toggle">
+              {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
+              <span onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}>
+                {authMode === 'login' ? 'Sign up' : 'Log in'}
+              </span>
+            </p>
           </div>
         </div>
       )}
 
       {/* Desktop Sidebar */}
       <nav className="app-sidebar">
-        <div className="brand"><Headphones size={24} color="var(--accent-physics)" /> FocusMode</div>
+        <div className="brand"><Headphones size={24} color="var(--accent-physics)" /> <span>Focus Mode <span style={{background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800}}>Player</span></span></div>
         {isFullyOnboarded && (
            <div style={{background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', textAlign: 'center'}}>
              <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Lvl {level}: {title}</div>
@@ -2725,7 +2858,7 @@ const App = () => {
       <main className="main-content">
         {/* Mobile Header */}
         <div className="mobile-header">
-          <div className="mobile-brand"><Headphones size={20} color="var(--accent-physics)" /> FocusMode</div>
+          <div className="mobile-brand"><Headphones size={20} color="var(--accent-physics)" /> <span>Focus Mode <span style={{background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800}}>Player</span></span></div>
           {isFullyOnboarded && <div className="mobile-xp-badge">⚡ {currentXP} XP</div>}
         </div>
 
