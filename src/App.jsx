@@ -2955,6 +2955,145 @@ const App = () => {
     );
   };
 
+  const renderProfile = () => {
+    let totalTasksCompleted = 0;
+    subjects.forEach(s => s.tasks.forEach(t => t.subtasks.forEach(st => { if(st.completed) totalTasksCompleted++; })));
+    const totalNotes = Object.keys(videoNotes).filter(k => videoNotes[k]?.notes || videoNotes[k]?.mistakes).length;
+    const totalJournals = journalHistory[journalHistory.length-1]?.date === 'Welcome' ? journalHistory.length - 1 : journalHistory.length;
+    const userPosts = feed.filter(f => f.user === sessionUser);
+    
+    const xpForNextLevel = level * 100;
+    const progressPercent = ((currentXP % 100) / 100) * 100;
+
+    return (
+      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '900px'}}>
+        
+        {/* Profile Header Card */}
+        <div className="glass" style={{padding: 'clamp(1.5rem, 4vw, 3rem)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2rem', background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(16,185,129,0.05))', position: 'relative', overflow: 'hidden'}}>
+          <div style={{position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'var(--accent-physics)', opacity: '0.1', borderRadius: '50%', filter: 'blur(40px)'}}></div>
+          
+          <div style={{width: 'clamp(80px, 15vw, 120px)', height: 'clamp(80px, 15vw, 120px)', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', fontWeight: 'bold', border: '4px solid rgba(255,255,255,0.1)', flexShrink: 0, boxShadow: '0 0 30px rgba(139,92,246,0.3)'}}>
+            {sessionUser.charAt(0).toUpperCase()}
+          </div>
+          
+          <div style={{flex: '1 1 300px'}}>
+            <h1 className="greeting" style={{fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', margin: '0 0 4px', wordBreak: 'break-word'}}>{isGuest ? 'Guest Aspirant' : sessionUser}</h1>
+            <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '1rem'}}>
+              {currentUserProfile?.prepType} Aspirant · Target {currentUserProfile?.targetYear}
+            </p>
+            
+            <div style={{background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                <span style={{fontWeight: 'bold', color: 'var(--accent-success)'}}>Level {level}: {title}</span>
+                <span style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{currentXP} / {xpForNextLevel} XP</span>
+              </div>
+              <div className="progress-bar-bg" style={{height: '10px', background: 'rgba(255,255,255,0.05)'}}>
+                <div className="progress-bar-fill" style={{width: `${progressPercent}%`, background: 'var(--accent-success)'}}></div>
+              </div>
+            </div>
+            
+            {isGuest && (
+              <div style={{marginTop: '1rem'}}>
+                <span className="tag" style={{background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)'}}>Unsaved Account</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem'}}>
+          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
+            <div style={{padding: '12px', background: 'rgba(16,185,129,0.1)', borderRadius: '50%', color: 'var(--accent-success)'}}><Check size={24}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalTasksCompleted}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Tasks Completed</div>
+          </div>
+          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
+            <div style={{padding: '12px', background: 'rgba(139,92,246,0.1)', borderRadius: '50%', color: 'var(--accent-physics)'}}><Video size={24}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{playlist.length}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Lectures Saved</div>
+          </div>
+          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
+            <div style={{padding: '12px', background: 'rgba(236,72,153,0.1)', borderRadius: '50%', color: 'var(--accent-chem)'}}><FileText size={24}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalNotes}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Lecture Notes</div>
+          </div>
+          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
+            <div style={{padding: '12px', background: 'rgba(245,158,11,0.1)', borderRadius: '50%', color: '#f59e0b'}}><BookOpen size={24}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalJournals}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Journal Entries</div>
+          </div>
+        </div>
+
+        {/* Info & Activity Row */}
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem'}}>
+          
+          <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '0.5rem'}}><Target size={20} color="var(--accent-math)"/> Identified Weakness</h2>
+            <div style={{background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', flex: 1}}>
+              <p style={{fontSize: '1.05rem', lineHeight: '1.6', color: 'var(--text-muted)', fontStyle: currentUserProfile?.weakness ? 'normal' : 'italic'}}>
+                {currentUserProfile?.weakness || "You haven't specified a weakness."}
+              </p>
+            </div>
+          </div>
+
+          <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '0.5rem'}}><Flame size={20} color="#ef4444"/> Recent Community Activity</h2>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1}}>
+              {userPosts.length === 0 ? (
+                <p style={{color: 'var(--text-muted)', fontStyle: 'italic', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', textAlign: 'center'}}>No posts yet. Go to Community to share an update!</p>
+              ) : (
+                userPosts.slice(0, 3).map(post => (
+                  <div key={post.id} style={{background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)'}}>
+                    <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px'}}>{post.time}</div>
+                    <div style={{fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.4}}>"{post.action.length > 80 ? post.action.slice(0,80) + '...' : post.action}"</div>
+                    <div style={{marginTop: '8px', fontSize: '0.8rem', color: 'var(--accent-physics)'}}>❤️ {post.likes||0} Likes · 💬 {(post.comments||[]).length} Comments</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+        </div>
+        
+        {/* Theme Selection */}
+        <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+          <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '0.5rem'}}><Sparkles size={20} color="var(--accent-math)"/> Dashboard Theme</h2>
+          <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
+            <button 
+              onClick={() => setBgTheme('universe-bg')} 
+              style={{flex: 1, padding: '1rem', background: bgTheme === 'universe-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'universe-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '150px'}}>
+              🌌 Deep Universe
+            </button>
+            <button 
+              onClick={() => setBgTheme('solid-dark-bg')} 
+              style={{flex: 1, padding: '1rem', background: bgTheme === 'solid-dark-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'solid-dark-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '150px'}}>
+              🌑 Solid Dark
+            </button>
+            <button 
+              onClick={() => setBgTheme('mesh-bg')} 
+              style={{flex: 1, padding: '1rem', background: bgTheme === 'mesh-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'mesh-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '150px'}}>
+              🕸️ Grid Mesh
+            </button>
+          </div>
+        </div>
+
+        {/* Actions Row */}
+        <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
+          {isGuest ? (
+            <button onClick={() => { setAuthWallMsg('Create a permanent account to save your XP and profile data.'); setShowAuthWall(true); }} className="btn-primary" style={{padding: '14px 24px'}}>
+              <User size={18} /> Create Permanent Account
+            </button>
+          ) : (
+            <button onClick={handleLogout} className="btn-primary" style={{background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171', padding: '14px 24px'}}>
+              <LogOut size={18} /> Logout
+            </button>
+          )}
+        </div>
+
+      </div>
+    );
+  };
+
   return (
     <div className="app-layout">
 
@@ -3019,7 +3158,7 @@ const App = () => {
           <div className={`nav-item ${activeTab === 'lectures' ? 'active' : ''}`} onClick={() => handleTabChange('lectures')}><MonitorPlay size={18} /> Video Lectures</div>
           <div className={`nav-item ${activeTab === 'connect' ? 'active' : ''}`} onClick={() => handleTabChange('connect')}><PhoneCall size={18} /> Study Connect</div>
           <div className={`nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => handleTabChange('community')}><Users size={18} /> Community</div>
-
+          <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => handleTabChange('profile')}><User size={18} /> My Profile</div>
         </div>
       </nav>
 
@@ -3034,13 +3173,13 @@ const App = () => {
         <header className="page-header" style={{paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem'}}>
           <div>
             <h1 className="greeting">
-              {activeTab === 'dashboard' && 'Dashboard'}
+              {activeTab === 'dashboard' && `Mission ${currentUserProfile.prepType}`}
               {activeTab === 'planner' && 'Study Planner'}
               {activeTab === 'journal' && 'Learning Journal'}
               {activeTab === 'lectures' && 'Ad-Free Lectures'}
               {activeTab === 'connect' && 'Study Connect'}
               {activeTab === 'community' && 'Community'}
-
+              {activeTab === 'profile' && 'My Profile'}
             </h1>
             <p className="subtitle">
               {activeTab === 'dashboard' && "Crush your tasks for today."}
@@ -3049,7 +3188,7 @@ const App = () => {
               {activeTab === 'lectures' && "Watch lectures ad-free."}
               {activeTab === 'connect' && "Video rooms with fellow aspirants."}
               {activeTab === 'community' && "Compete, share, and grow."}
-
+              {activeTab === 'profile' && "Your stats and progress."}
             </p>
           </div>
           
@@ -3101,7 +3240,7 @@ const App = () => {
         {activeTab === 'journal' && renderJournal()}
         {activeTab === 'connect' && renderStudyConnect()}
         {activeTab === 'community' && renderCommunity()}
-
+        {activeTab === 'profile' && renderProfile()}
         
         <div className={`lectures-wrapper ${activeTab !== 'lectures' ? (activeVideo ? 'pip-mode' : 'hidden-tab') : ''}`}>
            {renderLectures()}
@@ -3288,7 +3427,9 @@ const App = () => {
         <div className={`bottom-nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => handleTabChange('community')}>
           <Users size={20} /><span>Community</span>
         </div>
-
+        <div className={`bottom-nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => handleTabChange('profile')}>
+          <User size={20} /><span>Profile</span>
+        </div>
       </nav>
 
       {/* STREAK ANIMATION OVERLAY */}
