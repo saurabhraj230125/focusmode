@@ -3049,7 +3049,7 @@ const App = () => {
         <header className="page-header" style={{paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem'}}>
           <div>
             <h1 className="greeting">
-              {activeTab === 'dashboard' && 'Dashboard'}
+              {activeTab === 'dashboard' && `Welcome, ${sessionUser}!` }
               {activeTab === 'planner' && 'Study Planner'}
               {activeTab === 'journal' && 'Learning Journal'}
               {activeTab === 'lectures' && 'Ad-Free Lectures'}
