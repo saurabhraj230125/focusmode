@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
-  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle, ArrowUp, Search, MessageSquare, Shield
+  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle, ArrowUp, Search, MessageSquare, Shield, Settings
 } from 'lucide-react';
 import {
   trackSignUp, trackLogin, trackLogout, trackGuestSession,
@@ -470,6 +470,8 @@ const App = () => {
   });
   const [usersDb, setUsersDb] = useState({});
   const [sessionUser, setSessionUser] = useState(null); 
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editProfileData, setEditProfileData] = useState({ name: '', prepType: '', targetYear: '' });
 
   // Derived User State
   const currentUserProfile = usersDb[sessionUser]?.profile;
@@ -2853,25 +2855,106 @@ const App = () => {
           </div>
           
           <div style={{flex: '1 1 300px'}}>
-            <h1 className="greeting" style={{fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', margin: '0 0 4px', wordBreak: 'break-word'}}>{isGuest ? 'Guest Aspirant' : sessionUser}</h1>
-            <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '1rem'}}>
-              {currentUserProfile?.prepType} Aspirant · Target {currentUserProfile?.targetYear}
-            </p>
-            
-            <div style={{background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
-                <span style={{fontWeight: 'bold', color: 'var(--accent-success)'}}>Level {level}: {title}</span>
-                <span style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{currentXP} / {xpForNextLevel} XP</span>
+            {isEditingProfile ? (
+              <div style={{display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
+                <input 
+                  type="text" 
+                  value={editProfileData.name} 
+                  onChange={e => setEditProfileData({...editProfileData, name: e.target.value})}
+                  className="input-field" 
+                  placeholder="Username"
+                />
+                <select 
+                  value={editProfileData.prepType} 
+                  onChange={e => setEditProfileData({...editProfileData, prepType: e.target.value})}
+                  className="input-field"
+                >
+                  <option value="JEE">JEE</option>
+                  <option value="NEET">NEET</option>
+                  <option value="UPSC">UPSC</option>
+                  <option value="General">General / Other</option>
+                </select>
+                <input 
+                  type="number" 
+                  value={editProfileData.targetYear} 
+                  onChange={e => setEditProfileData({...editProfileData, targetYear: e.target.value})}
+                  className="input-field" 
+                  placeholder="Target Year"
+                />
+                <div style={{display: 'flex', gap: '10px', marginTop: '5px'}}>
+                  <button className="btn-primary" onClick={() => {
+                    let newName = editProfileData.name.trim();
+                    if (!newName) newName = sessionUser;
+                    setUsersDb(prev => {
+                      const newDb = { ...prev };
+                      if (newName !== sessionUser) {
+                        if (newDb[newName]) {
+                           alert("Username already taken!");
+                           return prev;
+                        }
+                        const userData = newDb[sessionUser];
+                        delete newDb[sessionUser];
+                        userData.profile.prepType = editProfileData.prepType;
+                        userData.profile.targetYear = editProfileData.targetYear;
+                        newDb[newName] = userData;
+                        
+                        const keys = ['pm_sub_', 'pm_jour_', 'pm_playlist_', 'pm_planner_', 'pm_syllabus_', 'pm_notes_', 'pm_streak_', 'pm_lastdate_'];
+                        keys.forEach(k => {
+                          const val = localStorage.getItem(`${k}${sessionUser}`);
+                          if(val) localStorage.setItem(`${k}${newName}`, val);
+                          localStorage.removeItem(`${k}${sessionUser}`);
+                        });
+                        
+                        setSessionUser(newName);
+                        localStorage.setItem('planmaker_session', newName);
+                      } else {
+                        newDb[sessionUser].profile.prepType = editProfileData.prepType;
+                        newDb[sessionUser].profile.targetYear = editProfileData.targetYear;
+                      }
+                      return newDb;
+                    });
+                    setIsEditingProfile(false);
+                  }}>Save</button>
+                  <button className="btn-secondary" onClick={() => setIsEditingProfile(false)}>Cancel</button>
+                </div>
               </div>
-              <div className="progress-bar-bg" style={{height: '10px', background: 'rgba(255,255,255,0.05)'}}>
-                <div className="progress-bar-fill" style={{width: `${progressPercent}%`, background: 'var(--accent-success)'}}></div>
-              </div>
-            </div>
-            
-            {isGuest && (
-              <div style={{marginTop: '1rem'}}>
-                <span className="tag" style={{background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)'}}>Unsaved Account</span>
-              </div>
+            ) : (
+              <>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                  <div>
+                    <h1 className="greeting" style={{fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', margin: '0 0 4px', wordBreak: 'break-word'}}>{isGuest ? 'Guest Aspirant' : sessionUser}</h1>
+                    <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '1rem'}}>
+                      {currentUserProfile?.prepType} Aspirant · Target {currentUserProfile?.targetYear}
+                    </p>
+                  </div>
+                  <button className="btn-secondary" style={{padding: '6px 12px', fontSize: '0.9rem'}} onClick={() => {
+                    setEditProfileData({
+                      name: sessionUser,
+                      prepType: currentUserProfile?.prepType || 'General',
+                      targetYear: currentUserProfile?.targetYear || new Date().getFullYear()
+                    });
+                    setIsEditingProfile(true);
+                  }}>
+                    <Settings size={14} style={{marginRight: '6px', verticalAlign: 'middle'}}/> Edit
+                  </button>
+                </div>
+                
+                <div style={{background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                    <span style={{fontWeight: 'bold', color: 'var(--accent-success)'}}>Level {level}: {title}</span>
+                    <span style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{currentXP} / {xpForNextLevel} XP</span>
+                  </div>
+                  <div className="progress-bar-bg" style={{height: '10px', background: 'rgba(255,255,255,0.05)'}}>
+                    <div className="progress-bar-fill" style={{width: `${progressPercent}%`, background: 'var(--accent-success)'}}></div>
+                  </div>
+                </div>
+                
+                {isGuest && (
+                  <div style={{marginTop: '1rem'}}>
+                    <span className="tag" style={{background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)'}}>Unsaved Account</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
