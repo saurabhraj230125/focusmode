@@ -133,7 +133,7 @@ const getAvatarColor = (name) => {
   return avatarColors[Math.abs(h)%avatarColors.length]; 
 };
 
-const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, authPassword, setAuthPassword, authError, setAuthError, handleAuth, onQuickSetup, bgTheme, setBgTheme }) => {
+const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, authPassword, setAuthPassword, authError, setAuthError, handleAuth, onQuickSetup }) => {
   const [step, setStep] = useState(0); 
   const [guestName, setGuestName] = useState('');
   const [guestPrep, setGuestPrep] = useState('JEE');
@@ -176,19 +176,6 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
 
   return (
     <div className="welcome-container">
-      {/* Global Theme Selector Pill for Welcome Screen */}
-      <div className="glass" style={{
-        position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100,
-        display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '100px',
-        background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.4)', gap: '4px',
-        width: 'max-content'
-      }}>
-        <button onClick={() => setBgTheme('universe-bg')} style={{ padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none', background: bgTheme === 'universe-bg' ? 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))' : 'transparent', color: bgTheme === 'universe-bg' ? 'white' : 'var(--text-muted)', boxShadow: bgTheme === 'universe-bg' ? '0 4px 15px rgba(139,92,246,0.4)' : 'none', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>🌌 Universe</button>
-        <button onClick={() => setBgTheme('solid-dark-bg')} style={{ padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none', background: bgTheme === 'solid-dark-bg' ? 'linear-gradient(135deg, var(--accent-success), #059669)' : 'transparent', color: bgTheme === 'solid-dark-bg' ? 'white' : 'var(--text-muted)', boxShadow: bgTheme === 'solid-dark-bg' ? '0 4px 15px rgba(16,185,129,0.4)' : 'none', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>🌑 Dark</button>
-        <button onClick={() => setBgTheme('mesh-bg')} style={{ padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none', background: bgTheme === 'mesh-bg' ? 'linear-gradient(135deg, var(--accent-math), #2563eb)' : 'transparent', color: bgTheme === 'mesh-bg' ? 'white' : 'var(--text-muted)', boxShadow: bgTheme === 'mesh-bg' ? '0 4px 15px rgba(59,130,246,0.4)' : 'none', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>🕸️ Mesh</button>
-      </div>
-
       <AnimatePresence mode="wait">
         {step === 0 && (
           <motion.div key="hero" initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}} exit={{opacity:0, y:-50}} transition={{duration: 0.5}} className="welcome-step">
@@ -235,24 +222,16 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
 
         {step === 2 && (
           <motion.div key="setup" initial={{opacity:0, y:50}} animate={{opacity:1, y:0}} className="welcome-step">
-            <h2 className="welcome-title" style={{fontSize: '2.2rem'}}>Your Study Profile</h2>
-            <p className="welcome-subtitle" style={{marginBottom: '2rem'}}>Let's quickly get you into the dashboard.</p>
+            <h2 className="welcome-title" style={{fontSize: '2.2rem'}}>Welcome Aspirant!</h2>
+            <p className="welcome-subtitle" style={{marginBottom: '2rem'}}>What should we call you?</p>
             
             <div className="setup-form">
-              <input type="text" placeholder="What should we call you? (e.g. Aman)" value={guestName} onChange={e => setGuestName(e.target.value)} className="welcome-input" />
-              
-              <div className="exam-selection">
-                {['JEE', 'NEET', 'UPSC', 'SAT'].map(exam => (
-                  <button key={exam} className={`exam-pill ${guestPrep === exam ? 'active' : ''}`} onClick={() => setGuestPrep(exam)}>
-                    {exam}
-                  </button>
-                ))}
-              </div>
+              <input type="text" placeholder="e.g. Aman" value={guestName} onChange={e => setGuestName(e.target.value)} className="welcome-input" />
 
               <div className="button-group">
                 <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
-                <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} className="btn-glow" disabled={!guestName.trim()} onClick={() => onQuickSetup(guestName, guestPrep)}>
-                  Enter Dashboard <ArrowRight size={20} />
+                <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} className="btn-glow" disabled={!guestName.trim()} onClick={() => onQuickSetup(guestName)}>
+                  Continue <ArrowRight size={20} />
                 </motion.button>
               </div>
             </div>
@@ -266,7 +245,7 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
 const App = () => {
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [bgTheme, setBgTheme] = useState(() => localStorage.getItem('pm_bgTheme') || 'universe-bg');
+  const [bgTheme, setBgTheme] = useState(() => localStorage.getItem('pm_bgTheme') || 'solid-dark-bg');
 
   useEffect(() => {
     const bgElement = document.querySelector('.universe-bg, .solid-dark-bg, .mesh-bg');
@@ -1506,24 +1485,17 @@ const App = () => {
         authPassword={authPassword} setAuthPassword={setAuthPassword}
         authError={authError} setAuthError={setAuthError}
         handleAuth={handleAuth}
-        bgTheme={bgTheme} setBgTheme={setBgTheme}
-        onQuickSetup={(name, prep) => {
+        onQuickSetup={(name) => {
            trackGuestSession();
            const guestId = name.trim() || 'Guest' + Math.floor(Math.random()*10000);
            setUsersDb(prev => ({
              ...prev, [guestId]: {
                password: 'none',
-               profile: { isGuest: true, prepType: prep || 'JEE', xp: 0, joined: new Date().toLocaleDateString() }
+               profile: { isGuest: true, xp: 0, joined: new Date().toLocaleDateString() }
              }
            }));
            setSessionUser(guestId);
            localStorage.setItem('planmaker_session', guestId);
-           
-           const initialSubjects = examTemplates[prep || 'JEE'] || examTemplates['JEE'];
-           setSubjects(initialSubjects);
-           setExpandedSubjects(initialSubjects.map(s => s.id));
-           setNewTaskSubject(initialSubjects[0].id);
-           localStorage.setItem(`pm_sub_${guestId}`, JSON.stringify(initialSubjects));
         }}
       />
     );
