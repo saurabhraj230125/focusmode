@@ -139,47 +139,11 @@ const getAvatarColor = (name) => {
 };
 
 const StudyUniverseBackground = () => {
-  const floatingIcons = [
-    { Icon: BookOpen, color: '#8b5cf6', size: 60, x: [0, 40, -30, 0], y: [0, -50, 20, 0], duration: 20, delay: 0, top: '15%', left: '15%' },
-    { Icon: FlaskConical, color: '#ec4899', size: 55, x: [0, -30, 40, 0], y: [0, 40, -30, 0], duration: 25, delay: 2, top: '25%', right: '20%' },
-    { Icon: Calculator, color: '#3b82f6', size: 70, x: [0, 50, -50, 0], y: [0, -60, 40, 0], duration: 22, delay: 4, bottom: '25%', left: '10%' },
-    { Icon: Globe, color: '#10b981', size: 65, x: [0, -40, 30, 0], y: [0, 50, -20, 0], duration: 28, delay: 1, bottom: '20%', right: '15%' },
-    { Icon: BrainCircuit, color: '#f59e0b', size: 50, x: [0, 30, -40, 0], y: [0, -40, 50, 0], duration: 18, delay: 5, top: '45%', left: '80%' },
-    { Icon: Target, color: '#8b5cf6', size: 65, x: [0, -50, 40, 0], y: [0, 30, -50, 0], duration: 24, delay: 3, top: '75%', left: '35%' },
-    { Icon: Sparkles, color: '#ec4899', size: 45, x: [0, 40, -30, 0], y: [0, -50, 30, 0], duration: 15, delay: 0, top: '50%', left: '10%' },
-    { Icon: MonitorPlay, color: '#3b82f6', size: 50, x: [0, -30, 50, 0], y: [0, 50, -40, 0], duration: 26, delay: 2, top: '10%', left: '60%' },
-  ];
-
   return (
     <div className="study-universe-bg" style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: -5, pointerEvents: 'none', background: 'radial-gradient(circle at center, #13082b 0%, #050510 100%)' }}>
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }} style={{ position: 'absolute', borderRadius: '50%', filter: 'blur(100px)', background: '#8b5cf6', top: '-10%', left: '-10%', width: '500px', height: '500px' }} />
-      <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.15, 0.35, 0.15] }} transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', borderRadius: '50%', filter: 'blur(100px)', background: '#3b82f6', bottom: '-20%', right: '-10%', width: '600px', height: '600px' }} />
-      <motion.div animate={{ scale: [1, 1.4, 1], opacity: [0.1, 0.25, 0.1] }} transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut', delay: 4 }} style={{ position: 'absolute', borderRadius: '50%', filter: 'blur(100px)', background: '#ec4899', top: '40%', left: '50%', width: '400px', height: '400px', transform: 'translate(-50%, -50%)' }} />
-
-      {floatingIcons.map((item, i) => (
-        <motion.div
-          key={i}
-          animate={{ x: item.x, y: item.y, rotate: [0, 15, -15, 0] }}
-          transition={{ duration: item.duration, repeat: Infinity, ease: "linear", delay: item.delay }}
-          style={{ position: 'absolute', top: item.top, bottom: item.bottom, left: item.left, right: item.right, color: item.color, opacity: 0.15, filter: 'drop-shadow(0 0 15px currentColor)' }}
-        >
-          <item.Icon size={item.size} />
-        </motion.div>
-      ))}
-
-      {[...Array(40)].map((_, i) => (
-        <motion.div
-          key={`star-${i}`}
-          animate={{ opacity: [0.1, 0.8, 0.1], scale: [0.8, 1.2, 0.8] }}
-          transition={{ duration: Math.random() * 3 + 2, repeat: Infinity, delay: Math.random() * 5 }}
-          style={{
-            position: 'absolute', top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%`,
-            width: Math.random() > 0.5 ? '2px' : '3px', height: Math.random() > 0.5 ? '2px' : '3px',
-            backgroundColor: '#fff', borderRadius: '50%', boxShadow: '0 0 8px #fff'
-          }}
-        />
-      ))}
+      <div style={{ position: 'absolute', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)', top: '-10%', left: '-10%', width: '500px', height: '500px' }} />
+      <div style={{ position: 'absolute', borderRadius: '50%', background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)', bottom: '-20%', right: '-10%', width: '600px', height: '600px' }} />
     </div>
   );
 };
@@ -190,41 +154,10 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
   }); 
   const [guestName, setGuestName] = useState('');
 
-  useEffect(() => {
-    if (step === 1) {
-      const timer = setTimeout(() => {
-        setStep(2);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [step]);
-
-  // Premium Animated Floating Elements
-  const FloatingOrb = ({ color, size, top, left, delay, duration }) => (
-    <motion.div
-      animate={{ y: [0, -30, 0], x: [0, 15, 0], scale: [1, 1.1, 1] }}
-      transition={{ repeat: Infinity, duration, delay, ease: "easeInOut" }}
-      style={{
-        position: 'absolute',
-        top, left,
-        width: size, height: size,
-        borderRadius: '50%',
-        background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
-        filter: 'blur(40px)',
-        opacity: 0.3,
-        zIndex: 0,
-        pointerEvents: 'none'
-      }}
-    />
-  );
-
   if (step === 3) {
     return (
       <div className="auth-wrapper" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050510', zIndex: 1000, overflow: 'hidden' }}>
         <StudyUniverseBackground />
-        <FloatingOrb color="#8b5cf6" size="400px" top="10%" left="10%" delay={0} duration={8} />
-        <FloatingOrb color="#ec4899" size="300px" top="60%" left="60%" delay={2} duration={10} />
-        <FloatingOrb color="#3b82f6" size="500px" top="20%" left="50%" delay={1} duration={12} />
         
         <motion.div 
           initial={{ opacity: 0, scale: 0.9, y: 20 }} 
@@ -274,9 +207,6 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
   return (
     <div className="welcome-container" style={{ position: 'fixed', inset: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, background: '#050510' }}>
       <StudyUniverseBackground />
-      <FloatingOrb color="#8b5cf6" size="600px" top="-10%" left="-10%" delay={0} duration={10} />
-      <FloatingOrb color="#ec4899" size="400px" top="50%" left="70%" delay={2} duration={12} />
-      <FloatingOrb color="#3b82f6" size="500px" top="70%" left="10%" delay={1} duration={14} />
 
       <AnimatePresence mode="wait">
         {step === 0 && (
@@ -316,7 +246,7 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
               <motion.button 
                 whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(139,92,246,0.6)' }} whileTap={{ scale: 0.95 }} 
                 style={{ padding: '18px 40px', fontSize: '1.2rem', fontWeight: '700', borderRadius: '50px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
-                onClick={() => setStep(1)}
+                onClick={() => setStep(2)}
               >
                 Start Journey <ArrowRight size={24} />
               </motion.button>
@@ -331,65 +261,7 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
           </motion.div>
         )}
 
-        {step === 1 && (
-          <motion.div key="features" exit={{ opacity: 0, scale: 0.8, filter: 'blur(10px)' }} transition={{ duration: 0.8, ease: "easeInOut" }} style={{ width: '100vw', height: '100vh', position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 'clamp(2vh, 5vw, 5vh) clamp(1rem, 5vw, 3rem)', gap: '6vh' }}>
-            
-            {/* 5-second progress bar */}
-            <div style={{ position: 'absolute', top: 0, left: 0, height: '4px', background: 'rgba(255,255,255,0.1)', width: '100%' }}>
-              <motion.div initial={{ width: '0%' }} animate={{ width: '100%' }} transition={{ duration: 5, ease: 'linear' }} style={{ height: '100%', background: 'linear-gradient(90deg, #8b5cf6, #ec4899)', boxShadow: '0 0 10px rgba(236,72,153,0.5)' }} />
-            </div>
 
-            <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1, type: 'spring' }} style={{ background: 'rgba(139, 92, 246, 0.2)', padding: '16px', borderRadius: '50%', marginBottom: '-2vh' }}>
-               <Sparkles size={32} color="#c084fc" />
-            </motion.div>
-
-            <motion.h2 
-              initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ duration: 1.2, ease: "easeOut" }}
-              style={{ fontSize: 'clamp(2.5rem, 5vmin, 4rem)', color: '#fff', zIndex: 10, textAlign: 'center', fontWeight: '800', margin: 0, textShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
-            >
-              Supercharge your study
-            </motion.h2>
-
-            <div style={{ display: 'flex', gap: '2vmin', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', width: '100%', maxWidth: '1200px' }}>
-              {[
-                { icon: Target, title: 'Smart Planner', desc: 'Auto-schedule tasks', color: '#a855f7' },
-                { icon: Users, title: 'Study Rooms', desc: 'Focus with peers', color: '#ec4899' },
-                { icon: MonitorPlay, title: 'Ad-Free Lectures', desc: 'Zero distractions', color: '#3b82f6' },
-                { icon: BookHeart, title: 'Deep Journal', desc: 'Track progress', color: '#10b981' }
-              ].map((feat, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 50, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.8, delay: i * 0.15 + 0.2, type: 'spring', bounce: 0.4 }}
-                  style={{ 
-                    flex: '1 1 200px', minWidth: '220px', maxWidth: '260px', 
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)', 
-                    border: `1px solid rgba(255,255,255,0.05)`, borderTop: `1px solid rgba(255,255,255,0.1)`,
-                    borderRadius: '24px', boxShadow: `0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)`, 
-                    backdropFilter: 'blur(20px)', padding: '2.5rem 1.5rem', gap: '1.2rem', textAlign: 'center'
-                  }}
-                >
-                  <div style={{ background: `linear-gradient(135deg, ${feat.color}40, transparent)`, padding: '16px', borderRadius: '20px', border: `1px solid ${feat.color}30` }}>
-                    <feat.icon size={36} color={feat.color} style={{ filter: `drop-shadow(0 0 10px ${feat.color})` }} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '1.3rem', fontWeight: '700', color: '#fff', margin: '0 0 0.5rem 0' }}>{feat.title}</h3>
-                    <p style={{ fontSize: '0.95rem', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>{feat.desc}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            <motion.button 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 1 }}
-              whileHover={{ scale: 1.05, background: 'rgba(255,255,255,0.15)' }} whileTap={{ scale: 0.95 }}
-              onClick={() => setStep(2)}
-              style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '100px', color: '#fff', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 10 }}
-            >
-              Skip <ArrowRight size={16} />
-            </motion.button>
-          </motion.div>
-        )}
 
         {step === 2 && (
           <motion.div key="setup" initial={{ opacity: 0, scale: 0.9, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="welcome-step" style={{ zIndex: 10 }}>
@@ -418,7 +290,7 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '3rem', width: '100%' }}>
                 <button 
-                  onClick={() => setStep(1)} 
+                  onClick={() => setStep(0)} 
                   style={{ padding: '16px', flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
                   onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
                   onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
