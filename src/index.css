@@ -2005,3 +2005,31 @@ textarea { max-width: 100%; box-sizing: border-box; }
   100% { transform: translateX(200%); width: 50%; }
 }
 
+/* ===================== COSMIC STARS ===================== */
+.stars-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: -4;
+}
+.stars {
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  box-shadow: 100px 50px #FFF, 300px 200px #FFF, 500px 100px #FFF, 700px 300px #FFF, 900px 150px #FFF, 1200px 400px #FFF, 1500px 200px #FFF, 1800px 600px #FFF, 200px 700px #FFF, 400px 800px #FFF, 600px 600px #FFF, 800px 800px #FFF, 1000px 700px #FFF, 1300px 900px #FFF, 1600px 750px #FFF, 1900px 950px #FFF;
+  animation: animStar 150s linear infinite;
+  opacity: 0.5;
+}
+.stars2 {
+  width: 3px;
+  height: 3px;
+  background: transparent;
+  box-shadow: 50px 100px #FFF, 250px 300px #FFF, 450px 500px #FFF, 650px 100px #FFF, 850px 300px #FFF, 1150px 500px #FFF, 1450px 100px #FFF, 1750px 300px #FFF, 150px 600px #FFF, 350px 900px #FFF, 550px 700px #FFF, 750px 950px #FFF, 950px 600px #FFF, 1250px 850px #FFF, 1550px 650px #FFF, 1850px 800px #FFF;
+  animation: animStar 200s linear infinite;
+  opacity: 0.3;
+}
+@keyframes animStar {
+  from { transform: translateY(0px); }
+  to { transform: translateY(-1000px); }
+}
+

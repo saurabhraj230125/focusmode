@@ -20,6 +20,8 @@ import {
 import { useCommunity, containsAbuse, useFirebaseUsers, syncUserToFirebase } from './useCommunity.js';
 import { useEvents } from './useEvents.js';
 import { usePushNotifications } from './usePushNotifications.js';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import Blog from './Blog.jsx';
 
 // --- TIME AGO UTILITY ---
 const formatTimeAgo = (timestamp) => {
@@ -140,18 +142,58 @@ const getAvatarColor = (name) => {
 
 const StudyUniverseBackground = () => {
   return (
-    <div className="study-universe-bg" style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: -5, pointerEvents: 'none', background: 'radial-gradient(circle at center, #13082b 0%, #050510 100%)' }}>
+    <div className="study-universe-bg" style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: -5, pointerEvents: 'none', background: 'radial-gradient(circle at center, #0f0b29 0%, #050212 100%)' }}>
+      <div className="stars-container">
+        <div className="stars" />
+        <div className="stars2" />
+      </div>
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      <div style={{ position: 'absolute', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)', top: '-10%', left: '-10%', width: '500px', height: '500px' }} />
-      <div style={{ position: 'absolute', borderRadius: '50%', background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)', bottom: '-20%', right: '-10%', width: '600px', height: '600px' }} />
+      <div style={{ position: 'absolute', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)', top: '-10%', left: '-10%', width: '500px', height: '500px' }} />
+      <div style={{ position: 'absolute', borderRadius: '50%', background: 'radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%)', bottom: '-20%', right: '-10%', width: '600px', height: '600px' }} />
     </div>
   );
 };
 
 const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, authPassword, setAuthPassword, authError, setAuthError, handleAuth, onQuickSetup }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [step, setStep] = useState(() => {
-    return localStorage.getItem('planmaker_explicit_logout') ? 3 : 0;
+    if (localStorage.getItem('planmaker_explicit_logout')) return 3;
+    if (location.pathname === '/about') return 5;
+    if (location.pathname === '/mission') return 6;
+    if (location.pathname === '/blog') return 4;
+    if (location.pathname === '/login') return 3;
+    return 0;
   }); 
+
+  useEffect(() => {
+    if (location.pathname === '/') {
+      setStep(0);
+      document.title = "FocusMode | Hyper-Focused Study Universe";
+    }
+    else if (location.pathname === '/about') {
+      setStep(5);
+      document.title = "About Us | FocusMode";
+    }
+    else if (location.pathname === '/mission') {
+      setStep(6);
+      document.title = "Our Mission | FocusMode";
+    }
+    else if (location.pathname === '/blog') {
+      setStep(4);
+      document.title = "Study Tips & Blog | FocusMode";
+    }
+    else if (location.pathname === '/login') {
+      setStep(3);
+      document.title = "Login | FocusMode";
+    }
+  }, [location.pathname]);
+
+  const handleNav = (path) => {
+    navigate(path);
+  };
+
   const [guestName, setGuestName] = useState('');
 
   if (step === 3) {
@@ -205,44 +247,61 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
   }
 
   return (
-    <div className="welcome-container" style={{ position: 'fixed', inset: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, background: '#050510' }}>
+    <div className="welcome-container" style={{ position: 'fixed', inset: 0, overflowY: 'auto', overflowX: 'hidden', zIndex: 1000, background: '#050510' }}>
       <StudyUniverseBackground />
 
       <AnimatePresence mode="wait">
-        {step === 0 && (
-          <motion.div key="hero" initial="hidden" animate="visible" exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }} transition={{ duration: 0.8 }} className="welcome-step" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', zIndex: 10, padding: 'clamp(1rem, 5vw, 2rem)' }}>
-            
-            <motion.div 
-               variants={{ hidden: { opacity: 0, y: 40, scale: 0.8 }, visible: { opacity: 1, y: 0, scale: 1 } }}
-               transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-               style={{ position: 'relative', marginBottom: '2rem' }}
+        
+        {/* Landing Page Header */}
+        {[0, 4, 5, 6].includes(step) && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, display: 'flex', justifyContent: 'center', padding: '10px' }}>
+            <motion.header 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+              style={{ padding: '8px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '1000px', background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '100px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.6)' }}
             >
-              <motion.div animate={{ y: [0, -20, 0], rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}>
-                <div style={{ position: 'absolute', inset: -30, background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', filter: 'blur(40px)', opacity: 0.5, borderRadius: '50%' }}></div>
-                <div style={{ position: 'relative', zIndex: 1, width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0))', backdropFilter: 'blur(10px)', borderRadius: '30px', boxShadow: '0 15px 35px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.2)' }}>
-                  <Headphones size={50} color="#fff" style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))' }} />
+              <Link to="/" style={{ textDecoration: 'none', fontWeight: 800, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(139,92,246,0.3)' }}>
+                  <Headphones size={16} color="#fff" />
                 </div>
-              </motion.div>
-            </motion.div>
+                <span style={{ background: 'linear-gradient(to right, #fff, #c4b5fd)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>FocusMode</span>
+              </Link>
+              <nav style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                <Link to="/mission" style={{ background: 'transparent', border: 'none', color: step === 6 ? '#c4b5fd' : '#94a3b8', fontSize: '0.9rem', fontWeight: 600, transition: 'all 0.2s', cursor: 'pointer', textDecoration: 'none' }} onMouseOver={e=>e.target.style.color='#fff'} onMouseOut={e=>{if(step!==6)e.target.style.color='#94a3b8'}}>Mission</Link>
+                <Link to="/about" style={{ background: 'transparent', border: 'none', color: step === 5 ? '#c4b5fd' : '#94a3b8', fontSize: '0.9rem', fontWeight: 600, transition: 'all 0.2s', cursor: 'pointer', textDecoration: 'none' }} onMouseOver={e=>e.target.style.color='#fff'} onMouseOut={e=>{if(step!==5)e.target.style.color='#94a3b8'}}>About Us</Link>
+                <Link to="/blog" style={{ background: 'transparent', border: 'none', color: step === 4 ? '#c4b5fd' : '#94a3b8', fontSize: '0.9rem', fontWeight: 600, transition: 'all 0.2s', cursor: 'pointer', textDecoration: 'none' }} onMouseOver={e=>e.target.style.color='#fff'} onMouseOut={e=>{if(step!==4)e.target.style.color='#94a3b8'}}>Blog</Link>
+                <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.1)' }}></div>
+                <Link to="/login" style={{ padding: '6px 16px', borderRadius: '100px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', color: '#fff', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 15px rgba(139,92,246,0.4)', textDecoration: 'none' }} onMouseOver={e=>{e.target.style.transform='scale(1.05)'}} onMouseOut={e=>{e.target.style.transform='scale(1)'}}>Login</Link>
+              </nav>
+            </motion.header>
+          </div>
+        )}
+
+        {step === 0 && (
+          <motion.main key="landing-page" initial="hidden" animate="visible" exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }} transition={{ duration: 0.8 }} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            
+            {/* Hero Section */}
+            <div className="welcome-step" style={{ margin: '0 auto', paddingTop: '80px', minHeight: '100vh', paddingBottom: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', zIndex: 10, paddingLeft: 'clamp(1rem, 5vw, 2rem)', paddingRight: 'clamp(1rem, 5vw, 2rem)' }}>
             
             <motion.h1 
               variants={{ hidden: { opacity: 0, y: 30, filter: 'blur(12px)' }, visible: { opacity: 1, y: 0, filter: 'blur(0px)' } }}
-              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-              style={{ fontSize: 'clamp(2.5rem, 6vw, 5rem)', fontWeight: '800', lineHeight: 1.1, marginBottom: '1.5rem', letterSpacing: '-2px', textShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
+              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+              style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)', fontWeight: '800', lineHeight: 1.2, marginBottom: '2rem', letterSpacing: '-2px', textShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
             >
-              <span style={{ background: 'linear-gradient(to right, #fff, #a5b4fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Focus Mode </span>
-              <span style={{ background: 'linear-gradient(to right, #c084fc, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Player</span>
+              <span style={{ background: 'linear-gradient(to right, #fff, #c084fc, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', whiteSpace: 'nowrap' }}>Focus Mode Player</span>
             </motion.h1>
             
             <motion.p 
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
               style={{ fontSize: 'clamp(1.1rem, 3vw, 1.4rem)', color: '#94a3b8', maxWidth: '700px', marginBottom: '3.5rem', lineHeight: 1.6 }}
             >
               Your hyper-focused study universe. Step into deep work, destroy distractions, and conquer your goals.
             </motion.p>
             
-            <motion.div variants={{ hidden: { opacity: 0, y: 20, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1 } }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.7 }} style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <motion.div variants={{ hidden: { opacity: 0, y: 20, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1 } }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.5 }} style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
               <motion.button 
                 whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(139,92,246,0.6)' }} whileTap={{ scale: 0.95 }} 
                 style={{ padding: '18px 40px', fontSize: '1.2rem', fontWeight: '700', borderRadius: '50px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
@@ -258,13 +317,103 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
                 Login
               </motion.button>
             </motion.div>
-          </motion.div>
+            </div>
+          </motion.main>
+        )}
+
+        {step === 4 && (
+          <motion.main key="blog-page" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }} style={{ width: '100%', minHeight: '100vh', paddingTop: '120px', paddingBottom: '4rem', zIndex: 10 }}>
+            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+              <button onClick={() => handleNav('/')} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 20px', borderRadius: '100px', cursor: 'pointer', marginBottom: '2rem', transition: 'all 0.2s' }} onMouseOver={e=>{e.currentTarget.style.background='rgba(255,255,255,0.1)'}} onMouseOut={e=>{e.currentTarget.style.background='rgba(255,255,255,0.05)'}}>
+                <ArrowRight size={16} style={{ transform: 'rotate(180deg)' }} /> Back to Home
+              </button>
+              <article>
+                <Blog />
+              </article>
+            </div>
+          </motion.main>
+        )}
+
+        {step === 6 && (
+          <motion.main key="mission-page" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }} style={{ width: '100%', minHeight: '100vh', paddingTop: '120px', paddingBottom: '4rem', zIndex: 10 }}>
+            <article style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem', textAlign: 'center' }}>
+              
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2))', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '2rem' }}>
+                 <BrainCircuit size={40} color="#c4b5fd" />
+              </div>
+              
+              <h2 style={{ fontSize: '3.5rem', fontWeight: 800, color: '#fff', marginBottom: '1.5rem', letterSpacing: '-1px' }}>The Mission</h2>
+              
+              <p style={{ color: '#e2e8f0', fontSize: '1.4rem', lineHeight: 1.6, maxWidth: '800px', margin: '0 auto 4rem auto' }}>
+                We built Focus Mode Player to revolutionize how you study by eliminating distractions and fighting student isolation.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '4rem' }}>
+                <div style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '2rem', textAlign: 'left' }}>
+                  <Shield size={32} color="#a78bfa" style={{ marginBottom: '1rem' }} />
+                  <h3 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Ad-Free Lectures</h3>
+                  <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1.6 }}>Reclaim your time from algorithmic feeds. Watch your educational content with zero interruptions and unyielding clarity.</p>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '2rem', textAlign: 'left' }}>
+                  <Trophy size={32} color="#f472b6" style={{ marginBottom: '1rem' }} />
+                  <h3 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Gamified Learning</h3>
+                  <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1.6 }}>Step into a hyper-focused study universe. We turn heavy study sessions into an engaging experience where conquering your goals feels like leveling up.</p>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '2rem', textAlign: 'left' }}>
+                  <Globe size={32} color="#60a5fa" style={{ marginBottom: '1rem' }} />
+                  <h3 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Fight Isolation</h3>
+                  <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1.6 }}>Deep work shouldn't mean feeling completely alone. Connect with a focused community and build accountability without the noise.</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <button onClick={() => handleNav('/')} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '16px 32px', borderRadius: '100px', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e=>{e.currentTarget.style.background='rgba(255,255,255,0.1)'}} onMouseOut={e=>{e.currentTarget.style.background='rgba(255,255,255,0.05)'}}>
+                  <ArrowRight size={18} style={{ transform: 'rotate(180deg)' }} /> Back to Home
+                </button>
+                <motion.button 
+                  whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} 
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '16px 32px', fontSize: '1.1rem', fontWeight: '700', borderRadius: '100px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', color: 'white', cursor: 'pointer', boxShadow: '0 8px 20px rgba(139,92,246,0.4)' }}
+                  onClick={() => handleNav('/setup')}
+                >
+                  Start Your Journey <ArrowRight size={18} />
+                </motion.button>
+              </div>
+            </article>
+          </motion.main>
+        )}
+
+        {step === 5 && (
+          <motion.main key="about-page" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }} style={{ width: '100%', minHeight: '100vh', paddingTop: '120px', paddingBottom: '4rem', zIndex: 10 }}>
+            <article style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem', textAlign: 'center', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(20px)', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+              
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2))', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '2rem' }}>
+                 <Users size={40} color="#c4b5fd" />
+              </div>
+              
+              <h2 style={{ fontSize: '3rem', fontWeight: 800, color: '#fff', marginBottom: '1.5rem', letterSpacing: '-1px' }}>About Us</h2>
+              
+              <p style={{ color: '#e2e8f0', fontSize: '1.3rem', lineHeight: 1.8, marginBottom: '2rem', textAlign: 'left' }}>
+                Focus Mode Player is a community-driven open source project designed to help students, developers, and creatives maximize their output without the noise of modern social platforms.
+              </p>
+              
+              <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1.7, marginBottom: '3rem', textAlign: 'left' }}>
+                By integrating scientifically proven deep work timers (like the Pomodoro technique) directly alongside ad-free, minimal content delivery, we guarantee an environment where true focus is not just possible, but inevitable.
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <button onClick={() => handleNav('/')} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '16px 32px', borderRadius: '100px', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e=>{e.currentTarget.style.background='rgba(255,255,255,0.1)'}} onMouseOut={e=>{e.currentTarget.style.background='rgba(255,255,255,0.05)'}}>
+                  <ArrowRight size={18} style={{ transform: 'rotate(180deg)' }} /> Back to Home
+                </button>
+              </div>
+            </article>
+          </motion.main>
         )}
 
 
 
         {step === 2 && (
-          <motion.div key="setup" initial={{ opacity: 0, scale: 0.9, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="welcome-step" style={{ zIndex: 10 }}>
+          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <motion.div key="setup" initial={{ opacity: 0, scale: 0.9, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="welcome-step" style={{ zIndex: 10 }}>
             <div style={{ background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(25px)', border: '1px solid rgba(255,255,255,0.1)', padding: 'clamp(2rem, 5vw, 4rem) clamp(1.5rem, 5vw, 3rem)', borderRadius: '32px', boxShadow: '0 30px 60px rgba(0,0,0,0.5)', width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
               
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: 'linear' }} style={{ position: 'absolute', top: -150, left: -150, right: -150, bottom: -150, background: 'conic-gradient(from 0deg, transparent, transparent, transparent, rgba(139,92,246,0.1), transparent)', zIndex: -1, borderRadius: '50%', pointerEvents: 'none' }} />
@@ -308,6 +457,7 @@ const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, a
               </div>
             </div>
           </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
@@ -1073,9 +1223,15 @@ const App = () => {
 
   const calculateProgress = () => {
     let total = 0; let completed = 0;
-    subjects.forEach(s => s.tasks.forEach(t => t.subtasks.forEach(sub => {
-      total++; if (sub.completed) completed++;
-    })));
+    subjects.forEach(s => s.tasks.forEach(t => {
+      if (t.subtasks && t.subtasks.length > 0) {
+        t.subtasks.forEach(sub => {
+          total++; if (sub.completed) completed++;
+        });
+      } else {
+        total++; if (t.completed) completed++;
+      }
+    }));
     setProgress(total === 0 ? 0 : Math.round((completed / total) * 100));
   };
 
@@ -1294,7 +1450,7 @@ const App = () => {
         ...sub,
         tasks: [...sub.tasks, {
           id: Date.now().toString(), title: newTaskTitle,
-          subtasks: [ { id: Date.now() + '1', title: 'Theory / Notes', completed: false }, { id: Date.now() + '2', title: 'Practice Qs / PYQs', completed: false } ]
+          completed: false
         }]
       };
     }));
@@ -1311,6 +1467,7 @@ const App = () => {
   const toggleSubtask = (subjectId, taskId, subtaskId) => {
     let taskCompletedJustNow = false;
     let allCompletedNow = false;
+    let isSingleTask = false;
     
     setSubjects(prev => {
       let updatedSubjects = prev.map(subject => {
@@ -1319,6 +1476,13 @@ const App = () => {
           ...subject,
           tasks: subject.tasks.map(task => {
             if (task.id !== taskId) return task;
+            
+            if (!task.subtasks || task.subtasks.length === 0) {
+              isSingleTask = true;
+              if (!task.completed) taskCompletedJustNow = true;
+              return { ...task, completed: !task.completed };
+            }
+
             let completedCount = 0;
             const updatedSubtasks = task.subtasks.map(subtask => {
               if (subtask.id !== subtaskId) {
@@ -1336,8 +1500,12 @@ const App = () => {
       return updatedSubjects;
     });
 
-    if (taskCompletedJustNow) { trackSubtaskCompleted(subjectId); awardXP(5, 'Completed Subtask'); updateStreak(); }
-    if (allCompletedNow) {
+    if (taskCompletedJustNow) { 
+      trackSubtaskCompleted(subjectId); 
+      awardXP(isSingleTask ? 15 : 5, isSingleTask ? 'Completed Task!' : 'Completed Subtask'); 
+      updateStreak(); 
+    }
+    if (allCompletedNow && !isSingleTask) {
        trackModuleCompleted(subjectId);
        awardXP(20, 'Completed Full Module!');
        gunPostMessage(`just finished a full task module! 🚀`);
@@ -1731,7 +1899,13 @@ const App = () => {
             {subjects.map(subject => {
               const isExpanded = expandedSubjects.includes(subject.id);
               let total = 0, comp = 0;
-              subject.tasks.forEach(t => t.subtasks.forEach(s => { total++; if(s.completed) comp++; }));
+              subject.tasks.forEach(t => {
+                if (t.subtasks && t.subtasks.length > 0) {
+                  t.subtasks.forEach(s => { total++; if(s.completed) comp++; });
+                } else {
+                  total++; if(t.completed) comp++;
+                }
+              });
               const subPct = total === 0 ? 0 : Math.round((comp / total) * 100);
               return (
                 <div key={subject.id} className="glass subject-card">
@@ -1757,23 +1931,42 @@ const App = () => {
                       {subject.tasks.length === 0 && <p className="text-muted" style={{color: '#94a3b8', fontSize: '0.9rem'}}>No tasks added yet.</p>}
                       {subject.tasks.map(task => (
                         <div key={task.id} className="task-item">
-                          <div style={{fontWeight: 600, marginBottom: '8px', fontSize:'0.95rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                            <span>{task.title}</span>
-                            <button onClick={() => handleDeleteTask(subject.id, task.id)} style={{background:'transparent', border:'none', color:'rgba(255,255,255,0.3)', cursor:'pointer', fontSize:'1rem'}}>&times;</button>
-                          </div>
-                          <div style={{display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px'}}>
-                            {task.subtasks.map(subtask => (
-                              <label key={subtask.id} className="checkbox-wrapper">
-                                <input type="checkbox" checked={subtask.completed} onChange={() => toggleSubtask(subject.id, task.id, subtask.id)} />
+                          {(!task.subtasks || task.subtasks.length === 0) ? (
+                            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                              <label className="checkbox-wrapper" style={{flex: 1, margin: 0}}>
+                                <input type="checkbox" checked={task.completed || false} onChange={() => toggleSubtask(subject.id, task.id)} />
                                 <div className="checkmark"><Check /></div>
-                                <span className="checkbox-text" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                  {subtask.title}
-                                  {!subtask.completed && <span style={{fontSize: '0.75rem', color: 'var(--accent-physics)'}}>+5 XP</span>}
-                                  {subtask.completed && <span style={{fontSize:'0.75rem', color:'var(--accent-success)'}}>✓ Done</span>}
+                                <span className="checkbox-text" style={{display: 'flex', alignItems: 'center', flex: 1, marginRight: '10px', fontSize: '0.95rem', fontWeight: 600, textDecoration: task.completed ? 'line-through' : 'none', color: task.completed ? 'var(--text-muted)' : 'white'}}>
+                                  {task.title}
+                                  <div style={{marginLeft: 'auto'}}>
+                                    {!task.completed && <span style={{fontSize: '0.75rem', color: 'var(--accent-physics)', fontWeight: 'bold'}}>+15 XP</span>}
+                                    {task.completed && <span style={{fontSize:'0.75rem', color:'var(--accent-success)', fontWeight: 'bold'}}>✓ Done</span>}
+                                  </div>
                                 </span>
                               </label>
-                            ))}
-                          </div>
+                              <button onClick={() => handleDeleteTask(subject.id, task.id)} style={{background:'transparent', border:'none', color:'rgba(255,255,255,0.3)', cursor:'pointer', fontSize:'1.2rem', padding: '0 8px'}}>&times;</button>
+                            </div>
+                          ) : (
+                            <>
+                              <div style={{fontWeight: 600, marginBottom: '8px', fontSize:'0.95rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                <span>{task.title}</span>
+                                <button onClick={() => handleDeleteTask(subject.id, task.id)} style={{background:'transparent', border:'none', color:'rgba(255,255,255,0.3)', cursor:'pointer', fontSize:'1rem'}}>&times;</button>
+                              </div>
+                              <div style={{display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px'}}>
+                                {task.subtasks.map(subtask => (
+                                  <label key={subtask.id} className="checkbox-wrapper">
+                                    <input type="checkbox" checked={subtask.completed} onChange={() => toggleSubtask(subject.id, task.id, subtask.id)} />
+                                    <div className="checkmark"><Check /></div>
+                                    <span className="checkbox-text" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                      {subtask.title}
+                                      {!subtask.completed && <span style={{fontSize: '0.75rem', color: 'var(--accent-physics)'}}>+5 XP</span>}
+                                      {subtask.completed && <span style={{fontSize:'0.75rem', color:'var(--accent-success)'}}>✓ Done</span>}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
