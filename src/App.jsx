@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BookHeart, Users, Trophy, Flame, 
   Stethoscope, Landmark, User, LogOut, Lock, Calendar, ArrowRight,
   Headphones, Send, Zap, MonitorPlay, Trash2, Video,
-  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle, ArrowUp, Search, MessageSquare, Shield, Settings
+  Wifi, VideoOff, PhoneCall, Globe, X, Download, FileText, Save, Bot, Sparkles, Move, Columns, Rows, HelpCircle, ArrowUp, Search, MessageSquare, Shield, Settings, UserX, CornerUpLeft, Heart, Smile, Maximize2, Minimize2, Radio, Award, Share2, Compass, AlertCircle, RefreshCw
 } from 'lucide-react';
 import {
   trackSignUp, trackLogin, trackLogout, trackGuestSession,
@@ -504,10 +504,72 @@ const App = () => {
     posts: feed,
     isLoading: isCommunityLoading,
     postMessage: gunPostMessage,
+    toggleReaction: gunToggleReaction,
     toggleLike: gunToggleLike,
     addComment: gunAddComment,
     deletePost: gunDeletePost,
+    bannedUsers,
+    banUser,
+    unbanUser,
+    removeUser,
+    purgeUserPosts,
+    cleanupGuestUsers,
   } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
+
+  // Instagram Chat States
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [heartBurstId, setHeartBurstId] = useState(null);
+  const [activeEmojiBarId, setActiveEmojiBarId] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [userNote, setUserNote] = useState(() => {
+    try { return localStorage.getItem('pm_user_note') || 'Deep Work ⚡'; } catch { return 'Deep Work ⚡'; }
+  });
+
+  const [showModerationModal, setShowModerationModal] = useState(false);
+  const [modSearch, setModSearch] = useState('');
+  const [modFilterTab, setModFilterTab] = useState('all');
+  const [customBanInput, setCustomBanInput] = useState('');
+  
+  // Deep Study & Zen Mode States
+  const [isZenMode, setIsZenMode] = useState(false);
+  const [showDoubtModal, setShowDoubtModal] = useState(false);
+  const [doubtSubject, setDoubtSubject] = useState('Physics');
+  const [doubtQuestion, setDoubtQuestion] = useState('');
+  const [doubtHint, setDoubtHint] = useState('');
+
+  // Dashboard Tab State ('overview' | 'syllabus' | 'week')
+  const [dashboardTab, setDashboardTab] = useState('overview');
+
+  // Planner Mobile Day Tab State
+  const [selectedPlannerDay, setSelectedPlannerDay] = useState(() => {
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()] || 'Mon';
+  });
+
+  // Journal Tab State ('reflect' | 'mistakes' | 'history')
+  const [journalTab, setJournalTab] = useState('reflect');
+  const [mistakesList, setMistakesList] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`pm_mistakes_${sessionUser}`);
+      if (saved) return JSON.parse(saved);
+      return [
+        { id: 'm1', date: 'Yesterday', subject: 'Physics', category: 'Formula Slip 📐', problem: 'Forgot minus sign in Lenz law induced emf expression', fix: 'e = -dΦ/dt represents opposition to flux change. Always double check sign!', resolved: true },
+        { id: 'm2', date: 'Today', subject: 'Mathematics', category: 'Calculation Mistake 🔢', problem: 'Arithmetic error when expanding (x-2)^3 in integration by parts', fix: 'Write intermediate expansion terms carefully on rough sheet before substituting', resolved: false }
+      ];
+    } catch {
+      return [];
+    }
+  });
+  const [newMistakeSubject, setNewMistakeSubject] = useState('Physics');
+  const [newMistakeCategory, setNewMistakeCategory] = useState('Silly Error 🤦‍♂️');
+  const [newMistakeProblem, setNewMistakeProblem] = useState('');
+  const [newMistakeFix, setNewMistakeFix] = useState('');
+
+  // Study Connect - Omegle Educational Matchmaker States
+  const [isMatchingBuddy, setIsMatchingBuddy] = useState(false);
+  const [matchedBuddy, setMatchedBuddy] = useState(null);
+  const [buddyFilterTopic, setBuddyFilterTopic] = useState('All');
+  const [peerMessages, setPeerMessages] = useState([]);
+  const [peerChatInput, setPeerChatInput] = useState('');
   
   const firebaseUsers = useFirebaseUsers();
 
@@ -548,6 +610,22 @@ const App = () => {
   const [progress, setProgress] = useState(0);
   
   // Tasks/Journal
+  // Self-heal subjects if empty or if newTaskSubject is unselected
+  useEffect(() => {
+    if (sessionUser) {
+      if (subjects.length === 0) {
+        const prep = currentUserProfile?.prepType || 'JEE';
+        const initialSubs = examTemplates[prep] || examTemplates.JEE;
+        setSubjects(initialSubs);
+        setExpandedSubjects(initialSubs.map(s => s.id));
+        setNewTaskSubject(initialSubs[0].id);
+        localStorage.setItem(`pm_sub_${sessionUser}`, JSON.stringify(initialSubs));
+      } else if (!newTaskSubject || !subjects.some(s => s.id === newTaskSubject)) {
+        setNewTaskSubject(subjects[0].id);
+      }
+    }
+  }, [sessionUser, currentUserProfile?.prepType, subjects.length, newTaskSubject]);
+
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskSubject, setNewTaskSubject] = useState('');
   const [learnedText, setLearnedText] = useState('');
@@ -1699,6 +1777,37 @@ const App = () => {
     setIsActive(prev => !prev);
   };
 
+  const getSubjectColor = (idOrTitle) => {
+    const key = (idOrTitle || '').toLowerCase();
+    if (key.includes('phys')) return 'var(--accent-physics)';
+    if (key.includes('chem')) return 'var(--accent-chem)';
+    if (key.includes('math') || key.includes('quant')) return 'var(--accent-math)';
+    if (key.includes('bio')) return 'var(--accent-success)';
+    if (key.includes('hist')) return '#f59e0b';
+    if (key.includes('polit')) return '#06b6d4';
+    if (key.includes('geo')) return '#14b8a6';
+    if (key.includes('current')) return '#8b5cf6';
+    if (key.includes('focus') || key.includes('deep')) return 'var(--accent-physics)';
+    if (key.includes('study')) return 'var(--accent-chem)';
+    if (key.includes('proj')) return 'var(--accent-math)';
+    return 'var(--accent-physics)';
+  };
+
+  const getSubjectEmoji = (idOrTitle) => {
+    const key = (idOrTitle || '').toLowerCase();
+    if (key.includes('phys')) return '⚛️';
+    if (key.includes('chem')) return '🧪';
+    if (key.includes('math') || key.includes('quant')) return '📐';
+    if (key.includes('bio')) return '🧬';
+    if (key.includes('hist')) return '🏛️';
+    if (key.includes('polit')) return '📜';
+    if (key.includes('geo')) return '🌍';
+    if (key.includes('current')) return '📰';
+    if (key.includes('focus')) return '⚡';
+    if (key.includes('study')) return '📚';
+    return '📝';
+  };
+
   const getSubjectIcon = (iconStr) => {
     switch(iconStr) {
       case 'physics': return <BrainCircuit size={20} />;
@@ -1800,11 +1909,10 @@ const App = () => {
   })).sort((a,b) => b.score - a.score);
   combinedLeaderboard.forEach((lb, i) => lb.rank = i + 1);
 
-  const renderDashboard = () => {
+    const renderDashboard = () => {
     const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     const todayStr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()];
 
-    // Syllabus topics by exam
     const syllabusMap = {
       JEE: { Physics: ['Mechanics','Thermodynamics','Electrostatics','Magnetism','Modern Physics','Waves & Optics'], Chemistry: ['Mole Concept','Equilibrium','Organic Reactions','Electrochemistry','P-Block','D-Block'], Mathematics: ['Calculus','Algebra','Trigonometry','Coordinate Geometry','Probability','Vectors'] },
       NEET: { Physics: ['Mechanics','Thermodynamics','Optics','Modern Physics','Magnetism'], Chemistry: ['Organic Chem','Physical Chem','Inorganic Chem'], Biology: ['Cell Biology','Genetics','Ecology','Plant Physiology','Human Physiology'] },
@@ -1816,58 +1924,370 @@ const App = () => {
     const doneCount = allSyllabusTopics.filter(k => syllabusChecked[k]).length;
     const syllabusPct = allSyllabusTopics.length ? Math.round((doneCount / allSyllabusTopics.length) * 100) : 0;
 
+    let totalTasks = 0;
+    let completedTasks = 0;
+    subjects.forEach(s => {
+      s.tasks.forEach(t => {
+        if (t.subtasks && t.subtasks.length > 0) {
+          t.subtasks.forEach(st => { totalTasks++; if (st.completed) completedTasks++; });
+        } else {
+          totalTasks++; if (t.completed) completedTasks++;
+        }
+      });
+    });
+
     return (
-      <div className="dashboard-grid animate-fade-in">
-        <div className="left-col">
+      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
+        
+        {/* Executive Command Center (Hero + Focus Timer) */}
+        <div className="dashboard-command-center">
+          
+          {/* Left Hero Card */}
+          <div className="glass dashboard-hero-card">
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px'}}>
+              <div>
+                <span style={{fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--accent-physics)', background: 'rgba(139,92,246,0.15)', padding: '4px 10px', borderRadius: '100px'}}>
+                  ⚡ Daily Command Center
+                </span>
+                <h2 style={{fontSize: 'clamp(1.4rem, 3vw, 1.85rem)', fontWeight: 900, color: 'white', margin: '8px 0 4px', letterSpacing: '-0.5px'}}>
+                  Crush Today's Targets, {sessionUser}!
+                </h2>
+                <p style={{fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0}}>
+                  Targeting {currentUserProfile?.prepType || 'JEE'} {currentUserProfile?.targetYear || '2026'} · Consistent practice creates champions.
+                </p>
+              </div>
 
+              <div style={{display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '8px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)'}}>
+                <div style={{fontSize: '2rem', lineHeight: 1}}>🔥</div>
+                <div>
+                  <div style={{fontSize: '1.3rem', fontWeight: 900, color: '#fb923c', lineHeight: 1}}>{studyStreak}</div>
+                  <div style={{fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700}}>Day Streak</div>
+                </div>
+              </div>
+            </div>
 
+            {/* Daily Progress Meter Bar */}
+            <div style={{background: 'rgba(0,0,0,0.25)', padding: '14px 16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                <span style={{fontSize: '0.85rem', fontWeight: 700, color: 'white'}}>Daily Task Completion</span>
+                <span style={{fontSize: '0.85rem', fontWeight: 800, color: 'var(--accent-success)'}}>{progress}% ({completedTasks}/{totalTasks} subtasks)</span>
+              </div>
+              <div style={{height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '100px', overflow: 'hidden'}}>
+                <div style={{height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg, #10b981, #06b6d4)', borderRadius: '100px', transition: 'width 0.4s ease'}}></div>
+              </div>
+            </div>
 
-          {/* Streak + Stats Banner */}
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:'1rem', marginBottom:'1rem'}}>
-            <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(239,68,68,0.12),rgba(251,146,60,0.08))', borderColor:'rgba(239,68,68,0.2)'}}>
-              <div style={{fontSize:'2.5rem', marginBottom:'4px', lineHeight:1}}>🔥</div>
-              <div style={{fontSize:'1.8rem', fontWeight:800, color:'#fb923c', lineHeight:1}}>{studyStreak}</div>
-              <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'4px', fontWeight:600}}>Day Streak</div>
-            </div>
-            <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(139,92,246,0.12),rgba(109,40,217,0.08))', borderColor:'rgba(139,92,246,0.2)'}}>
-              <div style={{fontSize:'1.8rem', fontWeight:800, color:'var(--accent-physics)', lineHeight:1}}>{currentXP}</div>
-              <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'4px', fontWeight:600}}>Total XP</div>
-            </div>
-            <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(6,182,212,0.08))', borderColor:'rgba(16,185,129,0.2)'}}>
-              <div style={{fontSize:'1.8rem', fontWeight:800, color:'var(--accent-success)', lineHeight:1}}>{progress}%</div>
-              <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'4px', fontWeight:600}}>Today Done</div>
-            </div>
-            <div className="glass" style={{padding:'1.25rem', textAlign:'center', background:'linear-gradient(135deg,rgba(59,130,246,0.12),rgba(37,99,235,0.08))', borderColor:'rgba(59,130,246,0.2)'}}>
-              <div style={{fontSize:'1.8rem', fontWeight:800, color:'var(--accent-math)', lineHeight:1}}>{syllabusPct}%</div>
-              <div style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'4px', fontWeight:600}}>Syllabus</div>
+            {/* Quick Stat Capsules */}
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px'}}>
+              <div style={{padding: '10px 12px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center'}}>
+                <div style={{fontSize: '1.15rem', fontWeight: 900, color: 'var(--accent-physics)'}}>{currentXP}</div>
+                <div style={{fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600}}>Total XP</div>
+              </div>
+              <div style={{padding: '10px 12px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center'}}>
+                <div style={{fontSize: '1.15rem', fontWeight: 900, color: 'var(--accent-success)'}}>Lvl {level}</div>
+                <div style={{fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600}}>Scholar Rank</div>
+              </div>
+              <div style={{padding: '10px 12px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center'}}>
+                <div style={{fontSize: '1.15rem', fontWeight: 900, color: 'var(--accent-math)'}}>{doneCount}/{allSyllabusTopics.length}</div>
+                <div style={{fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600}}>Syllabus ({syllabusPct}%)</div>
+              </div>
+              <div style={{padding: '10px 12px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center'}}>
+                <div style={{fontSize: '1.15rem', fontWeight: 900, color: '#f59e0b'}}>{isActive ? 'Active ⚡' : 'Idle'}</div>
+                <div style={{fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600}}>Timer Status</div>
+              </div>
             </div>
           </div>
 
-          {/* Syllabus Tracker */}
-          <div className="glass" style={{padding:'1.5rem', marginBottom:'1rem'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem'}}>
-              <h3 style={{fontSize:'1rem', fontWeight:800, display:'flex', alignItems:'center', gap:'8px'}}><BookOpen size={16} color="var(--accent-math)"/> Syllabus Tracker</h3>
-              <div style={{background:'rgba(59,130,246,0.1)', color:'var(--accent-math)', padding:'4px 12px', borderRadius:'100px', fontSize:'0.8rem', fontWeight:700}}>{doneCount}/{allSyllabusTopics.length} done</div>
+          {/* Right Timer Card */}
+          <div className="glass dashboard-timer-box">
+            <h3 style={{fontSize: '1.05rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', color: 'white', margin: '0 0 10px'}}>
+              ⏳ Deep Focus Timer
+            </h3>
+
+            {/* Timer Presets */}
+            <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '12px'}}>
+              <button onClick={() => setTimer('pomodoro')} style={{padding: '5px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: sessionType === 'pomodoro' ? 'var(--accent-physics)' : 'rgba(255,255,255,0.06)', color: 'white'}}>25m Focus</button>
+              <button onClick={() => setTimer('pomodoro50')} style={{padding: '5px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: sessionType === 'pomodoro50' ? 'var(--accent-physics)' : 'rgba(255,255,255,0.06)', color: 'white'}}>50m Deep</button>
+              <button onClick={() => setTimer('shortBreak')} style={{padding: '5px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: sessionType === 'shortBreak' ? 'var(--accent-success)' : 'rgba(255,255,255,0.06)', color: 'white'}}>5m Break</button>
             </div>
-            <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+
+            <div style={{fontSize: '3.6rem', fontWeight: 900, letterSpacing: '-1px', lineHeight: 1, margin: '8px 0', fontFamily: "'Space Grotesk', monospace", color: 'white', textShadow: isActive ? '0 0 25px rgba(139,92,246,0.6)' : 'none'}}>
+              {formatTime(timeLeft)}
+            </div>
+
+            <div style={{fontSize: '0.75rem', color: 'var(--accent-success)', fontWeight: 'bold', marginBottom: '14px'}}>
+              Reward: +{sessionType.includes('pomodoro') ? (sessionType === 'pomodoro50' ? '100' : '50') : '10'} XP
+            </div>
+
+            <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+              <button className="btn-primary" onClick={startTimer} style={{padding: '10px 24px', borderRadius: '100px', fontSize: '0.95rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: isActive ? '0 0 20px rgba(139,92,246,0.5)' : 'none'}}>
+                {isActive ? <Pause size={17}/> : <Play size={17}/>}
+                <span>{isActive ? 'Pause' : 'Start Focus'}</span>
+              </button>
+              <button onClick={() => setTimer(sessionType)} style={{padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} title="Reset Timer">
+                <RotateCcw size={17}/>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Dashboard Workspace View Tabs */}
+        <div className="dashboard-tabs-bar">
+          <button 
+            onClick={() => setDashboardTab('overview')} 
+            className="dashboard-tab-btn"
+            style={{background: dashboardTab === 'overview' ? 'linear-gradient(135deg, var(--accent-physics), #c026d3)' : 'rgba(255,255,255,0.05)', color: 'white'}}
+          >
+            <LayoutDashboard size={15}/> Today's Tasks ({completedTasks}/{totalTasks})
+          </button>
+          <button 
+            onClick={() => setDashboardTab('syllabus')} 
+            className="dashboard-tab-btn"
+            style={{background: dashboardTab === 'syllabus' ? 'linear-gradient(135deg, var(--accent-math), #2563eb)' : 'rgba(255,255,255,0.05)', color: 'white'}}
+          >
+            <BookOpen size={15}/> Syllabus Roadmap ({syllabusPct}%)
+          </button>
+          <button 
+            onClick={() => setDashboardTab('week')} 
+            className="dashboard-tab-btn"
+            style={{background: dashboardTab === 'week' ? 'linear-gradient(135deg, var(--accent-chem), #db2777)' : 'rgba(255,255,255,0.05)', color: 'white'}}
+          >
+            <Calendar size={15}/> Week Flow ({todayStr})
+          </button>
+        </div>
+
+        {/* View 1: Today's Tasks */}
+        {dashboardTab === 'overview' && (
+          <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            {/* Quick Add Task Form */}
+            <form className="glass" onSubmit={handleAddTask} style={{padding: '1.25rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '12px'}}>
+              {/* Subject Quick Pill Selectors */}
+              <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
+                <span style={{fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 700}}>Subject:</span>
+                {subjects.map(s => {
+                  const sColor = getSubjectColor(s.title || s.id);
+                  const isSelected = (newTaskSubject || subjects[0]?.id) === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setNewTaskSubject(s.id)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '100px',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        border: isSelected ? `2px solid ${sColor}` : '1px solid rgba(255,255,255,0.1)',
+                        background: isSelected ? `${sColor}26` : 'rgba(255,255,255,0.03)',
+                        color: isSelected ? sColor : '#cbd5e1',
+                        boxShadow: isSelected ? `0 0 14px ${sColor}44` : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <span>{getSubjectEmoji(s.title || s.id)}</span>
+                      <span>{s.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Input Row with Styled Dropdown & Add Button */}
+              <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
+                <div style={{position: 'relative', flex: '0 0 auto', minWidth: '140px'}}>
+                  <select 
+                    className="input-field" 
+                    value={newTaskSubject || (subjects[0]?.id || '')} 
+                    onChange={(e) => setNewTaskSubject(e.target.value)} 
+                    style={{
+                      width: '100%',
+                      borderRadius: '12px',
+                      padding: '11px 14px',
+                      fontWeight: 800,
+                      color: getSubjectColor(subjects.find(s => s.id === (newTaskSubject || subjects[0]?.id))?.title || newTaskSubject),
+                      border: `1.5px solid ${getSubjectColor(subjects.find(s => s.id === (newTaskSubject || subjects[0]?.id))?.title || newTaskSubject)}77`,
+                      background: 'rgba(15,23,42,0.9)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {subjects.map(s => {
+                      const sColor = getSubjectColor(s.title || s.id);
+                      return (
+                        <option 
+                          key={s.id} 
+                          value={s.id} 
+                          style={{
+                            background: '#0f172a', 
+                            color: sColor, 
+                            fontWeight: 700,
+                            padding: '10px'
+                          }}
+                        >
+                          {getSubjectEmoji(s.title || s.id)} {s.title}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder={`E.g., Complete 30 PYQs on ${subjects.find(s => s.id === (newTaskSubject || subjects[0]?.id))?.title || 'Physics'}...`} 
+                  value={newTaskTitle} 
+                  onChange={(e) => setNewTaskTitle(e.target.value)} 
+                  style={{flex: '1 1 240px', borderRadius: '12px'}} 
+                />
+                
+                <button 
+                  type="submit" 
+                  className="btn-primary" 
+                  style={{
+                    borderRadius: '12px', 
+                    padding: '11px 22px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    fontWeight: 'bold',
+                    background: `linear-gradient(135deg, ${getSubjectColor(subjects.find(s => s.id === (newTaskSubject || subjects[0]?.id))?.title || newTaskSubject)}, var(--accent-physics))`,
+                    border: 'none',
+                    boxShadow: `0 4px 15px ${getSubjectColor(subjects.find(s => s.id === (newTaskSubject || subjects[0]?.id))?.title || newTaskSubject)}33`
+                  }} 
+                  disabled={!newTaskTitle.trim()}
+                >
+                  <Plus size={16}/> Add Task
+                </button>
+              </div>
+            </form>
+
+            {/* Subject Task Cards */}
+            <div className="subjects-grid">
+              {subjects.map(subject => {
+                const isExpanded = expandedSubjects.includes(subject.id);
+                const subColor = getSubjectColor(subject.title || subject.id);
+                let total = 0, comp = 0;
+                subject.tasks.forEach(t => {
+                  if (t.subtasks && t.subtasks.length > 0) {
+                    t.subtasks.forEach(s => { total++; if(s.completed) comp++; });
+                  } else {
+                    total++; if(t.completed) comp++;
+                  }
+                });
+                const subPct = total === 0 ? 0 : Math.round((comp / total) * 100);
+
+                return (
+                  <div 
+                    key={subject.id} 
+                    className="glass subject-card" 
+                    style={{
+                      borderRadius: '20px', 
+                      border: `1px solid ${subColor}33`,
+                      borderLeft: `4px solid ${subColor}`,
+                      background: `linear-gradient(145deg, ${subColor}0c 0%, rgba(255,255,255,0.01) 100%)`,
+                      boxShadow: `0 6px 20px ${subColor}10`
+                    }}
+                  >
+                    <div className="subject-header" onClick={() => setExpandedSubjects(prev => prev.includes(subject.id) ? prev.filter(x => x !== subject.id) : [...prev, subject.id])} style={{cursor: 'pointer'}}>
+                      <div className="subject-info" style={{flex: 1}}>
+                        <div className="subject-icon" style={{background: `${subColor}22`, color: subColor, border: `1px solid ${subColor}44`, borderRadius: '12px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                          {getSubjectIcon(subject.icon)}
+                        </div>
+                        <div style={{flex: 1, minWidth: 0}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <h3 className="subject-title" style={{fontSize: '1rem', fontWeight: 800, margin: 0, color: '#fff'}}>{subject.title}</h3>
+                            <span style={{fontSize: '0.78rem', color: comp === total && total > 0 ? 'var(--accent-success)' : subColor, fontWeight: 'bold'}}>{comp}/{total}</span>
+                          </div>
+                          <div style={{height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', marginTop: '6px'}}>
+                            <div style={{height: '100%', width: `${subPct}%`, background: subColor, borderRadius: '4px', transition: 'width 0.4s'}}></div>
+                          </div>
+                        </div>
+                      </div>
+                      <button className={`toggle-btn ${isExpanded ? 'expanded' : ''}`} style={{background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: '4px'}}>
+                        <ChevronDown size={18}/>
+                      </button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="tasks-list" style={{marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px'}}>
+                        {subject.tasks.length === 0 ? (
+                          <p style={{color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0'}}>No tasks added yet. Add your first goal above!</p>
+                        ) : (
+                          subject.tasks.map(task => (
+                            <div key={task.id} className="task-item" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '10px', background: 'rgba(255,255,255,0.02)', marginBottom: '6px'}}>
+                              <label className="checkbox-wrapper" style={{flex: 1, margin: 0, display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer'}}>
+                                <input type="checkbox" checked={task.completed || false} onChange={() => toggleSubtask(subject.id, task.id)} />
+                                <div className="checkmark"><Check size={13}/></div>
+                                <span style={{fontSize: '0.9rem', fontWeight: 600, textDecoration: task.completed ? 'line-through' : 'none', color: task.completed ? 'var(--text-muted)' : 'white'}}>
+                                  {task.title}
+                                </span>
+                              </label>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                {!task.completed ? (
+                                  <span style={{fontSize: '0.7rem', color: 'var(--accent-physics)', fontWeight: 'bold', background: 'rgba(139,92,246,0.15)', padding: '2px 6px', borderRadius: '4px'}}>+15 XP</span>
+                                ) : (
+                                  <span style={{fontSize: '0.7rem', color: 'var(--accent-success)', fontWeight: 'bold', background: 'rgba(16,185,129,0.15)', padding: '2px 6px', borderRadius: '4px'}}>Done</span>
+                                )}
+                                <button onClick={() => handleDeleteTask(subject.id, task.id)} style={{background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px'}} title="Delete Task">&times;</button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* View 2: Syllabus Roadmap */}
+        {dashboardTab === 'syllabus' && (
+          <div className="glass" style={{padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '8px'}}>
+              <div>
+                <h3 style={{fontSize: '1.15rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px', color: 'white', margin: 0}}>
+                  <BookOpen size={18} color="var(--accent-math)"/> {currentUserProfile?.prepType || 'JEE'} Syllabus Tracker
+                </h3>
+                <p style={{fontSize: '0.82rem', color: 'var(--text-muted)', margin: '4px 0 0'}}>Click any topic pill to mark it completed and level up your progress.</p>
+              </div>
+              <div style={{background: 'rgba(59,130,246,0.15)', color: 'var(--accent-math)', padding: '6px 14px', borderRadius: '100px', fontSize: '0.82rem', fontWeight: 800}}>
+                {doneCount}/{allSyllabusTopics.length} Finished ({syllabusPct}%)
+              </div>
+            </div>
+
+            <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
               {Object.entries(syllabus).map(([subject, topics]) => {
                 const subDone = topics.filter(t => syllabusChecked[`${subject}::${t}`]).length;
                 const subPct = Math.round((subDone / topics.length) * 100);
                 return (
-                  <div key={subject}>
-                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'6px'}}>
-                      <span style={{fontSize:'0.85rem', fontWeight:700, color:'white'}}>{subject}</span>
-                      <span style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>{subDone}/{topics.length}</span>
+                  <div key={subject} style={{background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center'}}>
+                      <span style={{fontSize: '0.92rem', fontWeight: 800, color: 'white'}}>{subject}</span>
+                      <span style={{fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 'bold'}}>{subDone}/{topics.length} ({subPct}%)</span>
                     </div>
-                    <div style={{height:'4px', background:'rgba(255,255,255,0.06)', borderRadius:'4px', marginBottom:'8px'}}>
-                      <div style={{height:'100%', width:`${subPct}%`, background:'linear-gradient(90deg, var(--accent-math), var(--accent-physics))', borderRadius:'4px', transition:'width 0.4s ease'}}></div>
+                    <div style={{height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', marginBottom: '10px', overflow: 'hidden'}}>
+                      <div style={{height: '100%', width: `${subPct}%`, background: 'linear-gradient(90deg, var(--accent-math), var(--accent-physics))', borderRadius: '4px', transition: 'width 0.4s ease'}}></div>
                     </div>
-                    <div style={{display:'flex', flexWrap:'wrap', gap:'6px'}}>
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
                       {topics.map(topic => {
                         const key = `${subject}::${topic}`;
                         const done = syllabusChecked[key];
                         return (
-                          <button key={topic} onClick={() => toggleSyllabus(key)} style={{padding:'4px 10px', borderRadius:'100px', fontSize:'0.75rem', fontWeight:600, cursor:'pointer', transition:'all 0.2s', background: done ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)', color: done ? 'var(--accent-success)' : 'var(--text-muted)', border: done ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.08)', textDecoration: done ? 'line-through' : 'none'}}>
+                          <button 
+                            key={topic} 
+                            onClick={() => toggleSyllabus(key)} 
+                            style={{
+                              padding: '5px 12px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                              background: done ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)',
+                              color: done ? 'var(--accent-success)' : 'var(--text-muted)',
+                              border: done ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.08)',
+                              textDecoration: done ? 'line-through' : 'none'
+                            }}
+                          >
                             {done ? '✓ ' : ''}{topic}
                           </button>
                         );
@@ -1878,296 +2298,415 @@ const App = () => {
               })}
             </div>
           </div>
+        )}
 
-          <section className="glass progress-section">
-            <div className="progress-header">
-              <h2 className="progress-title">Today's Task Progress</h2>
-              <span className="progress-percentage">{progress}%</span>
-            </div>
-            <div className="progress-bar-bg">
-              <div className="progress-bar-fill" style={{ width: `${progress}%` }}></div>
-            </div>
-          </section>
-          <form className="glass add-task-form" onSubmit={handleAddTask}>
-            <select className="input-field" value={newTaskSubject} onChange={(e) => setNewTaskSubject(e.target.value)}>
-              {subjects.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-            </select>
-            <input type="text" className="input-field" placeholder="E.g., Complete Chapter 4 Practice Qs" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
-            <button type="submit" className="btn-primary"><Plus size={18} /> Add</button>
-          </form>
-          <div className="subjects-grid">
-            {subjects.map(subject => {
-              const isExpanded = expandedSubjects.includes(subject.id);
-              let total = 0, comp = 0;
-              subject.tasks.forEach(t => {
-                if (t.subtasks && t.subtasks.length > 0) {
-                  t.subtasks.forEach(s => { total++; if(s.completed) comp++; });
-                } else {
-                  total++; if(t.completed) comp++;
-                }
-              });
-              const subPct = total === 0 ? 0 : Math.round((comp / total) * 100);
-              return (
-                <div key={subject.id} className="glass subject-card">
-                  <div className="subject-header" onClick={() => setExpandedSubjects(prev => prev.includes(subject.id) ? prev.filter(x => x !== subject.id) : [...prev, subject.id])}>
-                    <div className="subject-info">
-                      <div className="subject-icon" style={{background: 'rgba(255,255,255,0.1)'}}>
-                        {getSubjectIcon(subject.icon)}
-                      </div>
-                      <div style={{flex:1}}>
-                        <h3 className="subject-title">{subject.title}</h3>
-                        <div style={{display:'flex', alignItems:'center', gap:'8px', marginTop:'4px'}}>
-                          <div style={{flex:1, height:'3px', background:'rgba(255,255,255,0.08)', borderRadius:'3px'}}>
-                            <div style={{height:'100%', width:`${subPct}%`, background:'var(--accent-success)', borderRadius:'3px', transition:'width 0.4s'}}></div>
-                          </div>
-                          <span style={{fontSize:'0.72rem', color:'var(--text-muted)'}}>{comp}/{total}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button className={`toggle-btn ${isExpanded ? 'expanded' : ''}`}><ChevronDown size={20} /></button>
-                  </div>
-                  {isExpanded && (
-                    <div className="tasks-list">
-                      {subject.tasks.length === 0 && <p className="text-muted" style={{color: '#94a3b8', fontSize: '0.9rem'}}>No tasks added yet.</p>}
-                      {subject.tasks.map(task => (
-                        <div key={task.id} className="task-item">
-                          {(!task.subtasks || task.subtasks.length === 0) ? (
-                            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                              <label className="checkbox-wrapper" style={{flex: 1, margin: 0}}>
-                                <input type="checkbox" checked={task.completed || false} onChange={() => toggleSubtask(subject.id, task.id)} />
-                                <div className="checkmark"><Check /></div>
-                                <span className="checkbox-text" style={{display: 'flex', alignItems: 'center', flex: 1, marginRight: '10px', fontSize: '0.95rem', fontWeight: 600, textDecoration: task.completed ? 'line-through' : 'none', color: task.completed ? 'var(--text-muted)' : 'white'}}>
-                                  {task.title}
-                                  <div style={{marginLeft: 'auto'}}>
-                                    {!task.completed && <span style={{fontSize: '0.75rem', color: 'var(--accent-physics)', fontWeight: 'bold'}}>+15 XP</span>}
-                                    {task.completed && <span style={{fontSize:'0.75rem', color:'var(--accent-success)', fontWeight: 'bold'}}>✓ Done</span>}
-                                  </div>
-                                </span>
-                              </label>
-                              <button onClick={() => handleDeleteTask(subject.id, task.id)} style={{background:'transparent', border:'none', color:'rgba(255,255,255,0.3)', cursor:'pointer', fontSize:'1.2rem', padding: '0 8px'}}>&times;</button>
-                            </div>
-                          ) : (
-                            <>
-                              <div style={{fontWeight: 600, marginBottom: '8px', fontSize:'0.95rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                <span>{task.title}</span>
-                                <button onClick={() => handleDeleteTask(subject.id, task.id)} style={{background:'transparent', border:'none', color:'rgba(255,255,255,0.3)', cursor:'pointer', fontSize:'1rem'}}>&times;</button>
-                              </div>
-                              <div style={{display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px'}}>
-                                {task.subtasks.map(subtask => (
-                                  <label key={subtask.id} className="checkbox-wrapper">
-                                    <input type="checkbox" checked={subtask.completed} onChange={() => toggleSubtask(subject.id, task.id, subtask.id)} />
-                                    <div className="checkmark"><Check /></div>
-                                    <span className="checkbox-text" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                      {subtask.title}
-                                      {!subtask.completed && <span style={{fontSize: '0.75rem', color: 'var(--accent-physics)'}}>+5 XP</span>}
-                                      {subtask.completed && <span style={{fontSize:'0.75rem', color:'var(--accent-success)'}}>✓ Done</span>}
-                                    </span>
-                                  </label>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <aside className="right-sidebar">
-          <div className="glass timer-card" style={{position: 'relative', overflow: 'hidden'}}>
-            <div style={{position: 'absolute', top: '-50px', left: '-50px', width: '150px', height: '150px', background: 'var(--accent-physics)', filter: 'blur(80px)', opacity: 0.3}}></div>
-            <div style={{position: 'absolute', bottom: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-chem)', filter: 'blur(80px)', opacity: 0.3}}></div>
-            
-            <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '1.5rem', position: 'relative', zIndex: 1}}> ⏳ Focus Timer </h3>
-            
-            <div style={{display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '2rem', flexWrap: 'wrap', position: 'relative', zIndex: 1}}>
-              <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'pomodoro' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'pomodoro' ? 'white' : '#94a3b8', border: sessionType === 'pomodoro' ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('pomodoro')}>25m Focus</button>
-              <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'pomodoro50' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'pomodoro50' ? 'white' : '#94a3b8', border: sessionType === 'pomodoro50' ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('pomodoro50')}>50m Deep</button>
-              <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'shortBreak' ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'shortBreak' ? '#34d399' : '#94a3b8', border: sessionType === 'shortBreak' ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('shortBreak')}>5m Break</button>
-              <button style={{padding: '6px 14px', borderRadius: '100px', background: sessionType === 'longBreak' ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.2)', color: sessionType === 'longBreak' ? '#34d399' : '#94a3b8', border: sessionType === 'longBreak' ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}} onClick={() => setTimer('longBreak')}>10m Chill</button>
-            </div>
-            
-            <div className="timer-display" style={{fontSize: '4.5rem', fontWeight: 800, textShadow: '0 0 40px rgba(255,255,255,0.2)', letterSpacing: '-2px', position: 'relative', zIndex: 1, margin: '1rem 0'}}>{formatTime(timeLeft)}</div>
-            
-            <div style={{fontSize: '0.9rem', color: 'var(--accent-success)', marginBottom: '1.5rem', fontWeight: 'bold', background: 'rgba(16,185,129,0.1)', padding: '6px 16px', borderRadius: '100px', display: 'inline-block', position: 'relative', zIndex: 1}}> Reward: +{sessionType.includes('pomodoro') ? (sessionType === 'pomodoro50' ? '100' : '50') : '10'} XP </div>
-            
-            <div className="timer-controls" style={{position: 'relative', zIndex: 1}}>
-              <button className="btn-primary" onClick={startTimer} style={{padding: '12px 32px', fontSize: '1.1rem', borderRadius: '100px', boxShadow: isActive ? '0 0 20px rgba(139,92,246,0.5)' : 'none'}}>
-                {isActive ? <Pause size={20} /> : <Play size={20} />}
-                {isActive ? 'Pause' : 'Start Grind'}
+        {/* View 3: Week Flow */}
+        {dashboardTab === 'week' && (
+          <div className="glass" style={{padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem'}}>
+              <div>
+                <h3 style={{fontSize: '1.15rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px', color: 'white', margin: 0}}>
+                  <Calendar size={18} color="var(--accent-chem)"/> Weekly Schedule Overview
+                </h3>
+                <p style={{fontSize: '0.82rem', color: 'var(--text-muted)', margin: '4px 0 0'}}>Stay consistent every day of the week.</p>
+              </div>
+              <button onClick={() => handleTabChange('planner')} className="btn-primary" style={{padding: '6px 14px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 'bold'}}>
+                Open Full Planner →
               </button>
-              <button className="btn-icon" onClick={() => setTimer(sessionType)} style={{padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%'}}><RotateCcw size={20} /></button>
             </div>
-          </div>
 
-          {/* Weekly Mini Planner Preview */}
-          <div className="glass" style={{padding:'1.5rem'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem'}}>
-              <h3 style={{fontSize:'1rem', fontWeight:800, display:'flex', alignItems:'center', gap:'6px'}}><Calendar size={16} color="var(--accent-chem)"/> This Week</h3>
-              <button onClick={() => handleTabChange('planner')} style={{fontSize:'0.75rem', color:'var(--accent-physics)', background:'transparent', border:'none', cursor:'pointer', fontWeight:600}}>View All →</button>
-            </div>
-            <div style={{display:'flex', gap:'6px', justifyContent:'space-between'}}>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '8px'}}>
               {days.map(d => {
                 const tasks = plannerTasks[d] || [];
                 const done = tasks.filter(t => t.done).length;
                 const isToday = d === todayStr;
                 return (
-                  <div key={d} style={{flex:1, textAlign:'center'}}>
-                    <div style={{fontSize:'0.7rem', color: isToday ? 'var(--accent-physics)' : 'var(--text-muted)', fontWeight: isToday ? 800 : 500, marginBottom:'4px'}}>{d}</div>
-                    <div style={{height:'36px', borderRadius:'8px', background: isToday ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.04)', border: isToday ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.06)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px'}}>
-                      {tasks.length > 0 ? (
-                        <>
-                          <div style={{fontSize:'0.7rem', fontWeight:700, color: done === tasks.length ? 'var(--accent-success)' : 'white'}}>{done}/{tasks.length}</div>
-                          <div style={{width:'80%', height:'3px', background:'rgba(255,255,255,0.1)', borderRadius:'2px'}}>
-                            <div style={{height:'100%', width:`${tasks.length ? (done/tasks.length)*100 : 0}%`, background:'var(--accent-success)', borderRadius:'2px'}}></div>
-                          </div>
-                        </>
-                      ) : <div style={{fontSize:'0.65rem', color:'rgba(255,255,255,0.2)'}}>–</div>}
+                  <div key={d} style={{padding: '12px 8px', borderRadius: '14px', textAlign: 'center', background: isToday ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.02)', border: isToday ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.05)'}}>
+                    <div style={{fontSize: '0.78rem', color: isToday ? 'var(--accent-physics)' : 'var(--text-muted)', fontWeight: isToday ? 900 : 700, marginBottom: '6px'}}>{d}</div>
+                    <div style={{fontSize: '1rem', fontWeight: 900, color: done === tasks.length && tasks.length > 0 ? 'var(--accent-success)' : 'white'}}>
+                      {tasks.length > 0 ? `${done}/${tasks.length}` : '–'}
+                    </div>
+                    <div style={{fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '4px'}}>
+                      {isToday ? 'Today' : (tasks.length > 0 ? 'Blocks' : 'Rest')}
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-
-          {/* Streak card */}
-          <div className="glass" style={{padding:'1.5rem', background:'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(251,146,60,0.05))', borderColor:'rgba(239,68,68,0.15)'}}>
-            <h3 style={{fontSize:'0.95rem', fontWeight:800, display:'flex', alignItems:'center', gap:'8px', marginBottom:'0.75rem'}}>
-              🔥 Study Streak
-            </h3>
-            <div style={{display:'flex', gap:'6px', marginBottom:'10px'}}>
-              {[...Array(7)].map((_,i) => (
-                <div key={i} style={{flex:1, height:'28px', borderRadius:'6px', background: i < (studyStreak % 7 || (studyStreak > 0 ? 7 : 0)) ? 'linear-gradient(135deg, #ef4444, #f97316)' : 'rgba(255,255,255,0.05)', boxShadow: i < (studyStreak % 7 || (studyStreak > 0 ? 7 : 0)) ? '0 4px 10px rgba(239,68,68,0.3)' : 'none', transition:'all 0.3s'}}></div>
-              ))}
-            </div>
-            <p style={{fontSize:'0.82rem', color:'var(--text-muted)'}}>
-              {studyStreak === 0 ? 'Start studying to build your streak!' : `${studyStreak} day${studyStreak > 1 ? 's' : ''} strong! Keep it up 💪`}
-            </p>
-          </div>
-        </aside>
+        )}
       </div>
     );
   };
 
-  const renderJournal = () => (
-    <div className="journal-layout animate-fade-in">
-      <div>
-        <div className="glass journal-card" style={{marginBottom: '2rem'}}>
-          <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem'}}>😌 How was your study mood today?</h3>
-          <div style={{display: 'flex', gap: '1rem', justifyContent: 'center'}}>
-            {['😭','😢','😐','🙂','🔥'].map(emoji => (
-               <button key={emoji} onClick={() => setTodayMood(emoji)} style={{fontSize: '2rem', padding: '10px', background: todayMood === emoji ? 'rgba(255,255,255,0.1)' : 'transparent', border: todayMood === emoji ? '2px solid var(--accent-success)' : '2px solid transparent', borderRadius: '50%', cursor: 'pointer', transition: 'all 0.2s', filter: todayMood === emoji ? 'drop-shadow(0 0 10px rgba(16,185,129,0.5))' : 'grayscale(0.5)'}}>{emoji}</button>
-            ))}
+  const renderJournal = () => {
+    return (
+      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '1000px', margin: '0 auto', width: '100%'}}>
+        
+        {/* Journal Navigation Switcher */}
+        <div className="journal-tabs-bar">
+          <button 
+            onClick={() => setJournalTab('reflect')} 
+            className="journal-tab-btn"
+            style={{background: journalTab === 'reflect' ? 'linear-gradient(135deg, var(--accent-physics), #c026d3)' : 'rgba(255,255,255,0.05)', color: 'white'}}
+          >
+            <BookHeart size={15}/> Daily Reflection
+          </button>
+          <button 
+            onClick={() => setJournalTab('mistakes')} 
+            className="journal-tab-btn"
+            style={{background: journalTab === 'mistakes' ? 'linear-gradient(135deg, #ef4444, #f97316)' : 'rgba(255,255,255,0.05)', color: 'white'}}
+          >
+            <Target size={15}/> Mistake Log & Fixes ({mistakesList.length})
+          </button>
+          <button 
+            onClick={() => setJournalTab('history')} 
+            className="journal-tab-btn"
+            style={{background: journalTab === 'history' ? 'linear-gradient(135deg, var(--accent-math), #2563eb)' : 'rgba(255,255,255,0.05)', color: 'white'}}
+          >
+            <Clock size={15}/> Past Logs ({journalHistory.length})
+          </button>
+        </div>
+
+        {/* Tab 1: Daily Reflection */}
+        {journalTab === 'reflect' && (
+          <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <div className="glass" style={{padding: '1.5rem', borderRadius: '22px', border: '1px solid rgba(255,255,255,0.08)'}}>
+              <h3 style={{fontSize: '1.05rem', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem'}}>
+                😌 How was your study energy today?
+              </h3>
+              <div style={{display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap'}}>
+                {['😭','😢','😐','🙂','🔥'].map(emoji => (
+                  <button 
+                    key={emoji} 
+                    onClick={() => setTodayMood(emoji)} 
+                    style={{
+                      fontSize: '2rem', padding: '10px 14px', background: todayMood === emoji ? 'rgba(255,255,255,0.12)' : 'transparent',
+                      border: todayMood === emoji ? '2px solid var(--accent-success)' : '2px solid transparent',
+                      borderRadius: '50%', cursor: 'pointer', transition: 'all 0.2s',
+                      filter: todayMood === emoji ? 'drop-shadow(0 0 10px rgba(16,185,129,0.5))' : 'grayscale(0.4)'
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="glass" style={{padding: '1.5rem', borderRadius: '22px', border: '1px solid rgba(255,255,255,0.08)'}}>
+              <h3 style={{fontSize: '1.05rem', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px'}}>
+                <BookHeart size={18} color="var(--accent-chem)" /> What Core Concepts Did You Conquer Today?
+              </h3>
+              <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '10px'}}>Summarizing forces active recall and moves concepts to long-term memory.</p>
+              <textarea 
+                className="input-field" 
+                rows={4}
+                placeholder="e.g. Mastered conservation of angular momentum about pivot. Solved 15 tricky center of mass problems..." 
+                value={learnedText} 
+                onChange={(e) => setLearnedText(e.target.value)}
+                style={{width: '100%', padding: '12px', borderRadius: '14px', fontSize: '0.92rem', resize: 'vertical'}}
+              />
+            </div>
+
+            <div className="glass" style={{padding: '1.5rem', borderRadius: '22px', border: '1px solid rgba(255,255,255,0.08)'}}>
+              <h3 style={{fontSize: '1.05rem', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px'}}>
+                <Target size={18} color="var(--accent-math)" /> Quick Mistakes & Weak Spots
+              </h3>
+              <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '10px'}}>Silly calculation slips or conceptual confusion to avoid repeating tomorrow.</p>
+              <textarea 
+                className="input-field" 
+                rows={3}
+                placeholder="e.g. Made sign error in work done by non-conservative forces. Need to review chapter 6 notes." 
+                value={mistakesText} 
+                onChange={(e) => setMistakesText(e.target.value)}
+                style={{width: '100%', padding: '12px', borderRadius: '14px', fontSize: '0.92rem', resize: 'vertical'}}
+              />
+            </div>
+
+            <button 
+              className="btn-primary" 
+              style={{padding: '12px 24px', borderRadius: '100px', fontSize: '0.95rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} 
+              onClick={saveJournalEntry}
+              disabled={!learnedText.trim() && !mistakesText.trim()}
+            >
+              <Save size={16}/> Save Daily Log (+15 XP)
+            </button>
           </div>
-        </div>
-        <div className="glass journal-card">
-          <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px'}}><BookHeart size={20} color="var(--accent-chem)" /> What I Learned Today</h3>
-          <textarea className="journal-textarea" placeholder="Summarize the core concepts you grasped today..." value={learnedText} onChange={(e) => setLearnedText(e.target.value)}></textarea>
-        </div>
-        <div className="glass journal-card" style={{marginTop: '2rem'}}>
-          <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px'}}><Target size={20} color="var(--accent-math)" /> Mistakes & Weaknesses</h3>
-          <textarea className="journal-textarea" placeholder="Jot down silly errors or weak spots from today's mocks/practice..." value={mistakesText} onChange={(e) => setMistakesText(e.target.value)}></textarea>
-        </div>
-        <button className="btn-primary" style={{marginTop: '1.5rem', width: '100%'}} onClick={saveJournalEntry}>Save Daily Log (+15 XP)</button>
-      </div>
-      <div>
-        <h2 style={{fontSize: '1.5rem', marginBottom: '1rem'}}>Past Logs</h2>
-        {journalHistory.map((log, i) => (
-          <div key={i} className="glass history-card">
-            <div className="history-entry">
-              <div className="history-date">{log.date}</div>
-              <div className="history-text" style={{whiteSpace: 'pre-line'}}>{log.text}</div>
+        )}
+
+        {/* Tab 2: Mistake Notebook & Fixes */}
+        {journalTab === 'mistakes' && (
+          <div style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
+            {/* Add Mistake Form */}
+            <div className="glass" style={{padding: '1.5rem', borderRadius: '22px', border: '1px solid rgba(239, 68, 68, 0.25)', background: 'linear-gradient(135deg, rgba(239,68,68,0.06), rgba(15,23,42,0.8))'}}>
+              <h3 style={{fontSize: '1.1rem', fontWeight: 800, color: '#f87171', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 12px'}}>
+                <AlertCircle size={18}/> Log a Problem Mistake & Key Takeaway
+              </h3>
+              
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (!newMistakeProblem.trim()) return;
+                const newM = {
+                  id: `m_${Date.now()}`,
+                  date: 'Today',
+                  subject: newMistakeSubject,
+                  category: newMistakeCategory,
+                  problem: newMistakeProblem.trim(),
+                  fix: newMistakeFix.trim() || 'Review fundamental theory and solve 3 similar practice problems.',
+                  resolved: false
+                };
+                setMistakesList(prev => [newM, ...prev]);
+                setNewMistakeProblem('');
+                setNewMistakeFix('');
+                awardXP(10, 'Logged Mistake');
+              }}>
+                <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px'}}>
+                  <select className="input-field" value={newMistakeSubject} onChange={e => setNewMistakeSubject(e.target.value)} style={{flex: '0 0 auto', minWidth: '120px', borderRadius: '10px'}}>
+                    {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'General'].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select className="input-field" value={newMistakeCategory} onChange={e => setNewMistakeCategory(e.target.value)} style={{flex: '0 0 auto', minWidth: '160px', borderRadius: '10px'}}>
+                    {['Silly Error 🤦‍♂️', 'Formula Slip 📐', 'Concept Gap 🧠', 'Time Pressure ⏱️'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div style={{marginBottom: '8px'}}>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="What question / concept went wrong? (e.g. Mixed up parallel & series resonance)" 
+                    value={newMistakeProblem} 
+                    onChange={e => setNewMistakeProblem(e.target.value)} 
+                    style={{width: '100%', padding: '10px 14px', borderRadius: '12px', fontSize: '0.9rem'}} 
+                  />
+                </div>
+
+                <div style={{marginBottom: '12px'}}>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="Key Takeaway / Trick to fix it: (e.g. In parallel circuit, impedance is maximum at resonance)" 
+                    value={newMistakeFix} 
+                    onChange={e => setNewMistakeFix(e.target.value)} 
+                    style={{width: '100%', padding: '10px 14px', borderRadius: '12px', fontSize: '0.9rem'}} 
+                  />
+                </div>
+
+                <button type="submit" className="btn-primary" style={{padding: '8px 20px', borderRadius: '100px', fontSize: '0.85rem', fontWeight: 'bold'}} disabled={!newMistakeProblem.trim()}>
+                  + Save to Mistake Notebook (+10 XP)
+                </button>
+              </form>
+            </div>
+
+            {/* Mistake Bank List */}
+            <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <h4 style={{fontSize: '0.95rem', fontWeight: 800, color: 'white', margin: 0}}>
+                  Mistakes Review Bank ({mistakesList.length})
+                </h4>
+                <span style={{fontSize: '0.75rem', color: 'var(--accent-success)', fontWeight: 'bold'}}>
+                  {mistakesList.filter(m => m.resolved).length} Mastered
+                </span>
+              </div>
+
+              {mistakesList.length === 0 ? (
+                <div className="glass" style={{padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)', borderRadius: '20px'}}>
+                  <p>No mistakes logged yet! Log errors from your mocks or PYQs to track your learning.</p>
+                </div>
+              ) : (
+                mistakesList.map(m => (
+                  <div key={m.id} className="mistake-card" style={{borderLeft: m.resolved ? '4px solid var(--accent-success)' : '4px solid #ef4444'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px'}}>
+                      <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
+                        <span style={{fontSize: '0.72rem', background: 'rgba(255,255,255,0.08)', color: 'white', padding: '2px 8px', borderRadius: '100px', fontWeight: 'bold'}}>
+                          {m.subject}
+                        </span>
+                        <span style={{fontSize: '0.72rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', padding: '2px 8px', borderRadius: '100px', fontWeight: 'bold'}}>
+                          {m.category}
+                        </span>
+                      </div>
+                      <span style={{fontSize: '0.7rem', color: 'var(--text-muted)'}}>{m.date}</span>
+                    </div>
+
+                    <div style={{fontSize: '0.92rem', fontWeight: 700, color: 'white', marginTop: '2px'}}>
+                      {m.problem}
+                    </div>
+
+                    <div style={{fontSize: '0.82rem', color: '#93c5fd', background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '8px', borderLeft: '2px solid #3b82f6'}}>
+                      💡 <span style={{fontWeight: 600}}>Key Takeaway:</span> {m.fix}
+                    </div>
+
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px'}}>
+                      <button 
+                        onClick={() => {
+                          setMistakesList(prev => prev.map(x => x.id === m.id ? { ...x, resolved: !x.resolved } : x));
+                        }}
+                        style={{background: 'transparent', border: 'none', color: m.resolved ? 'var(--accent-success)' : 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'}}
+                      >
+                        <Check size={14}/> {m.resolved ? 'Mastered (Click to review)' : 'Mark as Mastered'}
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setMistakesList(prev => prev.filter(x => x.id !== m.id));
+                        }}
+                        style={{background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', cursor: 'pointer'}}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-        ))}
+        )}
+
+        {/* Tab 3: Past History */}
+        {journalTab === 'history' && (
+          <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+            <h4 style={{fontSize: '1rem', fontWeight: 800, color: 'white', margin: 0}}>
+              Past Reflections ({journalHistory.length})
+            </h4>
+            {journalHistory.map((log, i) => (
+              <div key={i} className="glass" style={{padding: '1.25rem', borderRadius: '18px', border: '1px solid rgba(255,255,255,0.06)'}}>
+                <div style={{fontSize: '0.8rem', color: 'var(--accent-physics)', fontWeight: 'bold', marginBottom: '6px'}}>
+                  {log.date}
+                </div>
+                <div style={{fontSize: '0.9rem', color: '#cbd5e1', lineHeight: 1.5, whiteSpace: 'pre-line'}}>
+                  {log.text}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderPlanner = () => {
     const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     const todayStr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()];
     const subjectColors = { Physics:'#8b5cf6', Chemistry:'#ec4899', Mathematics:'#3b82f6', Biology:'#10b981', History:'#f59e0b', Polity:'#06b6d4', Geography:'#8b5cf6', Economy:'#ef4444' };
 
-    return (
-      <div className="animate-fade-in" style={{display:'flex', flexDirection:'column', gap:'2.5rem', maxWidth:'1200px', margin: '0 auto', width: '100%'}}>
-        {/* Header */}
-        <div className="glass" style={{padding:'2.5rem', background:'linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(236,72,153,0.05) 100%)', borderColor:'rgba(139,92,246,0.3)', borderRadius: '24px', position: 'relative', overflow: 'hidden'}}>
-          <div style={{position: 'absolute', top: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-physics)', filter: 'blur(80px)', opacity: 0.4}}></div>
-          <h2 style={{fontSize:'2.2rem', fontWeight:900, marginBottom:'0.75rem', display:'flex', alignItems:'center', gap:'16px', letterSpacing: '-0.5px'}}><Calendar size={36} color="var(--accent-physics)"/> Weekly Masterplan</h2>
-          <p style={{color:'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px'}}>Architect your week. Assign focus blocks, crush your targets, and visualize your victory.</p>
-        </div>
+    const totalScheduled = days.reduce((s,d) => s + (plannerTasks[d]?.length || 0), 0);
+    const totalDone = days.reduce((s,d) => s + (plannerTasks[d]?.filter(t=>t.done).length || 0), 0);
+    const activeDayBlocks = selectedPlannerDay === 'all' ? days : [selectedPlannerDay];
 
-        {/* Add Task Form - Modernized */}
-        <div className="glass" style={{padding:'1.5rem 2rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15, 23, 42, 0.6)'}}>
-          <h3 style={{fontSize:'1.1rem', fontWeight:800, marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:'8px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--accent-success)'}}><Sparkles size={18}/> Schedule a Study Block</h3>
-          <div style={{display:'flex', gap:'12px', flexWrap:'wrap', alignItems: 'center'}}>
-            <select className="input-field" value={plannerDay} onChange={e => setPlannerDay(e.target.value)} style={{flex:'0 0 auto', minWidth:'100px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)'}}>
-              {days.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <input type="time" className="input-field" value={plannerTime} onChange={e => setPlannerTime(e.target.value)} style={{flex:'0 0 auto', width:'130px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)'}} />
-            <select className="input-field" value={plannerSubject} onChange={e => setPlannerSubject(e.target.value)} style={{flex:'0 0 auto', minWidth:'150px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)'}}>
-              <option value="">Subject...</option>
-              {subjects.map(s => <option key={s.id} value={s.title}>{s.title}</option>)}
-            </select>
-            <input className="input-field" placeholder="What will you conquer? E.g. HC Verma Ch.12" value={plannerInput} onChange={e => setPlannerInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPlannerTask()} style={{flex:'1 1 250px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)'}} />
-            <button className="btn-primary" onClick={addPlannerTask} style={{flex:'0 0 auto', whiteSpace:'nowrap', borderRadius: '12px', padding: '0 24px', height: '46px', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)'}}><Plus size={18}/> Add Block</button>
+    return (
+      <div className="animate-fade-in" style={{display:'flex', flexDirection:'column', gap:'1.5rem', maxWidth:'1100px', margin: '0 auto', width: '100%'}}>
+        
+        {/* Header & Stats Banner */}
+        <div className="glass" style={{padding:'1.75rem', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(15,23,42,0.8) 100%)', border: '1px solid rgba(139,92,246,0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem'}}>
+          <div>
+            <h2 style={{fontSize:'clamp(1.3rem, 3vw, 1.8rem)', fontWeight:900, color: 'white', display:'flex', alignItems:'center', gap:'10px', margin: '0 0 6px'}}>
+              <Calendar size={24} color="var(--accent-physics)"/> Weekly Study Masterplan
+            </h2>
+            <p style={{color:'var(--text-muted)', fontSize: '0.9rem', margin: 0}}>Schedule study blocks, hit daily targets, and stay ahead.</p>
+          </div>
+          <div style={{display: 'flex', gap: '8px'}}>
+            <div style={{background: 'rgba(0,0,0,0.3)', padding: '8px 14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center'}}>
+              <div style={{fontSize: '1.2rem', fontWeight: 900, color: 'var(--accent-success)'}}>{totalDone}/{totalScheduled}</div>
+              <div style={{fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600}}>Blocks Done</div>
+            </div>
           </div>
         </div>
 
-        {/* Weekly Grid - Ultra Premium */}
-        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:'1.5rem'}}>
-          {days.map(day => {
+        {/* Mobile & Desktop Day Strip Selector */}
+        <div className="planner-day-strip">
+          {days.map(d => {
+            const isToday = d === todayStr;
+            const isSelected = selectedPlannerDay === d;
+            const tasksCount = (plannerTasks[d] || []).length;
+            const doneCount = (plannerTasks[d] || []).filter(t => t.done).length;
+            return (
+              <div 
+                key={d} 
+                onClick={() => setSelectedPlannerDay(d)}
+                className={`planner-day-pill ${isSelected ? 'active' : ''}`}
+              >
+                <div style={{fontSize: '0.85rem', fontWeight: 800}}>{d}</div>
+                <div style={{fontSize: '0.65rem', marginTop: '2px', opacity: 0.85}}>
+                  {isToday ? 'Today' : (tasksCount > 0 ? `${doneCount}/${tasksCount}` : '–')}
+                </div>
+              </div>
+            );
+          })}
+          <div 
+            onClick={() => setSelectedPlannerDay('all')}
+            className={`planner-day-pill ${selectedPlannerDay === 'all' ? 'active' : ''}`}
+          >
+            <div style={{fontSize: '0.85rem', fontWeight: 800}}>All Days</div>
+            <div style={{fontSize: '0.65rem', marginTop: '2px', opacity: 0.85}}>Overview</div>
+          </div>
+        </div>
+
+        {/* Add Study Block Form - Mobile-Friendly */}
+        <div className="glass" style={{padding:'1.25rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)'}}>
+          <h3 style={{fontSize:'0.95rem', fontWeight:800, marginBottom:'12px', display:'flex', alignItems:'center', gap:'6px', color: 'var(--accent-success)'}}>
+            <Sparkles size={16}/> Schedule a Study Block
+          </h3>
+          <div style={{display:'flex', gap:'8px', flexWrap:'wrap', alignItems: 'center'}}>
+            <select className="input-field" value={plannerDay} onChange={e => setPlannerDay(e.target.value)} style={{flex:'0 0 auto', minWidth:'90px', borderRadius: '10px'}}>
+              {days.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <input type="time" className="input-field" value={plannerTime} onChange={e => setPlannerTime(e.target.value)} style={{flex:'0 0 auto', width:'120px', borderRadius: '10px'}} />
+            <select className="input-field" value={plannerSubject} onChange={e => setPlannerSubject(e.target.value)} style={{flex:'0 0 auto', minWidth:'130px', borderRadius: '10px'}}>
+              <option value="">Subject...</option>
+              {subjects.map(s => <option key={s.id} value={s.title}>{s.title}</option>)}
+            </select>
+            <input className="input-field" placeholder="What will you conquer? (e.g. HC Verma Ch.12)" value={plannerInput} onChange={e => setPlannerInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPlannerTask()} style={{flex:'1 1 200px', borderRadius: '10px'}} />
+            <button className="btn-primary" onClick={addPlannerTask} style={{flex:'0 0 auto', borderRadius: '10px', padding: '10px 20px', fontWeight: 'bold'}} disabled={!plannerInput.trim()}>
+              <Plus size={16}/> Add Block
+            </button>
+          </div>
+        </div>
+
+        {/* Days Display Grid */}
+        <div style={{display:'grid', gridTemplateColumns:`repeat(auto-fit, minmax(${selectedPlannerDay === 'all' ? '280px' : '100%'}, 1fr))`, gap:'1rem'}}>
+          {activeDayBlocks.map(day => {
             const tasks = plannerTasks[day] || [];
             const done = tasks.filter(t => t.done).length;
             const isToday = day === todayStr;
             const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+
             return (
-              <div key={day} className="glass planner-day-card" style={{padding:'1.5rem', borderRadius: '24px', borderColor: isToday ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.05)', background: isToday ? 'linear-gradient(180deg, rgba(139,92,246,0.1) 0%, rgba(15,23,42,0.8) 100%)' : 'rgba(15, 23, 42, 0.4)', minHeight:'220px', display: 'flex', flexDirection: 'column', transition: 'all 0.3s', boxShadow: isToday ? '0 10px 30px rgba(139,92,246,0.15)' : 'none', position: 'relative', overflow: 'hidden'}}>
-                {isToday && <div style={{position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #8b5cf6, #ec4899)'}}></div>}
-                
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'1.25rem'}}>
-                  <div>
-                    <div style={{fontSize:'1.4rem', fontWeight:900, color: isToday ? 'white' : 'var(--text-muted)', letterSpacing: '1px'}}>{day}</div>
-                    {isToday && <div style={{fontSize:'0.75rem', color:'var(--accent-physics)', fontWeight:800, textTransform: 'uppercase', letterSpacing: '2px', marginTop: '4px'}}>Today</div>}
+              <div key={day} className="glass" style={{padding:'1.25rem', borderRadius: '22px', border: isToday ? '1px solid rgba(139,92,246,0.45)' : '1px solid rgba(255,255,255,0.06)', background: isToday ? 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(15,23,42,0.8) 100%)' : 'rgba(15, 23, 42, 0.5)'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <span style={{fontSize:'1.2rem', fontWeight:900, color: 'white'}}>{day}</span>
+                    {isToday && <span style={{fontSize:'0.68rem', color:'var(--accent-physics)', background: 'rgba(139,92,246,0.2)', padding: '2px 8px', borderRadius: '100px', fontWeight: 800}}>TODAY</span>}
                   </div>
                   {tasks.length > 0 && (
-                     <div style={{background: done === tasks.length ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '100px', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                        <span style={{fontSize:'0.85rem', color: done === tasks.length ? 'var(--accent-success)' : 'white', fontWeight:800}}>{done}/{tasks.length}</span>
-                     </div>
+                    <span style={{fontSize:'0.8rem', color: done === tasks.length ? 'var(--accent-success)' : 'white', fontWeight: 800}}>
+                      {done}/{tasks.length} Done ({pct}%)
+                    </span>
                   )}
                 </div>
 
-                {tasks.length > 0 && (
-                   <div style={{width: '100%', height: '4px', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', marginBottom: '1.5rem', overflow: 'hidden'}}>
-                      <div style={{height: '100%', width: `${pct}%`, background: pct === 100 ? 'var(--accent-success)' : 'var(--accent-physics)', transition: 'width 0.5s ease'}}></div>
-                   </div>
-                )}
-
                 {tasks.length === 0 ? (
-                  <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifySelf: 'center', marginTop: '2rem', color:'rgba(255,255,255,0.15)', gap: '10px'}}>
-                     <Calendar size={32} opacity={0.5}/>
-                     <span style={{fontSize:'0.9rem', fontWeight: 600}}>Rest Day</span>
+                  <div style={{padding: '2rem 1rem', textAlign: 'center', color: 'rgba(255,255,255,0.25)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
+                    <Calendar size={28} opacity={0.4}/>
+                    <span style={{fontSize:'0.85rem'}}>No blocks scheduled for {day}. Enjoy rest or add a target!</span>
                   </div>
                 ) : (
-                  <div style={{display:'flex', flexDirection:'column', gap:'12px', flex: 1}}>
+                  <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
                     {tasks.map(task => (
-                      <div key={task.id} className="planner-task-item" style={{display:'flex', gap:'12px', alignItems:'flex-start', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.03)', transition: 'all 0.2s', opacity: task.done ? 0.6 : 1}}>
-                        <button onClick={() => togglePlannerTask(day, task.id)} style={{marginTop:'2px', width:'20px', height:'20px', minWidth:'20px', borderRadius:'6px', border:`2px solid ${task.done ? 'var(--accent-success)' : 'rgba(255,255,255,0.2)'}`, background: task.done ? 'var(--accent-success)' : 'rgba(0,0,0,0.3)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition: 'all 0.2s'}}>
-                          {task.done && <Check size={14} color="white" strokeWidth={3}/>}
+                      <div key={task.id} style={{display:'flex', gap:'10px', alignItems:'center', background: 'rgba(0,0,0,0.25)', padding: '10px 12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)'}}>
+                        <button onClick={() => togglePlannerTask(day, task.id)} style={{width:'20px', height:'20px', minWidth:'20px', borderRadius:'6px', border:`2px solid ${task.done ? 'var(--accent-success)' : 'rgba(255,255,255,0.2)'}`, background: task.done ? 'var(--accent-success)' : 'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                          {task.done && <Check size={13} color="white" strokeWidth={3}/>}
                         </button>
-                        <div style={{flex:1, minWidth:0}}>
-                          <div style={{display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap'}}>
-                             {task.time && <div style={{fontSize:'0.7rem', color:'white', fontWeight:700, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px'}}><Clock size={10}/> {task.time}</div>}
-                             {task.subject && <div style={{fontSize:'0.7rem', padding:'2px 8px', borderRadius:'100px', background:`${subjectColors[task.subject] || '#8b5cf6'}22`, color:subjectColors[task.subject] || 'var(--accent-physics)', fontWeight:800}}>{task.subject}</div>}
+                        <div style={{flex: 1, minWidth: 0}}>
+                          <div style={{display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '2px', flexWrap: 'wrap'}}>
+                            {task.time && <span style={{fontSize:'0.68rem', color:'white', background: 'rgba(255,255,255,0.1)', padding: '1px 5px', borderRadius: '4px'}}>{task.time}</span>}
+                            {task.subject && <span style={{fontSize:'0.68rem', padding:'1px 6px', borderRadius: '100px', background:`${subjectColors[task.subject] || '#8b5cf6'}22`, color: subjectColors[task.subject] || 'var(--accent-physics)', fontWeight: 800}}>{task.subject}</span>}
                           </div>
-                          <div style={{fontSize:'0.9rem', lineHeight:1.4, textDecoration: task.done ? 'line-through' : 'none', color: task.done ? 'var(--text-muted)' : 'white', wordBreak:'break-word', fontWeight: 500}}>{task.text}</div>
+                          <div style={{fontSize:'0.88rem', textDecoration: task.done ? 'line-through' : 'none', color: task.done ? 'var(--text-muted)' : 'white', wordBreak: 'break-word'}}>
+                            {task.text}
+                          </div>
                         </div>
-                        <button onClick={() => deletePlannerTask(day, task.id)} className="planner-task-delete" style={{background:'rgba(239, 68, 68, 0.1)', border:'none', color:'#ef4444', cursor:'pointer', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s'}}><Trash2 size={14}/></button>
+                        <button onClick={() => deletePlannerTask(day, task.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px'}} title="Delete">
+                          <Trash2 size={13}/>
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -2177,34 +2716,11 @@ const App = () => {
           })}
         </div>
 
-        {/* Weekly Stats */}
-        <div className="glass" style={{padding:'2rem', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(15,23,42,0.8), rgba(0,0,0,0.6))', border: '1px solid rgba(255,255,255,0.05)'}}>
-          <h3 style={{fontSize:'1.2rem', fontWeight:900, marginBottom:'1.5rem', display:'flex', alignItems:'center', gap:'10px', textTransform: 'uppercase', letterSpacing: '1px'}}><Target size={20} color="var(--accent-chem)"/> Performance Analytics</h3>
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:'1.5rem'}}>
-            {[
-              { label:'Total Blocks', val: days.reduce((s,d) => s + (plannerTasks[d]?.length || 0), 0), color:'var(--accent-physics)' },
-              { label:'Completed', val: days.reduce((s,d) => s + (plannerTasks[d]?.filter(t=>t.done).length || 0), 0), color:'var(--accent-success)' },
-              { label:'Remaining', val: days.reduce((s,d) => s + (plannerTasks[d]?.filter(t=>!t.done).length || 0), 0), color:'#f59e0b' },
-              { label:'Active Days', val: days.filter(d => (plannerTasks[d]?.length || 0) > 0).length, color:'var(--accent-math)' },
-            ].map((stat, i) => (
-              <div key={stat.label} style={{display: 'flex', alignItems: 'center', gap: '1rem', padding:'1.5rem', background:'rgba(255,255,255,0.02)', borderRadius:'16px', border:'1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden'}}>
-                <div style={{width: '50px', height: '50px', borderRadius: '14px', background: `${stat.color}22`, color: stat.color, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                   <span style={{fontSize: '1.5rem', fontWeight: 900}}>{stat.val}</span>
-                </div>
-                <div>
-                  <div style={{fontSize:'0.85rem', color:'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'}}>{stat.label}</div>
-                  <div style={{fontSize:'1.5rem', fontWeight:900, color:'white', marginTop: '4px'}}>{stat.val}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     );
   };
 
-
-﻿  const renderCommunity = () => {
+  const renderCommunity = () => {
     const getProfileData = (username) => {
       if (usersDb[username]) return usersDb[username].profile;
       const post = feed.find(f => f.user === username);
@@ -2303,7 +2819,9 @@ const App = () => {
       if (!chatInput.trim()) return;
       
       let finalMsg = chatInput;
+      const currentReply = replyingTo;
       setChatInput(""); // Clear immediately for snappy UX
+      setReplyingTo(null);
 
       if (activeChat !== "global") {
         const targetUser = activeChat.split(":")[1];
@@ -2316,7 +2834,7 @@ const App = () => {
       }
       
       trackPostCreated();
-      const id = await gunPostMessage(finalMsg);
+      const id = await gunPostMessage(finalMsg, currentReply);
       if (id) {
         awardXP(2, 'Community Post');
       }
@@ -2372,7 +2890,269 @@ const App = () => {
     };
 
     return (
-      <div className="community-wrapper animate-fade-in" style={{maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", height: "calc(100vh - 100px)", gap: "1rem"}}>
+      <div className="community-wrapper animate-fade-in" style={{height: "100%", width: "100%", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", gap: "6px", boxSizing: "border-box"}}>
+
+        {/* Community Moderation Modal */}
+        {showModerationModal && (() => {
+          const allMemberNames = Array.from(new Set([
+            ...Object.keys(firebaseUsers || {}),
+            ...feed.map(f => f.user),
+            ...Object.keys(usersDb || {})
+          ])).filter(u => u && !u.startsWith('Guest_'));
+
+          const filteredList = allMemberNames.filter(u => {
+            if (modFilterTab === 'banned') return (bannedUsers || []).includes(u);
+            return true;
+          }).filter(u => !modSearch.trim() || u.toLowerCase().includes(modSearch.toLowerCase()));
+
+          return (
+            <div style={{position:"fixed", inset:0, zIndex:600, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.85)", backdropFilter:"blur(12px)", padding:"1rem"}} onClick={() => setShowModerationModal(false)}>
+              <div className="glass" style={{maxWidth:"740px", width:"100%", maxHeight:"88vh", display:"flex", flexDirection:"column", borderRadius:"24px", padding:"1.5rem", border:"1px solid rgba(255,255,255,0.12)", background:"#0f172a", position:"relative"}} onClick={e => e.stopPropagation()}>
+                
+                {/* Header */}
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"1rem", borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"10px"}}>
+                  <div>
+                    <h2 style={{fontSize:"1.2rem", fontWeight:800, color:"white", display:"flex", alignItems:"center", gap:"8px", margin:0}}>
+                      <Shield color="#f87171" size={20}/> Community Moderation
+                    </h2>
+                    <p style={{color:"var(--text-muted)", fontSize:"0.82rem", marginTop:"3px", marginBottom:0}}>
+                      Manage unwanted users, purge spam posts, or clean ghost accounts.
+                    </p>
+                  </div>
+                  <button onClick={() => setShowModerationModal(false)} style={{background:"transparent", border:"none", color:"var(--text-muted)", cursor:"pointer", padding:"4px"}}><X size={18}/></button>
+                </div>
+
+                {/* Quick Actions Bar */}
+                <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))", gap:"10px", marginBottom:"1rem"}}>
+                  <div style={{background:"rgba(255,255,255,0.03)", padding:"10px 12px", borderRadius:"14px", border:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"8px"}}>
+                    <div>
+                      <div style={{fontWeight:"bold", fontSize:"0.82rem", color:"white"}}>🧹 Ghost Cleaner</div>
+                      <div style={{fontSize:"0.7rem", color:"var(--text-muted)"}}>Purge inactive temporary Guest accounts</div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const cleaned = await cleanupGuestUsers();
+                        alert(cleaned > 0 ? `Cleaned up ${cleaned} ghost accounts from Firebase database!` : 'Database is clean! No ghost accounts found.');
+                      }}
+                      style={{padding:"6px 12px", borderRadius:"10px", background:"rgba(59, 130, 246, 0.15)", border:"1px solid rgba(59, 130, 246, 0.3)", color:"#60a5fa", fontWeight:"bold", fontSize:"0.76rem", cursor:"pointer", whiteSpace:"nowrap"}}
+                    >
+                      Clean Database
+                    </button>
+                  </div>
+
+                  <form 
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const target = customBanInput.trim();
+                      if (!target) return;
+                      if (window.confirm(`Permanently BAN @${target} and delete all their posts?`)) {
+                        await banUser(target);
+                        setCustomBanInput('');
+                        alert(`@${target} is now banned.`);
+                      }
+                    }}
+                    style={{background:"rgba(255,255,255,0.03)", padding:"10px 12px", borderRadius:"14px", border:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", gap:"8px"}}
+                  >
+                    <input 
+                      type="text" 
+                      placeholder="Username to ban..." 
+                      value={customBanInput} 
+                      onChange={e => setCustomBanInput(e.target.value)} 
+                      style={{flex:1, minWidth:0, padding:"6px 10px", borderRadius:"8px", background:"rgba(0,0,0,0.3)", border:"1px solid rgba(255,255,255,0.1)", color:"white", fontSize:"0.8rem", outline:"none"}}
+                    />
+                    <button type="submit" style={{padding:"6px 12px", borderRadius:"10px", background:"rgba(239, 68, 68, 0.15)", border:"1px solid rgba(239, 68, 68, 0.3)", color:"#f87171", fontWeight:"bold", fontSize:"0.76rem", cursor:"pointer", whiteSpace:"nowrap"}} disabled={!customBanInput.trim()}>
+                      Ban & Purge
+                    </button>
+                  </form>
+                </div>
+
+                {/* Filter Tabs */}
+                <div style={{display:"flex", flexWrap:"wrap", alignItems:"center", justifyContent:"space-between", gap:"8px", marginBottom:"10px"}}>
+                  <div style={{display:"flex", gap:"6px"}}>
+                    <button onClick={() => setModFilterTab('all')} style={{padding:"5px 12px", borderRadius:"100px", fontSize:"0.8rem", fontWeight:"bold", border:"none", cursor:"pointer", background: modFilterTab === 'all' ? "var(--accent-physics)" : "rgba(255,255,255,0.06)", color:"white"}}>
+                      All Members ({allMemberNames.length})
+                    </button>
+                    <button onClick={() => setModFilterTab('banned')} style={{padding:"5px 12px", borderRadius:"100px", fontSize:"0.8rem", fontWeight:"bold", border:"none", cursor:"pointer", background: modFilterTab === 'banned' ? "#ef4444" : "rgba(255,255,255,0.06)", color:"white"}}>
+                      Banned ({(bannedUsers || []).length})
+                    </button>
+                  </div>
+                  
+                  <div style={{position:"relative", flex:1, maxWidth:"200px"}}>
+                    <input 
+                      type="text" 
+                      placeholder="Search member..." 
+                      value={modSearch} 
+                      onChange={e => setModSearch(e.target.value)} 
+                      style={{width:"100%", padding:"5px 10px 5px 28px", borderRadius:"100px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"white", fontSize:"0.8rem", outline:"none"}}
+                    />
+                    <Search size={13} style={{position:"absolute", left:"9px", top:"50%", transform:"translateY(-50%)", color:"var(--text-muted)"}}/>
+                  </div>
+                </div>
+
+                {/* Member Directory List */}
+                <div style={{flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:"6px", paddingRight:"4px"}}>
+                  {filteredList.length === 0 ? (
+                    <div style={{textAlign:"center", padding:"2rem 1rem", color:"var(--text-muted)", fontSize:"0.85rem"}}>
+                      No members found matching filter.
+                    </div>
+                  ) : (
+                    filteredList.map(username => {
+                      const isSelf = username === sessionUser;
+                      const isBanned = (bannedUsers || []).includes(username);
+                      const userPostsCount = feed.filter(f => f.user === username).length;
+
+                      return (
+                        <div 
+                          key={username} 
+                          style={{
+                            display:"flex", alignItems:"center", justifyContent:"space-between", gap:"10px",
+                            padding:"8px 12px", borderRadius:"12px", background:"rgba(255,255,255,0.02)",
+                            border: isBanned ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(255,255,255,0.05)"
+                          }}
+                        >
+                          <div style={{display:"flex", alignItems:"center", gap:"8px", minWidth:0}}>
+                            <div style={{width:"32px", height:"32px", borderRadius:"8px", background:getAvatarColor(username), display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"bold", color:"white", flexShrink:0, fontSize:"0.85rem"}}>
+                              {username.charAt(0).toUpperCase()}
+                            </div>
+                            <div style={{display:"flex", flexDirection:"column", minWidth:0}}>
+                              <div style={{display:"flex", alignItems:"center", gap:"6px"}}>
+                                <span style={{fontWeight:"bold", fontSize:"0.85rem", color:"white", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{username}</span>
+                                {isSelf && <span style={{fontSize:"0.62rem", background:"rgba(59, 130, 246, 0.2)", color:"#60a5fa", padding:"1px 5px", borderRadius:"4px", fontWeight:"bold"}}>You</span>}
+                                {isBanned && <span style={{fontSize:"0.62rem", background:"rgba(239, 68, 68, 0.2)", color:"#f87171", padding:"1px 5px", borderRadius:"4px", fontWeight:"bold"}}>Banned</span>}
+                              </div>
+                              <span style={{fontSize:"0.68rem", color:"var(--text-muted)"}}>
+                                {userPostsCount} message{userPostsCount !== 1 ? 's' : ''} in lounge
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{display:"flex", alignItems:"center", gap:"6px", flexShrink:0}}>
+                            {isBanned ? (
+                              <button
+                                onClick={async () => {
+                                  await unbanUser(username);
+                                  alert(`@${username} has been unbanned.`);
+                                }}
+                                style={{padding:"5px 10px", borderRadius:"8px", background:"rgba(16, 185, 129, 0.15)", border:"1px solid rgba(16, 185, 129, 0.3)", color:"#10b981", fontWeight:"bold", fontSize:"0.75rem", cursor:"pointer"}}
+                              >
+                                Unban
+                              </button>
+                            ) : !isSelf ? (
+                              <>
+                                <button
+                                  onClick={async () => {
+                                    if (window.confirm(`Remove @${username} from community users directory?`)) {
+                                      await removeUser(username);
+                                      alert(`@${username} removed.`);
+                                    }
+                                  }}
+                                  title="Remove from users list"
+                                  style={{padding:"5px 9px", borderRadius:"8px", background:"rgba(239, 68, 68, 0.1)", border:"1px solid rgba(239, 68, 68, 0.2)", color:"#ef4444", fontSize:"0.72rem", fontWeight:"600", cursor:"pointer", display:"flex", alignItems:"center", gap:"3px"}}
+                                >
+                                  <Trash2 size={11}/> Remove
+                                </button>
+
+                                <button
+                                  onClick={async () => {
+                                    if (window.confirm(`Permanently BAN @${username} and wipe all their posts?`)) {
+                                      await banUser(username);
+                                      alert(`@${username} has been banned and posts purged.`);
+                                    }
+                                  }}
+                                  title="Ban permanently and wipe all posts"
+                                  style={{padding:"5px 9px", borderRadius:"8px", background:"rgba(220, 38, 38, 0.2)", border:"1px solid rgba(220, 38, 38, 0.35)", color:"#f87171", fontSize:"0.72rem", fontWeight:"bold", cursor:"pointer", display:"flex", alignItems:"center", gap:"3px"}}
+                                >
+                                  <UserX size={11}/> Ban
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Study Doubt & Practice Question Modal */}
+        {showDoubtModal && (
+          <div style={{position: "fixed", inset: 0, zIndex: 650, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)", padding: "1rem"}} onClick={() => setShowDoubtModal(false)}>
+            <div className="glass" style={{maxWidth: "520px", width: "100%", borderRadius: "24px", padding: "1.75rem", border: "1px solid rgba(168, 85, 247, 0.3)", background: "#0f172a", position: "relative"}} onClick={e => e.stopPropagation()}>
+              <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "10px"}}>
+                <h3 style={{fontSize: "1.15rem", fontWeight: "800", color: "white", display: "flex", alignItems: "center", gap: "8px", margin: 0}}>
+                  <HelpCircle color="#c084fc" size={20}/> Ask Study Doubt / Quiz
+                </h3>
+                <button onClick={() => setShowDoubtModal(false)} style={{background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px"}}><X size={18}/></button>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!doubtQuestion.trim()) return;
+                const doubtPayload = `[DOUBT:${doubtSubject}${doubtHint.trim() ? `|HINT:${doubtHint.trim()}` : ''}] ${doubtQuestion.trim()}`;
+                setShowDoubtModal(false);
+                setDoubtQuestion('');
+                setDoubtHint('');
+                const id = await gunPostMessage(doubtPayload);
+                if (id) awardXP(5, 'Shared Doubt');
+              }}>
+                <div style={{marginBottom: "12px"}}>
+                  <label style={{fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: "600", display: "block", marginBottom: "6px"}}>Select Subject</label>
+                  <div style={{display: "flex", gap: "6px", flexWrap: "wrap"}}>
+                    {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'General'].map(sub => (
+                      <button
+                        key={sub}
+                        type="button"
+                        onClick={() => setDoubtSubject(sub)}
+                        style={{
+                          padding: "6px 14px", borderRadius: "100px", fontSize: "0.8rem", fontWeight: "bold", border: "none", cursor: "pointer",
+                          background: doubtSubject === sub ? "linear-gradient(135deg, #9333ea, #c026d3)" : "rgba(255,255,255,0.06)",
+                          color: "white", transition: "all 0.2s"
+                        }}
+                      >
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{marginBottom: "12px"}}>
+                  <label style={{fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: "600", display: "block", marginBottom: "6px"}}>Question / Doubt Statement</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Type your question, concept confusion, or formula doubt here..."
+                    value={doubtQuestion}
+                    onChange={e => setDoubtQuestion(e.target.value)}
+                    style={{width: "100%", padding: "12px", borderRadius: "14px", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: "0.92rem", resize: "none", outline: "none", boxSizing: "border-box"}}
+                    autoFocus
+                  />
+                </div>
+
+                <div style={{marginBottom: "18px"}}>
+                  <label style={{fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: "600", display: "block", marginBottom: "6px"}}>Optional Hint or Key Clue</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Hint: Conserve mechanical energy about hinge..."
+                    value={doubtHint}
+                    onChange={e => setDoubtHint(e.target.value)}
+                    style={{width: "100%", padding: "10px 14px", borderRadius: "12px", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: "0.85rem", outline: "none", boxSizing: "border-box"}}
+                  />
+                </div>
+
+                <div style={{display: "flex", justifyContent: "flex-end", gap: "8px"}}>
+                  <button type="button" onClick={() => setShowDoubtModal(false)} style={{padding: "8px 18px", borderRadius: "100px", background: "rgba(255,255,255,0.08)", border: "none", color: "white", cursor: "pointer", fontSize: "0.85rem", fontWeight: "600"}}>Cancel</button>
+                  <button type="submit" className="btn-primary" style={{padding: "8px 20px", borderRadius: "100px", fontSize: "0.85rem", fontWeight: "bold"}} disabled={!doubtQuestion.trim()}>
+                    🚀 Post Doubt (+5 XP)
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Profile Modal */}
         {viewingProfile && (() => {
           const prof = getProfileData(viewingProfile);
@@ -2391,105 +3171,277 @@ const App = () => {
           );
         })()}
 
-        {/* Top Navigation Tabs */}
-        <div className="community-tabs" style={{display: "flex", flexWrap: "wrap", gap: "0.75rem", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "10px", flexShrink: 0, alignItems: "center"}}>
-           <button onClick={() => setActiveCommunityTab("chat")} style={{padding: "8px 16px", borderRadius: "100px", background: activeCommunityTab === "chat" ? "linear-gradient(135deg, var(--accent-physics), #c026d3)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.3s", boxShadow: activeCommunityTab === "chat" ? "0 4px 15px rgba(139, 92, 246, 0.4)" : "none", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.9rem"}}><MessageSquare size={16}/> Live Lounge</button>
-           <button onClick={() => setActiveCommunityTab("squads")} style={{padding: "8px 16px", borderRadius: "100px", background: activeCommunityTab === "squads" ? "linear-gradient(135deg, var(--accent-math), #2563eb)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.3s", boxShadow: activeCommunityTab === "squads" ? "0 4px 15px rgba(59, 130, 246, 0.4)" : "none", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.9rem"}}><Target size={16}/> Squad Missions</button>
-           
-           {pushPermission === 'default' && (
-             <button onClick={() => requestPushPermission()} style={{marginLeft: "auto", padding: "8px 16px", borderRadius: "100px", background: "rgba(16,185,129,0.1)", border: "1px solid var(--accent-success)", color: "var(--accent-success)", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s", fontSize: "0.9rem"}}>🔔 Alerts</button>
-           )}
+        {/* Top Navigation Bar - Ultra Compact */}
+        <div className="community-tabs">
+           <div style={{display: "flex", alignItems: "center", gap: "6px", flexWrap: "nowrap", overflowX: "auto"}}>
+             <button onClick={() => setActiveCommunityTab("chat")} style={{padding: "6px 14px", borderRadius: "100px", background: activeCommunityTab === "chat" ? "linear-gradient(135deg, var(--accent-physics), #c026d3)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", whiteSpace: "nowrap"}}>
+               <MessageSquare size={14}/> Live Lounge
+             </button>
+             <button onClick={() => setActiveCommunityTab("squads")} style={{padding: "6px 14px", borderRadius: "100px", background: activeCommunityTab === "squads" ? "linear-gradient(135deg, var(--accent-math), #2563eb)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", whiteSpace: "nowrap"}}>
+               <Target size={14}/> Squad Missions
+             </button>
+             <button onClick={() => setShowModerationModal(true)} style={{padding: "6px 12px", borderRadius: "100px", background: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#f87171", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "5px", fontSize: "0.8rem", whiteSpace: "nowrap"}}>
+               <Shield size={13}/> Moderation
+             </button>
+           </div>
+
+           <div style={{display: "flex", alignItems: "center", gap: "8px", flexShrink: 0}}>
+             {/* Theme Switcher Pill */}
+             <div style={{display: "flex", background: "rgba(0,0,0,0.3)", borderRadius: "100px", padding: "2px", border: "1px solid rgba(255,255,255,0.08)", gap: "2px"}}>
+               <button onClick={() => setBgTheme('universe-bg')} title="Universe Theme" style={{padding: "4px 8px", borderRadius: "100px", border: "none", background: bgTheme === 'universe-bg' ? 'var(--accent-physics)' : 'transparent', color: "white", fontSize: "0.72rem", cursor: "pointer"}}>🌌</button>
+               <button onClick={() => setBgTheme('solid-dark-bg')} title="Dark Theme" style={{padding: "4px 8px", borderRadius: "100px", border: "none", background: bgTheme === 'solid-dark-bg' ? 'var(--accent-success)' : 'transparent', color: "white", fontSize: "0.72rem", cursor: "pointer"}}>🌑</button>
+               <button onClick={() => setBgTheme('mesh-bg')} title="Mesh Theme" style={{padding: "4px 8px", borderRadius: "100px", border: "none", background: bgTheme === 'mesh-bg' ? 'var(--accent-math)' : 'transparent', color: "white", fontSize: "0.72rem", cursor: "pointer"}}>🕸️</button>
+             </div>
+
+             {/* Zen View Toggle (Desktop) */}
+             <button 
+               onClick={() => setIsZenMode(prev => !prev)}
+               style={{background: isZenMode ? "rgba(139,92,246,0.25)" : "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "white", borderRadius: "100px", padding: "5px 10px", cursor: "pointer", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "4px", fontWeight: "600", whiteSpace: "nowrap"}}
+               title={isZenMode ? "Exit Zen Mode (Show Sidebar)" : "Enter Zen Mode (Full Width Chat)"}
+             >
+               {isZenMode ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}
+               <span className="zen-text">{isZenMode ? "Split" : "Zen"}</span>
+             </button>
+           </div>
         </div>
 
         {/* Tab Content */}
         {activeCommunityTab === "chat" ? (
-          <div className="community-chat-layout" style={{flex: 1, minHeight: 0, width: "100%", maxWidth: "100%"}}>
-            {/* Left Peers List - Gamified Sidebar */}
-            <div className="glass peers-sidebar" style={{borderRadius: "24px", overflowY: "auto", padding: "0", display: "flex", flexDirection: "column", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(15, 23, 42, 0.6)"}}>
-              <div style={{padding: "1.25rem", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, background: "rgba(15, 23, 42, 0.95)", backdropFilter: "blur(10px)", zIndex: 10}}>
-                 <h3 style={{fontSize: "0.9rem", color: "white", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px", textTransform: "uppercase", letterSpacing: "1px"}}><Users size={16} color="var(--accent-physics)"/> Connect</h3>
-              </div>
-              
-              <div style={{padding: "1rem"}}>
-                <div className={`peer-item ${activeChat === "global" ? "active" : ""}`} onClick={() => setActiveChat("global")} style={{display: "flex", alignItems: "center", gap: "12px", padding: "12px", borderRadius: "16px", cursor: "pointer", transition: "all 0.2s", background: activeChat === "global" ? "rgba(139, 92, 246, 0.15)" : "transparent", border: activeChat === "global" ? "1px solid rgba(139, 92, 246, 0.3)" : "1px solid transparent", marginBottom: "1rem"}}>
-                  <div style={{width: "42px", height: "42px", borderRadius: "12px", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", flexShrink: 0, boxShadow: "0 4px 10px rgba(139,92,246,0.3)"}}>🌍</div>
-                  <div style={{display: "flex", flexDirection: "column"}}>
-                     <span style={{fontWeight: "bold", fontSize: "0.95rem", color: "white"}}>Global Lounge</span>
-                     <span style={{fontSize: "0.7rem", color: "var(--accent-success)", fontWeight: "600"}}>Public Chat</span>
-                  </div>
+          <div className={`community-chat-layout ${isZenMode ? 'zen-mode' : ''}`}>
+            
+            {/* Left Peers List - Gamified Sidebar (Hidden in Zen Mode or on Mobile) */}
+            {!isZenMode && (
+              <div className="glass peers-sidebar custom-scrollbar">
+                <div style={{padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: 0, background: "rgba(15, 23, 42, 0.95)", backdropFilter: "blur(10px)", zIndex: 10, display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+                   <h3 style={{fontSize: "0.82rem", color: "white", fontWeight: "800", display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "1px", margin: 0}}>
+                     <Users size={15} color="var(--accent-physics)"/> Connect
+                   </h3>
+                   <span style={{fontSize: "0.68rem", color: "#10b981", fontWeight: "bold"}}>🟢 {allPeers.filter(p => p.isOnline).length} Active</span>
                 </div>
-
-                <h3 style={{fontSize: "0.75rem", color: "var(--text-muted)", margin: "1rem 0 0.75rem 0", paddingLeft: "4px", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold"}}>Your conversations ({conversationPeers.length})</h3>
                 
-                <div style={{display: "flex", flexDirection: "column", gap: "6px"}}>
-                  {conversationPeers.map(peer => (
-                    <div key={peer.name} className={`peer-item ${activeChat === `user:${peer.name}` ? "active" : ""}`} onClick={() => setActiveChat(`user:${peer.name}`)} style={{display: "flex", alignItems: "center", gap: "12px", padding: "10px", borderRadius: "16px", cursor: "pointer", transition: "all 0.2s", background: activeChat === `user:${peer.name}` ? "rgba(255,255,255,0.05)" : "transparent"}}>
-                      <div style={{position: "relative"}}>
-                         <div style={{width: "38px", height: "38px", borderRadius: "12px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: "bold", flexShrink: 0, border: peer.isOnline ? "2px solid #10b981" : "2px solid rgba(255,255,255,0.1)"}}>{peer.name.charAt(0).toUpperCase()}</div>
-                         {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "12px", height: "12px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
-                      </div>
-                      <div style={{display: "flex", flexDirection: "column", flex: 1, minWidth: 0}}>
-                         <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: peer.isOnline ? "white" : "var(--text-muted)", fontWeight: "600", fontSize: "0.9rem"}}>{peer.name}</span>
-                         <span style={{fontSize: "0.65rem", color: "var(--accent-physics)", fontWeight: "bold"}}>Lvl {peer.level}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <h3 style={{fontSize: "0.75rem", color: "var(--text-muted)", margin: "1rem 0 0.75rem 0", paddingLeft: "4px", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold"}}>Students ({otherPeers.length})</h3>
-                <div style={{display: "flex", flexDirection: "column", gap: "6px"}}>
-                  {otherPeers.map(peer => (
-                    <div key={peer.name} className={`peer-item ${activeChat === `user:${peer.name}` ? "active" : ""}`} onClick={() => setActiveChat(`user:${peer.name}`)} style={{display: "flex", alignItems: "center", gap: "12px", padding: "10px", borderRadius: "16px", cursor: "pointer", transition: "all 0.2s", background: activeChat === `user:${peer.name}` ? "rgba(255,255,255,0.05)" : "transparent"}}>
-                      <div style={{position: "relative"}}>
-                        <div style={{width: "38px", height: "38px", borderRadius: "12px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: "bold", flexShrink: 0, border: peer.isOnline ? "2px solid #10b981" : "2px solid rgba(255,255,255,0.1)"}}>{peer.name.charAt(0).toUpperCase()}</div>
-                        {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "12px", height: "12px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
-                      </div>
-                      <div style={{display: "flex", flexDirection: "column", flex: 1, minWidth: 0}}>
-                        <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: peer.isOnline ? "white" : "var(--text-muted)", fontWeight: "600", fontSize: "0.9rem"}}>{peer.name}</span>
-                        <span style={{fontSize: "0.65rem", color: "var(--accent-physics)", fontWeight: "bold"}}>Lvl {peer.level}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Chat Area - Ultra Premium */}
-            <div className="glass chat-main-area" style={{borderRadius: "24px", display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(15, 23, 42, 0.6)"}}>
-              {/* Mobile Peers List */}
-              <div className="mobile-peers-list custom-scrollbar" style={{display: "flex", gap: "10px", padding: "12px 1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", overflowX: "auto", background: "rgba(15, 23, 42, 0.95)"}}>
-                <div onClick={() => setActiveChat("global")} style={{display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer", opacity: activeChat === "global" ? 1 : 0.4, transition: "opacity 0.2s", flexShrink: 0}}>
-                  <div style={{width: "42px", height: "42px", borderRadius: "12px", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", boxShadow: activeChat === "global" ? "0 0 10px rgba(59,130,246,0.5)" : "none"}}>🌍</div>
-                  <span style={{fontSize: "0.65rem", fontWeight: "bold", color: "white"}}>Global</span>
-                </div>
-                {allPeers.map(peer => (
-                  <div key={peer.name} onClick={() => setActiveChat(`user:${peer.name}`)} style={{display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer", opacity: activeChat === `user:${peer.name}` ? 1 : 0.4, transition: "opacity 0.2s", flexShrink: 0}}>
-                    <div style={{position: "relative"}}>
-                       <div style={{width: "42px", height: "42px", borderRadius: "12px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: "bold", border: peer.isOnline ? "2px solid #10b981" : "2px solid rgba(255,255,255,0.1)", boxShadow: activeChat === `user:${peer.name}` ? "0 0 10px rgba(255,255,255,0.2)" : "none"}}>{peer.name.charAt(0).toUpperCase()}</div>
-                       {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "12px", height: "12px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
-                    </div>
-                    <span style={{fontSize: "0.65rem", fontWeight: "bold", color: "white", maxWidth: "48px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{peer.name}</span>
+                {/* Instagram Notes & Status Stories (Sidebar Tray) */}
+                <div style={{padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(15, 23, 42, 0.4)", flexShrink: 0}}>
+                  <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px"}}>
+                    <span style={{fontSize: "0.7rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold"}}>Study Notes</span>
+                    <button 
+                      onClick={() => {
+                        const newN = prompt("Update your Instagram study note (e.g. Grinding Physics ⚡):", userNote);
+                        if (newN !== null && newN.trim()) {
+                          const cleanN = newN.trim().slice(0, 28);
+                          setUserNote(cleanN);
+                          localStorage.setItem('pm_user_note', cleanN);
+                        }
+                      }}
+                      style={{background: "transparent", border: "none", color: "#f472b6", cursor: "pointer", fontSize: "0.72rem", fontWeight: "bold"}}
+                    >
+                      + Note
+                    </button>
                   </div>
-                ))}
-              </div>
+                  
+                  <div className="custom-scrollbar" style={{display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "3px", scrollbarWidth: "none"}}>
+                    {/* Self Note */}
+                    <div 
+                      onClick={() => {
+                        const newN = prompt("Update your Instagram study note:", userNote);
+                        if (newN !== null && newN.trim()) {
+                          const cleanN = newN.trim().slice(0, 28);
+                          setUserNote(cleanN);
+                          localStorage.setItem('pm_user_note', cleanN);
+                        }
+                      }}
+                      style={{display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", flexShrink: 0}}
+                      title="Click to edit your note"
+                    >
+                      <div className="ig-story-avatar" style={{width: "40px", height: "40px"}}>
+                        <div style={{width: "100%", height: "100%", borderRadius: "50%", background: getAvatarColor(sessionUser), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", border: "2px solid #0f172a", fontSize: "0.95rem", color: "white"}}>
+                          {sessionUser.charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+                      <span style={{fontSize: "0.62rem", color: "#f472b6", marginTop: "3px", fontWeight: "bold", maxWidth: "52px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                        {userNote || "+ Note"}
+                      </span>
+                    </div>
 
-              {/* Chat Header */}
-              <div className="chat-header" style={{padding: "1.25rem 2rem", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)", display: "flex", alignItems: "center", gap: "16px", backdropFilter: "blur(10px)"}}>
-                <div style={{width: "48px", height: "48px", borderRadius: "14px", background: activeChat === "global" ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : getAvatarColor(activeChat.split(":")[1]), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", boxShadow: "0 4px 15px rgba(0,0,0,0.3)"}}>{activeChat === "global" ? "🌍" : activeChat.split(":")[1].charAt(0).toUpperCase()}</div>
-                <div>
-                  <h2 style={{fontSize: "1.25rem", fontWeight: "800", margin: 0, letterSpacing: "0.5px"}}>{activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}</h2>
-                  <span style={{fontSize: "0.8rem", color: "#10b981", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px"}}><span style={{display: "inline-block", width: "6px", height: "6px", background: "#10b981", borderRadius: "50%", animation: "pulse 1.5s infinite"}}></span> Active Session</span>
+                    {/* Peers Notes */}
+                    {allPeers.slice(0, 10).map((peer, idx) => {
+                      const peerNotes = ["Focus ⚡", "PYQs 🔥", "Quiz 💯", "Math 📐", "Mock 🎯", "Notes 🧪", "25m ⏱️", "Target ✨"];
+                      const note = peerNotes[idx % peerNotes.length];
+                      return (
+                        <div 
+                          key={peer.name} 
+                          onClick={() => setActiveChat(`user:${peer.name}`)}
+                          style={{display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", flexShrink: 0}}
+                          title={`@${peer.name}: ${note}`}
+                        >
+                          <div className="ig-story-avatar" style={{width: "40px", height: "40px", background: peer.isOnline ? "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)" : "rgba(255,255,255,0.2)"}}>
+                            <div style={{width: "100%", height: "100%", borderRadius: "50%", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", border: "2px solid #0f172a", fontSize: "0.95rem", color: "white"}}>
+                              {peer.name.charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                          <span style={{fontSize: "0.62rem", color: peer.isOnline ? "white" : "var(--text-muted)", marginTop: "3px", maxWidth: "52px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                            {peer.name}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Sidebar Body */}
+                <div style={{padding: "10px", flex: 1, overflowY: "auto"}}>
+                  <div className={`peer-item ${activeChat === "global" ? "active" : ""}`} onClick={() => setActiveChat("global")} style={{display: "flex", alignItems: "center", gap: "10px", padding: "10px", borderRadius: "14px", cursor: "pointer", transition: "all 0.2s", background: activeChat === "global" ? "rgba(139, 92, 246, 0.15)" : "transparent", border: activeChat === "global" ? "1px solid rgba(139, 92, 246, 0.3)" : "1px solid transparent", marginBottom: "0.75rem"}}>
+                    <div style={{width: "38px", height: "38px", borderRadius: "10px", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0, boxShadow: "0 4px 10px rgba(139,92,246,0.3)"}}>🌍</div>
+                    <div style={{display: "flex", flexDirection: "column"}}>
+                       <span style={{fontWeight: "bold", fontSize: "0.9rem", color: "white"}}>Global Lounge</span>
+                       <span style={{fontSize: "0.68rem", color: "var(--accent-success)", fontWeight: "600"}}>Public Chat</span>
+                    </div>
+                  </div>
+
+                  <h3 style={{fontSize: "0.7rem", color: "var(--text-muted)", margin: "0.75rem 0 0.5rem 0", paddingLeft: "4px", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold"}}>Direct Messages ({conversationPeers.length})</h3>
+                  
+                  <div style={{display: "flex", flexDirection: "column", gap: "4px"}}>
+                    {conversationPeers.map(peer => (
+                      <div key={peer.name} className={`peer-item ${activeChat === `user:${peer.name}` ? "active" : ""}`} onClick={() => setActiveChat(`user:${peer.name}`)} style={{display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "12px", cursor: "pointer", transition: "all 0.2s", background: activeChat === `user:${peer.name}` ? "rgba(255,255,255,0.08)" : "transparent"}}>
+                        <div style={{position: "relative"}}>
+                           <div style={{width: "34px", height: "34px", borderRadius: "10px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.95rem", fontWeight: "bold", flexShrink: 0, border: peer.isOnline ? "2px solid #10b981" : "2px solid rgba(255,255,255,0.1)"}}>{peer.name.charAt(0).toUpperCase()}</div>
+                           {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "10px", height: "10px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
+                        </div>
+                        <div style={{display: "flex", flexDirection: "column", flex: 1, minWidth: 0}}>
+                           <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: peer.isOnline ? "white" : "var(--text-muted)", fontWeight: "600", fontSize: "0.85rem"}}>{peer.name}</span>
+                           <span style={{fontSize: "0.62rem", color: "var(--accent-physics)", fontWeight: "bold"}}>Lvl {peer.level}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <h3 style={{fontSize: "0.7rem", color: "var(--text-muted)", margin: "0.85rem 0 0.5rem 0", paddingLeft: "4px", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold"}}>Aspirants ({otherPeers.length})</h3>
+                  <div style={{display: "flex", flexDirection: "column", gap: "4px"}}>
+                    {otherPeers.map(peer => (
+                      <div key={peer.name} className={`peer-item ${activeChat === `user:${peer.name}` ? "active" : ""}`} onClick={() => setActiveChat(`user:${peer.name}`)} style={{display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "12px", cursor: "pointer", transition: "all 0.2s", background: activeChat === `user:${peer.name}` ? "rgba(255,255,255,0.08)" : "transparent"}}>
+                        <div style={{position: "relative"}}>
+                          <div style={{width: "34px", height: "34px", borderRadius: "10px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.95rem", fontWeight: "bold", flexShrink: 0, border: peer.isOnline ? "2px solid #10b981" : "2px solid rgba(255,255,255,0.1)"}}>{peer.name.charAt(0).toUpperCase()}</div>
+                          {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "10px", height: "10px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
+                        </div>
+                        <div style={{display: "flex", flexDirection: "column", flex: 1, minWidth: 0}}>
+                          <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: peer.isOnline ? "white" : "var(--text-muted)", fontWeight: "600", fontSize: "0.85rem"}}>{peer.name}</span>
+                          <span style={{fontSize: "0.62rem", color: "var(--accent-physics)", fontWeight: "bold"}}>Lvl {peer.level}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
+            )}
+
+            {/* Chat Main Area - Ultra Spacious Instagram DM */}
+            <div className="glass chat-main-area">
               
-              {/* Chat Messages Body */}
-              <div className="chat-messages custom-scrollbar" style={{flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column-reverse", gap: "1rem", overflowX: "hidden", width: "100%", boxSizing: "border-box"}}>
+              {/* Compact Instagram Chat Header (Height: ~48-52px) */}
+              <div className="chat-header">
+                <div style={{display: "flex", alignItems: "center", gap: "10px", minWidth: 0}}>
+                  {activeChat !== "global" && (
+                    <button 
+                      onClick={() => setActiveChat("global")} 
+                      style={{background: "rgba(255,255,255,0.08)", border: "none", color: "white", padding: "5px 10px", borderRadius: "100px", cursor: "pointer", fontSize: "0.78rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px", flexShrink: 0}}
+                      title="Back to Global Lounge"
+                    >
+                      ← Global
+                    </button>
+                  )}
+                  
+                  <div 
+                    className="ig-story-avatar" 
+                    style={{width: "36px", height: "36px", cursor: "pointer", flexShrink: 0}}
+                    onClick={() => { if (activeChat !== "global") setViewingProfile(activeChat.split(":")[1]); }}
+                  >
+                    <div style={{width: "100%", height: "100%", borderRadius: "50%", background: activeChat === "global" ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : getAvatarColor(activeChat.split(":")[1]), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", border: "2px solid #0f172a", fontSize: "0.95rem", color: "white"}}>
+                      {activeChat === "global" ? "🌍" : activeChat.split(":")[1].charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+
+                  <div style={{minWidth: 0, overflow: "hidden"}}>
+                    <h2 style={{fontSize: "0.98rem", fontWeight: "800", margin: 0, color: "white", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                      {activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}
+                    </h2>
+                    <span style={{fontSize: "0.7rem", color: "#10b981", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px"}}>
+                      <span style={{display: "inline-block", width: "5px", height: "5px", background: "#10b981", borderRadius: "50%"}}></span> Active Now
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{display: "flex", alignItems: "center", gap: "6px", flexShrink: 0}}>
+                  <button
+                    onClick={() => setShowDoubtModal(true)}
+                    style={{background: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(168, 85, 247, 0.35)", color: "#c084fc", borderRadius: "100px", padding: "4px 10px", fontSize: "0.75rem", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px"}}
+                    title="Ask a Study Doubt or Practice Problem"
+                  >
+                    <HelpCircle size={13}/>
+                    <span>Ask Doubt</span>
+                  </button>
+
+                  <span style={{fontSize: "0.72rem", color: "var(--accent-physics)", background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", padding: "3px 8px", borderRadius: "100px", fontWeight: "bold"}}>
+                    {activeChat === "global" ? `${allPeers.length} online` : 'DM'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mobile Instagram Notes Tray (Visible only on mobile screens) */}
+              <div className="mobile-notes-tray">
+                {/* Self Note */}
+                <div 
+                  onClick={() => {
+                    const newN = prompt("Update your Instagram study note (e.g. Grinding Physics ⚡):", userNote);
+                    if (newN !== null && newN.trim()) {
+                      const cleanN = newN.trim().slice(0, 28);
+                      setUserNote(cleanN);
+                      localStorage.setItem('pm_user_note', cleanN);
+                    }
+                  }}
+                  style={{display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", flexShrink: 0}}
+                >
+                  <div className="ig-story-avatar" style={{width: "38px", height: "38px"}}>
+                    <div style={{width: "100%", height: "100%", borderRadius: "50%", background: getAvatarColor(sessionUser), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", border: "2px solid #0f172a", fontSize: "0.9rem", color: "white"}}>
+                      {sessionUser.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                  <span style={{fontSize: "0.6rem", color: "#f472b6", marginTop: "2px", fontWeight: "bold", maxWidth: "48px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                    {userNote || "+ Note"}
+                  </span>
+                </div>
+
+                {/* Peers Notes */}
+                {allPeers.slice(0, 10).map((peer, idx) => {
+                  const peerNotes = ["Focus ⚡", "PYQs 🔥", "Quiz 💯", "Math 📐", "Mock 🎯", "Notes 🧪", "25m ⏱️", "Target ✨"];
+                  const note = peerNotes[idx % peerNotes.length];
+                  return (
+                    <div 
+                      key={peer.name} 
+                      onClick={() => setActiveChat(`user:${peer.name}`)}
+                      style={{display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", flexShrink: 0}}
+                    >
+                      <div className="ig-story-avatar" style={{width: "38px", height: "38px", background: peer.isOnline ? "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)" : "rgba(255,255,255,0.2)"}}>
+                        <div style={{width: "100%", height: "100%", borderRadius: "50%", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", border: "2px solid #0f172a", fontSize: "0.9rem", color: "white"}}>
+                          {peer.name.charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+                      <span style={{fontSize: "0.6rem", color: peer.isOnline ? "white" : "var(--text-muted)", marginTop: "2px", maxWidth: "48px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                        {peer.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Chat Messages Body - Takes ALL Remaining Height! */}
+              <div 
+                className="chat-messages custom-scrollbar" 
+              >
                 <div ref={chatEndRef} style={{ height: 0, width: "100%" }} />
                 {chatMessages.length === 0 ? (
                   <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px"}}>
-                    <span style={{fontSize: "3rem"}}>👋</span>
-                    <div style={{fontWeight: "bold", fontSize: "1.1rem", color: "white"}}>It's quiet here...</div>
-                    <div style={{fontSize: "0.9rem"}}>Send a message to break the ice!</div>
+                    <span style={{fontSize: "2.8rem"}}>👋</span>
+                    <div style={{fontWeight: "bold", fontSize: "1.05rem", color: "white"}}>It's quiet in the lounge...</div>
+                    <div style={{fontSize: "0.85rem"}}>Post a study doubt, share your goal, or double-click to ❤️!</div>
                   </div>
                 ) : (
                   chatMessages.map(msg => {
@@ -2504,31 +3456,223 @@ const App = () => {
                       else text = text.replace(/^@DM_.*?_.*?\s/, "");
                     }
                     const { level: mLvl } = getLevelData(msg.xp || 0);
+                    const isShowingHeart = heartBurstId === msg.id;
+                    const isShowingMenu = activeEmojiBarId === msg.id;
+
+                    // Parse Deep Study Doubt Card
+                    const isDoubtMsg = text.startsWith('[DOUBT:');
+                    let doubtMeta = null;
+                    let displayText = text;
+
+                    if (isDoubtMsg) {
+                      const endBracket = text.indexOf(']');
+                      if (endBracket !== -1) {
+                        const rawTag = text.slice(7, endBracket);
+                        displayText = text.slice(endBracket + 1).trim();
+                        const parts = rawTag.split('|HINT:');
+                        doubtMeta = {
+                          subject: parts[0] || 'Study Doubt',
+                          hint: parts[1] || null
+                        };
+                      }
+                    }
+
                     return (
-                      <div key={msg.id} style={{display: "flex", gap: "8px", marginLeft: isMe ? "auto" : "0", marginRight: isMe ? "0" : "auto", maxWidth: "85%", animation: "slideUp 0.3s ease-out forwards"}}>
+                      <div 
+                        key={msg.id} 
+                        style={{display: "flex", gap: "8px", marginLeft: isMe ? "auto" : "0", marginRight: isMe ? "0" : "auto", maxWidth: isDoubtMsg ? "94%" : "84%", animation: "slideUp 0.25s ease-out forwards", position: "relative"}}
+                      >
                         {!isMe && (
-                          <div className="chat-avatar" style={{width: "36px", height: "36px", borderRadius: "12px", background: getAvatarColor(msg.user), flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", cursor: "pointer", border: "2px solid rgba(255,255,255,0.1)", fontWeight: "bold"}} onClick={() => setViewingProfile(msg.user)}>
+                          <div className="chat-avatar" style={{width: "34px", height: "34px", borderRadius: "50%", background: getAvatarColor(msg.user), flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem", cursor: "pointer", border: "2px solid rgba(255,255,255,0.1)", fontWeight: "bold"}} onClick={() => setViewingProfile(msg.user)}>
                              {msg.user.charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div style={{display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", minWidth: 0, maxWidth: "100%"}}>
                            {!isMe && activeChat === "global" && (
-                              <div style={{display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", cursor: "pointer", maxWidth: "100%"}} onClick={() => setViewingProfile(msg.user)}>
-                                 <span style={{fontSize: "0.8rem", color: "white", fontWeight: "700", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{msg.user}</span>
-                                 <span style={{fontSize: "0.6rem", background: "rgba(139,92,246,0.2)", color: "var(--accent-physics)", padding: "2px 6px", borderRadius: "6px", fontWeight: "bold", whiteSpace: "nowrap"}}>Lvl {mLvl}</span>
+                              <div style={{display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px", cursor: "pointer", maxWidth: "100%"}} onClick={() => setViewingProfile(msg.user)}>
+                                 <span style={{fontSize: "0.78rem", color: "white", fontWeight: "700", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{msg.user}</span>
+                                 <span style={{fontSize: "0.6rem", background: "rgba(139,92,246,0.2)", color: "var(--accent-physics)", padding: "1px 5px", borderRadius: "6px", fontWeight: "bold", whiteSpace: "nowrap"}}>Lvl {mLvl}</span>
                               </div>
                            )}
-                           <div style={{display: "flex", alignItems: "center", gap: "8px", flexDirection: isMe ? "row-reverse" : "row", maxWidth: "100%"}} className="chat-msg-wrapper">
-                             <div style={{background: isMe ? "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)" : "rgba(40, 48, 70, 0.95)", padding: "10px 14px", borderRadius: isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px", border: isMe ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.15)", boxShadow: isMe ? "0 4px 15px rgba(168, 85, 247, 0.25)" : "0 4px 15px rgba(0,0,0,0.2)", backdropFilter: "blur(12px)", color: "white", wordBreak: "break-word"}}>
-                               <div style={{fontSize: "0.95rem", lineHeight: 1.4, fontWeight: "500"}}>{text}</div>
-                             </div>
-                             {isMe && (
-                                <button onClick={() => gunDeletePost(msg.id)} className="delete-msg-btn" title="Delete Message" style={{background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0}}>
-                                   <Trash2 size={14}/>
-                                </button>
+
+                           {/* Message Bubble + Action Hover Wrapper */}
+                           <div 
+                             style={{position: "relative", display: "flex", alignItems: "center", gap: "6px", flexDirection: isMe ? "row-reverse" : "row", maxWidth: "100%"}} 
+                             className="chat-msg-wrapper"
+                             onMouseEnter={() => setActiveEmojiBarId(msg.id)}
+                             onMouseLeave={() => setActiveEmojiBarId(null)}
+                           >
+                             {/* Double-Click Heart Pop Effect */}
+                             {isShowingHeart && (
+                               <div className="ig-heart-pop" style={{position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", fontSize: "2.8rem", pointerEvents: "none", zIndex: 30, filter: "drop-shadow(0 0 12px rgba(236,72,153,0.85))"}}>
+                                 ❤️
+                               </div>
+                             )}
+
+                             {/* Instagram Message Bubble or Doubt Card */}
+                             {isDoubtMsg && doubtMeta ? (
+                               <div 
+                                 onDoubleClick={() => {
+                                   setHeartBurstId(msg.id);
+                                   setTimeout(() => setHeartBurstId(null), 850);
+                                   gunToggleReaction(msg.id, '❤️');
+                                 }}
+                                 className="ig-doubt-card"
+                                 style={{maxWidth: "100%", cursor: "pointer"}}
+                                 title="Double-click to react ❤️"
+                               >
+                                 <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", gap: "8px"}}>
+                                   <span style={{fontSize: "0.75rem", fontWeight: "800", color: "#c084fc", background: "rgba(168, 85, 247, 0.2)", padding: "2px 8px", borderRadius: "100px", display: "flex", alignItems: "center", gap: "4px"}}>
+                                     🧠 {doubtMeta.subject} Doubt
+                                   </span>
+                                   <span style={{fontSize: "0.68rem", color: "var(--text-muted)"}}>Active Learning</span>
+                                 </div>
+                                 <div style={{fontSize: "0.95rem", fontWeight: "600", color: "white", lineHeight: 1.45, marginBottom: "8px", wordBreak: "break-word"}}>
+                                   {displayText}
+                                 </div>
+                                 {doubtMeta.hint && (
+                                   <details style={{fontSize: "0.78rem", color: "#93c5fd", background: "rgba(0,0,0,0.25)", padding: "6px 10px", borderRadius: "8px", marginBottom: "8px", cursor: "pointer"}}>
+                                     <summary style={{fontWeight: "600"}}>💡 Hint</summary>
+                                     <div style={{marginTop: "4px", color: "rgba(255,255,255,0.85)"}}>{doubtMeta.hint}</div>
+                                   </details>
+                                 )}
+                                 <div style={{display: "flex", gap: "6px", alignItems: "center"}}>
+                                   <button 
+                                     onClick={() => {
+                                       setReplyingTo({ id: msg.id, user: msg.user, text: displayText });
+                                       setChatInput("Solution: ");
+                                     }}
+                                     style={{background: "rgba(139, 92, 246, 0.2)", border: "1px solid rgba(139, 92, 246, 0.4)", color: "#e9d5ff", borderRadius: "100px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px"}}
+                                   >
+                                     💡 Solve & Reply
+                                   </button>
+                                 </div>
+                               </div>
+                             ) : (
+                               <div 
+                                 onDoubleClick={() => {
+                                   setHeartBurstId(msg.id);
+                                   setTimeout(() => setHeartBurstId(null), 850);
+                                   gunToggleReaction(msg.id, '❤️');
+                                 }}
+                                 className={isMe ? "ig-bubble-me" : "ig-bubble-peer"}
+                                 style={{
+                                   padding: "10px 15px", 
+                                   maxWidth: "100%", 
+                                   wordBreak: "break-word", 
+                                   cursor: "pointer", 
+                                   position: "relative",
+                                   backdropFilter: "blur(12px)"
+                                 }}
+                                 title="Double-click to react ❤️"
+                               >
+                                 {/* Quoted Reply Banner */}
+                                 {msg.replyTo && (
+                                   <div style={{
+                                     borderLeft: isMe ? "3px solid rgba(255,255,255,0.75)" : "3px solid #ec4899",
+                                     paddingLeft: "8px",
+                                     marginBottom: "6px",
+                                     paddingTop: "2px",
+                                     paddingBottom: "2px",
+                                     background: "rgba(0,0,0,0.25)",
+                                     borderRadius: "0 8px 8px 0",
+                                     fontSize: "0.78rem"
+                                   }}>
+                                     <div style={{fontWeight: "bold", fontSize: "0.72rem", color: isMe ? "rgba(255,255,255,0.9)" : "#f472b6"}}>
+                                       @{msg.replyTo.user}
+                                     </div>
+                                     <div style={{color: "rgba(255,255,255,0.75)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                                       {msg.replyTo.text}
+                                     </div>
+                                   </div>
+                                 )}
+
+                                 <div style={{fontSize: "0.93rem", lineHeight: 1.45, fontWeight: "500"}}>{displayText}</div>
+                               </div>
+                             )}
+
+                             {/* Instagram Floating Hover Action Capsule */}
+                             {isShowingMenu && (
+                               <div 
+                                 className="ig-reaction-capsule glass" 
+                                 style={{
+                                   display: "flex", alignItems: "center", gap: "3px", padding: "4px 8px",
+                                   borderRadius: "100px", background: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(255,255,255,0.18)",
+                                   boxShadow: "0 6px 20px rgba(0,0,0,0.45)", zIndex: 15
+                                 }}
+                               >
+                                 {['❤️', '🔥', '😂', '😮', '👏', '💯'].map(emoji => (
+                                   <button 
+                                     key={emoji}
+                                     onClick={() => {
+                                       gunToggleReaction(msg.id, emoji);
+                                       if (emoji === '❤️') {
+                                         setHeartBurstId(msg.id);
+                                         setTimeout(() => setHeartBurstId(null), 850);
+                                       }
+                                     }}
+                                     className="ig-reaction-emoji-btn"
+                                     title={`React ${emoji}`}
+                                   >
+                                     {emoji}
+                                   </button>
+                                 ))}
+
+                                 {/* Reply Button */}
+                                 <button 
+                                   onClick={() => setReplyingTo({ id: msg.id, user: msg.user, text: displayText })}
+                                   style={{background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px", borderRadius: "50%", display: "flex", alignItems: "center"}}
+                                   title="Reply to message"
+                                 >
+                                   <CornerUpLeft size={13}/>
+                                 </button>
+
+                                 {/* Delete Button */}
+                                 <button 
+                                   onClick={() => {
+                                     if (window.confirm("Delete this message?")) {
+                                       gunDeletePost(msg.id);
+                                     }
+                                   }}
+                                   style={{background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", borderRadius: "50%", display: "flex", alignItems: "center"}}
+                                   title="Delete message"
+                                 >
+                                   <Trash2 size={13}/>
+                                 </button>
+                               </div>
                              )}
                            </div>
-                           <div style={{fontSize: "0.65rem", color: "var(--text-muted)", marginTop: "4px", fontWeight: "600"}}><TimeAgo date={msg.createdAt} fallback={msg.time}/></div>
+
+                           {/* Reaction Badges Below Bubble */}
+                           {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                             <div style={{display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "3px", justifyContent: isMe ? "flex-end" : "flex-start"}}>
+                               {Object.entries(msg.reactions).map(([emoji, users]) => {
+                                 if (!users || users.length === 0) return null;
+                                 const hasReacted = users.includes(sessionUser);
+                                 return (
+                                   <button
+                                     key={emoji}
+                                     onClick={() => gunToggleReaction(msg.id, emoji)}
+                                     title={users.join(', ')}
+                                     style={{
+                                       background: hasReacted ? "rgba(236, 72, 153, 0.25)" : "rgba(255, 255, 255, 0.08)",
+                                       border: hasReacted ? "1px solid rgba(236, 72, 153, 0.5)" : "1px solid rgba(255, 255, 255, 0.12)",
+                                       borderRadius: "100px", padding: "2px 7px", fontSize: "0.75rem",
+                                       cursor: "pointer", display: "flex", alignItems: "center", gap: "3px", color: "white",
+                                       transition: "transform 0.15s"
+                                     }}
+                                     onMouseEnter={e => e.currentTarget.style.transform = "scale(1.15)"}
+                                     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                                   >
+                                     <span>{emoji}</span>
+                                     <span style={{fontSize: "0.68rem", fontWeight: "bold"}}>{users.length}</span>
+                                   </button>
+                                 );
+                               })}
+                             </div>
+                           )}
+
+                           <div style={{fontSize: "0.65rem", color: "var(--text-muted)", marginTop: "3px", fontWeight: "600"}}><TimeAgo date={msg.createdAt} fallback={msg.time}/></div>
                         </div>
                       </div>
                     );
@@ -2536,11 +3680,85 @@ const App = () => {
                 )}
               </div>
               
-              {/* Chat Input */}
-              <div className="chat-composer" style={{padding: "1rem", background: "rgba(0,0,0,0.3)", borderTop: "1px solid rgba(255,255,255,0.05)", width: "100%", maxWidth: "100%", boxSizing: "border-box"}}>
-                <form onSubmit={handleSendMessage} style={{display: "flex", gap: "8px", width: "100%"}}>
-                  <input type="text" className="input-field" placeholder={`Message ${activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}...`} value={chatInput} onChange={e => setChatInput(e.target.value)} style={{flex: 1, padding: "14px 16px", borderRadius: "100px", fontSize: "0.95rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", transition: "all 0.3s", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.1)", outline: "none", minWidth: 0}} onFocus={(e) => e.target.style.boxShadow = "0 0 0 2px var(--accent-physics), inset 0 2px 10px rgba(0,0,0,0.1)"} onBlur={(e) => e.target.style.boxShadow = "inset 0 2px 10px rgba(0,0,0,0.1)"} />
-                  <button type="submit" className="btn-primary" style={{borderRadius: "100px", padding: "0 16px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "bold", fontSize: "0.95rem", boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)", transition: "all 0.2s", flexShrink: 0}} disabled={!chatInput.trim()}><Send size={16}/></button>
+              {/* Instagram Chat Composer */}
+              <div className="chat-composer">
+                
+                {/* Quoted Reply Banner */}
+                {replyingTo && (
+                  <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 12px", background: "rgba(255,255,255,0.06)", borderRadius: "12px", marginBottom: "8px", borderLeft: "3px solid #ec4899", animation: "slideUp 0.15s ease-out"}}>
+                    <div style={{fontSize: "0.78rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                      <span style={{color: "#f472b6", fontWeight: "bold"}}>Replying to @{replyingTo.user}: </span>
+                      <span style={{color: "var(--text-muted)"}}>{replyingTo.text}</span>
+                    </div>
+                    <button type="button" onClick={() => setReplyingTo(null)} style={{background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "2px"}} title="Cancel reply">
+                      <X size={14}/>
+                    </button>
+                  </div>
+                )}
+
+                {/* Quick Emojis Drawer (Toggled by Smiley icon, does NOT eat screen space when closed!) */}
+                {showEmojiPicker && (
+                  <div style={{display: "flex", gap: "8px", alignItems: "center", padding: "6px 12px", background: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "100px", marginBottom: "8px", width: "fit-content", animation: "slideUp 0.15s ease-out", boxShadow: "0 6px 20px rgba(0,0,0,0.4)"}}>
+                    {['❤️', '🔥', '👏', '😂', '💯', '✨', '🚀', '📚', '⚡', '🙌'].map(emoji => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setChatInput(prev => prev + emoji)}
+                        style={{background: "transparent", border: "none", cursor: "pointer", fontSize: "1.15rem", padding: "2px", transition: "transform 0.15s"}}
+                        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.3)"}
+                        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Active Learning Study Prompt Chips */}
+                <div style={{display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "6px", marginBottom: "4px", scrollbarWidth: "none"}}>
+                  <button type="button" onClick={() => setShowDoubtModal(true)} className="study-icebreaker-pill">
+                    ❓ Ask Doubt
+                  </button>
+                  <button type="button" onClick={() => setChatInput("🎯 Today's Target: ")} className="study-icebreaker-pill">
+                    🎯 Today's Goal
+                  </button>
+                  <button type="button" onClick={() => setChatInput("⚡ Quick Quiz: ")} className="study-icebreaker-pill">
+                    ⚡ Quick Quiz
+                  </button>
+                  <button type="button" onClick={() => setChatInput("⏱️ 25m Focus Sprint! Who is in?")} className="study-icebreaker-pill">
+                    ⏱️ 25m Sprint
+                  </button>
+                </div>
+
+                <form onSubmit={handleSendMessage} style={{display: "flex", alignItems: "center", gap: "8px", width: "100%"}}>
+                  <div style={{position: "relative", flex: 1, display: "flex", alignItems: "center"}}>
+                    <button 
+                      type="button"
+                      onClick={() => setShowEmojiPicker(prev => !prev)}
+                      style={{position: "absolute", left: "12px", background: "transparent", border: "none", color: showEmojiPicker ? "#ec4899" : "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", padding: "4px", transition: "color 0.2s"}}
+                      title="Toggle quick emojis"
+                    >
+                      <Smile size={19}/>
+                    </button>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder={activeChat === "global" ? "Message lounge or ask doubt..." : `Message ${activeChat.split(":")[1]}...`}
+                      value={chatInput} 
+                      onChange={e => setChatInput(e.target.value)} 
+                      style={{width: "100%", padding: "11px 16px 11px 42px", borderRadius: "100px", fontSize: "0.93rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white", outline: "none", transition: "all 0.25s"}}
+                      onFocus={(e) => e.target.style.borderColor = "#ec4899"}
+                      onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
+                    />
+                  </div>
+                  <button 
+                    type="submit" 
+                    className="btn-primary" 
+                    style={{borderRadius: "100px", padding: "11px 18px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "bold", fontSize: "0.88rem", background: "linear-gradient(135deg, #7928ca, #ff0080)", boxShadow: "0 4px 15px rgba(255, 0, 128, 0.4)", transition: "all 0.2s", flexShrink: 0}} 
+                    disabled={!chatInput.trim()}
+                  >
+                    <Send size={15}/>
+                  </button>
                 </form>
               </div>
             </div>
@@ -2622,13 +3840,105 @@ const App = () => {
     ];
     const buildJitsiRoom = (roomId) => `FocusMode-${roomId}-Study`;
 
+    const TOPIC_FILTERS = [
+      { id: 'All', label: '🌐 All Exams' },
+      { id: 'JEE', label: '⚡ JEE Advanced' },
+      { id: 'NEET', label: '🩺 NEET UG' },
+      { id: 'UPSC', label: '🏛️ UPSC IAS' },
+      { id: 'Silent', label: '🤫 Silent Pomodoro' },
+      { id: 'LateNight', label: '🌙 Late Night Shift' }
+    ];
+
+    const BUDDY_POOL = [
+      { id: 'p1', name: 'Aarav Sharma', target: 'JEE Advanced 2026', college: 'IIT Bombay CSE', streak: 18, focus: 'Rotational Motion & Advanced Calculus', motto: 'Hard work beats talent when talent fails to work hard.' },
+      { id: 'p2', name: 'Diya Patel', target: 'NEET UG 2025', college: 'AIIMS New Delhi', streak: 24, focus: 'Human Physiology & Organic Reactions', motto: 'Every NCERT line counts toward the white coat.' },
+      { id: 'p3', name: 'Vikramaditya Roy', target: 'UPSC CSE 2026', college: 'LBSNAA Mussoorie', streak: 31, focus: 'Modern History & Laxmikanth Polity', motto: 'Consistency is the only superpower in UPSC.' },
+      { id: 'p4', name: 'Sneha Kulkarni', target: 'JEE Main & Adv', college: 'IIT Delhi', streak: 12, focus: 'Electrostatics & Thermodynamics PYQs', motto: 'Daily 50 quality problems minimum.' },
+      { id: 'p5', name: 'Rohan Deshmukh', target: 'NEET UG 2025', college: 'JIPMER Puducherry', streak: 15, focus: 'Genetics & Molecular Basis of Inheritance', motto: 'Precision over speed in Biology.' },
+      { id: 'p6', name: 'Ananya Sengupta', target: 'SAT / Global', college: 'MIT / Stanford', streak: 28, focus: 'Advanced Math & Critical Reading', motto: 'Aim for the moon, land among the stars.' },
+      { id: 'p7', name: 'Devansh Verma', target: 'Silent Library 🤫', college: 'BITS Pilani CS', streak: 42, focus: 'Silent Pomodoro Sprint (Zero Distractions)', motto: 'Silence in study, noise in results.' },
+      { id: 'p8', name: 'Pooja Iyer', target: 'Late Night Grind 🌙', college: 'IIT Madras', streak: 19, focus: 'Night Shift Problem Solving', motto: 'The quiet hours belong to those who want it most.' },
+    ];
+
+    const handleStartMatching = (topic = buddyFilterTopic) => {
+      setIsMatchingBuddy(true);
+      setMatchedBuddy(null);
+      setTimeout(() => {
+        let candidates = BUDDY_POOL;
+        if (topic !== 'All') {
+          const matchSub = BUDDY_POOL.filter(b => 
+            b.target.toLowerCase().includes(topic.toLowerCase()) || 
+            b.focus.toLowerCase().includes(topic.toLowerCase())
+          );
+          if (matchSub.length > 0) candidates = matchSub;
+        }
+        const buddy = candidates[Math.floor(Math.random() * candidates.length)];
+        const roomUnique = `FocusMode-Omegle-${buddy.id}-${Math.floor(Date.now() / 60000)}`;
+        setMatchedBuddy({
+          ...buddy,
+          roomName: roomUnique,
+          matchedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+        setIsMatchingBuddy(false);
+        setPeerMessages([
+          { id: Date.now(), sender: buddy.name, text: `Hey ${sessionUser}! 👋 Ready for a 25-minute deep focus sprint? What problem or topic are you working on right now?`, time: 'Just now' }
+        ]);
+        awardXP(15, 'Matched with Study Partner on Omegle Connect');
+      }, 1800);
+    };
+
+    const handleSkipPartner = () => {
+      setIsMatchingBuddy(true);
+      setMatchedBuddy(null);
+      setTimeout(() => {
+        const remaining = BUDDY_POOL.filter(b => b.id !== matchedBuddy?.id);
+        const buddy = remaining[Math.floor(Math.random() * remaining.length)] || BUDDY_POOL[0];
+        const roomUnique = `FocusMode-Omegle-${buddy.id}-${Math.floor(Date.now() / 60000)}`;
+        setMatchedBuddy({
+          ...buddy,
+          roomName: roomUnique,
+          matchedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+        setIsMatchingBuddy(false);
+        setPeerMessages([
+          { id: Date.now(), sender: buddy.name, text: `Hey! Connected with you. Let's hit mute or discuss when needed and crush this session! 📚`, time: 'Just now' }
+        ]);
+        awardXP(5, 'Connected with Next Study Partner');
+      }, 1200);
+    };
+
+    const handleLeaveBuddy = () => {
+      setMatchedBuddy(null);
+      setIsMatchingBuddy(false);
+    };
+
+    const handleSendPeerChat = (text) => {
+      const msgText = (text || peerChatInput).trim();
+      if (!msgText) return;
+      const newMsg = { id: Date.now(), sender: sessionUser, text: msgText, time: 'Just now' };
+      setPeerMessages(prev => [...prev, newMsg]);
+      setPeerChatInput('');
+      
+      setTimeout(() => {
+        const buddyName = matchedBuddy?.name || 'Partner';
+        const dynamicReplies = [
+          `Solid! Let's lock in for 25 minutes of silent problem-solving. Ping me if stuck!`,
+          `Awesome plan! Keep up the momentum. Let's finish this block strong! 🚀`,
+          `Great question! I'm reviewing that topic too. Let's solve 5 problems and compare answers!`,
+          `Got it! Let's stay on camera for accountability and grind out this topic!`
+        ];
+        const rep = dynamicReplies[Math.floor(Math.random() * dynamicReplies.length)];
+        setPeerMessages(prev => [...prev, { id: Date.now() + 1, sender: buddyName, text: rep, time: 'Just now' }]);
+      }, 1400);
+    };
+
     if (inCall && connectRoom) {
       const jitsiRoom = buildJitsiRoom(connectRoom);
       return (
         <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
             <div style={{width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981', animation: 'pulse 1.5s infinite'}}></div>
-            <span style={{color: '#10b981', fontWeight: 'bold'}}>Live — {connectRoom} Room</span>
+            <span style={{color: '#10b981', fontWeight: 'bold'}}>Live Room — ${connectRoom}</span>
             <button onClick={() => { setInCall(false); setConnectRoom(null); }} className="btn-primary" style={{marginLeft: 'auto', background: 'rgba(239,68,68,0.2)', borderColor: 'rgba(239,68,68,0.3)', color: '#f87171', padding: '8px 20px'}}>
               <VideoOff size={16}/> Leave Room
             </button>
@@ -2646,135 +3956,391 @@ const App = () => {
     }
 
     return (
-      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '900px'}}>
-        <div className="glass" style={{padding: '3rem', textAlign: 'center', background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%)', borderColor: 'rgba(139,92,246,0.3)'}}>
-          <Globe size={56} color="var(--accent-physics)" style={{marginBottom: '1rem', filter: 'drop-shadow(0 0 15px rgba(139,92,246,0.5))'}} />
-          <h2 style={{fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem'}}>Study Connect</h2>
-          <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto'}}>Jump into a live video room with other aspirants preparing for the same exam. Camera + mic enabled — totally free.</p>
+      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1000px', margin: '0 auto', width: '100%'}}>
+        
+        {/* Live Aspirant Ticker Header */}
+        <div className="glass" style={{padding: '1.25rem 1.75rem', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', background: 'linear-gradient(90deg, rgba(16,185,129,0.1), rgba(139,92,246,0.1))', border: '1px solid rgba(16,185,129,0.2)'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+            <div style={{width: '12px', height: '12px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 12px #10b981', animation: 'pulse 1.5s infinite'}}></div>
+            <div>
+              <div style={{fontWeight: 800, fontSize: '1rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                <Radio size={16} /> 164 Aspirants Studying Live Right Now
+              </div>
+              <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Turn passive solo study into high-intensity active practice.</div>
+            </div>
+          </div>
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+            <span style={{fontSize: '0.8rem', padding: '6px 12px', borderRadius: '100px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', fontWeight: 600}}>
+              ⚡ Instant 1-on-1 Matching
+            </span>
+          </div>
         </div>
 
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)'}}>
-           <h3 style={{fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px'}}><Calendar size={24} color="var(--accent-math)"/> Live Scheduled Events</h3>
-           <button className="btn-primary" onClick={() => setShowEventModal(true)} style={{borderRadius: '100px', background: 'linear-gradient(90deg, var(--accent-math), var(--accent-physics))', border: 'none', boxShadow: '0 4px 15px rgba(139,92,246,0.4)'}}>+ Schedule Event</button>
+        {/* Topic Filters Bar */}
+        <div style={{display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none'}}>
+          {TOPIC_FILTERS.map(tf => {
+            const isActive = buddyFilterTopic === tf.id;
+            return (
+              <button
+                key={tf.id}
+                onClick={() => setBuddyFilterTopic(tf.id)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '100px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  border: isActive ? '1px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.08)',
+                  background: isActive ? 'linear-gradient(90deg, rgba(139,92,246,0.3), rgba(236,72,153,0.3))' : 'rgba(255,255,255,0.04)',
+                  color: isActive ? '#fff' : 'var(--text-muted)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {tf.label}
+              </button>
+            );
+          })}
         </div>
-        
-        {showEventModal && (
-          <div className="animate-fade-in" style={{background: 'rgba(0,0,0,0.8)', position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)'}}>
-            <div style={{background: '#0f172a', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid #334155', width: '90%', maxWidth: '450px', borderRadius: '24px', position: 'relative', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'}}>
-               <div style={{position: 'absolute', top: '-50px', right: '-50px', width: '150px', height: '150px', background: 'var(--accent-math)', filter: 'blur(80px)', opacity: 0.3, zIndex: 0}}></div>
-               
-               <h4 style={{fontSize: '1.5rem', fontWeight: 800, position: 'relative', zIndex: 1, color: 'white'}}>Schedule a Drop-in</h4>
-               <p style={{color: '#94a3b8', fontSize: '0.9rem', position: 'relative', zIndex: 1, marginTop: '-10px'}}>Host a study session and let the community join you.</p>
-               
-               <div style={{display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', zIndex: 1}}>
-                 <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Event Title</label>
-                 <input className="input-field" placeholder="e.g. 2hr HC Verma Grind 🚀" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} style={{background: '#1e293b', fontSize: '1rem', padding: '12px 16px', border: '1px solid #334155'}} />
-               </div>
-               
-               <div style={{display: 'flex', flexWrap: 'wrap', gap: '1rem', position: 'relative', zIndex: 1}}>
-                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 150px'}}>
-                   <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Time</label>
-                   <input className="input-field" placeholder="e.g. Tonight @ 9PM" value={newEventTime} onChange={e => setNewEventTime(e.target.value)} style={{background: '#1e293b', fontSize: '1rem', padding: '12px 16px', border: '1px solid #334155'}} />
-                 </div>
-                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 150px'}}>
-                   <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0'}}>Duration</label>
-                   <input className="input-field" placeholder="e.g. 2 hours" value={newEventDuration} onChange={e => setNewEventDuration(e.target.value)} style={{background: '#1e293b', fontSize: '1rem', padding: '12px 16px', border: '1px solid #334155'}} />
-                 </div>
-               </div>
-               
-               <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem', position: 'relative', zIndex: 1}}>
-                  <button className="btn-secondary" style={{borderRadius: '100px', padding: '10px 24px', background: '#334155', border: 'none', color: 'white'}} onClick={() => setShowEventModal(false)}>Cancel</button>
-                  <button className="btn-primary" style={{borderRadius: '100px', padding: '10px 24px', background: 'white', color: 'black', fontWeight: 800}} onClick={() => { 
-                    createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime, newEventDuration); 
-                    gunPostMessage(`Hey everyone! I just scheduled a live study event: "${newEventTitle}" for ${newEventTime}! Jump into the Study Connect tab to join me! 🚀`);
-                    setShowEventModal(false); 
-                    setNewEventTitle(''); 
-                    setNewEventTime(''); 
-                    setNewEventDuration('');
-                    awardXP(15, 'Scheduled a Community Event');
-                    setActiveTab('community'); // Redirect to community to see the autopost
-                  }}>🚀 Publish</button>
-               </div>
+
+        {/* ── OMEGLE EDUCATION MATCHMAKER SECTION ── */}
+        {isMatchingBuddy ? (
+          /* Radar Scanning View */
+          <div className="omegle-match-hero" style={{minHeight: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative'}}>
+            <div style={{position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem'}}>
+              <div className="omegle-radar-circle" style={{width: '120px', height: '120px'}}></div>
+              <div className="omegle-radar-circle" style={{width: '80px', height: '80px', animationDelay: '0.6s'}}></div>
+              <div className="omegle-radar-circle" style={{width: '40px', height: '40px', animationDelay: '1.2s'}}></div>
+              <div style={{width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, boxShadow: '0 0 20px rgba(139,92,246,0.6)'}}>
+                <Radio size={28} color="#fff" style={{animation: 'spin 4s linear infinite'}} />
+              </div>
+            </div>
+            <h3 style={{fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.5rem', color: '#fff'}}>Scanning For Study Partners...</h3>
+            <p style={{color: '#cbd5e1', fontSize: '0.95rem', maxWidth: '450px', marginBottom: '1.5rem'}}>
+              Searching active aspirants reviewing <strong>{buddyFilterTopic === 'All' ? 'All Subjects' : buddyFilterTopic}</strong>. Encrypting 1-on-1 peer room...
+            </p>
+            <button onClick={() => setIsMatchingBuddy(false)} className="btn-secondary" style={{padding: '8px 24px', fontSize: '0.85rem', borderRadius: '100px'}}>
+              Cancel Search
+            </button>
+          </div>
+        ) : matchedBuddy ? (
+          /* Active 1-on-1 Omegle Matched Studio */
+          <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
+            {/* Top Match Action Bar */}
+            <div className="glass" style={{padding: '1.25rem 1.5rem', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', background: 'linear-gradient(135deg, rgba(88,28,135,0.25), rgba(15,23,42,0.8))', border: '1px solid rgba(168,85,247,0.3)'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                <div style={{width: '44px', height: '44px', borderRadius: '50%', background: getAvatarColor(matchedBuddy.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', color: '#fff', border: '2px solid rgba(255,255,255,0.2)'}}>
+                  {matchedBuddy.name.charAt(0)}
+                </div>
+                <div>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <span style={{fontWeight: 800, fontSize: '1.1rem', color: '#fff'}}>{matchedBuddy.name}</span>
+                    <span style={{fontSize: '0.75rem', padding: '2px 8px', borderRadius: '100px', background: 'rgba(16,185,129,0.2)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', fontWeight: 700}}>🟢 Active Match</span>
+                  </div>
+                  <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
+                    🎯 {matchedBuddy.target} · Aiming for {matchedBuddy.college} · 🔥 {matchedBuddy.streak}d streak
+                  </div>
+                </div>
+              </div>
+
+              {/* Omegle Action Controls */}
+              <div style={{display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'}}>
+                <button
+                  onClick={handleSkipPartner}
+                  className="btn-primary"
+                  style={{
+                    background: 'linear-gradient(90deg, #ec4899, #8b5cf6)',
+                    border: 'none',
+                    padding: '8px 18px',
+                    borderRadius: '100px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 15px rgba(236,72,153,0.3)'
+                  }}
+                  title="Skip to another study partner"
+                >
+                  <RefreshCw size={15} /> Next Partner (Skip ⏭️)
+                </button>
+                <button
+                  onClick={handleLeaveBuddy}
+                  style={{
+                    background: 'rgba(239,68,68,0.15)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    color: '#f87171',
+                    padding: '8px 16px',
+                    borderRadius: '100px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <VideoOff size={15} /> End Session
+                </button>
+              </div>
+            </div>
+
+            {/* Dual Studio Layout: Jitsi Video Call + Shared Pod Chat */}
+            <div className="omegle-dual-studio">
+              {/* Left Column: Jitsi Live Video Call */}
+              <div className="glass" style={{padding: '0', borderRadius: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.1)', background: '#0b0f19'}}>
+                <div style={{padding: '10px 16px', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 600}}>
+                    <Video size={16} color="var(--accent-physics)" /> Peer Video & Audio Sync
+                  </div>
+                  <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Encrypted Room</span>
+                </div>
+                <div style={{flex: 1, minHeight: '380px'}}>
+                  <iframe
+                    src={`https://meet.jit.si/${matchedBuddy.roomName}#userInfo.displayName=${encodeURIComponent(sessionUser)}`}
+                    style={{width: '100%', height: '100%', border: 'none'}}
+                    allow="camera; microphone; fullscreen; display-capture; autoplay"
+                    title="Omegle Study Partner Call"
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: Shared Accountability Pod & Instant Chat */}
+              <div className="glass" style={{padding: '1.25rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(255,255,255,0.1)', background: 'linear-gradient(180deg, rgba(30,27,75,0.3) 0%, rgba(15,23,42,0.6) 100%)'}}>
+                
+                {/* Partner Academic Goals Card */}
+                <div style={{padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
+                  <div style={{fontSize: '0.8rem', color: 'var(--accent-math)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px'}}>
+                    Partner's Current Focus
+                  </div>
+                  <div style={{fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', marginBottom: '4px'}}>
+                    {matchedBuddy.focus}
+                  </div>
+                  <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic'}}>
+                    "{matchedBuddy.motto}"
+                  </div>
+                </div>
+
+                {/* Quick Prompts Bar */}
+                <div style={{display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none'}}>
+                  <button onClick={() => handleSendPeerChat("🔥 Let's lock in for a 25m silent sprint!")} style={{padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', cursor: 'pointer', whiteSpace: 'nowrap'}}>
+                    🔥 25m Silent Sprint
+                  </button>
+                  <button onClick={() => handleSendPeerChat("❓ Can you quiz me on quick formulas?")} style={{padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', cursor: 'pointer', whiteSpace: 'nowrap'}}>
+                    ❓ Quiz Me
+                  </button>
+                  <button onClick={() => handleSendPeerChat("✅ Solved 5 practice questions!")} style={{padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', cursor: 'pointer', whiteSpace: 'nowrap'}}>
+                    ✅ Solved 5 Qs
+                  </button>
+                  <button onClick={() => handleSendPeerChat("☕ Quick 3m water break!")} style={{padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', cursor: 'pointer', whiteSpace: 'nowrap'}}>
+                    ☕ 3m Break
+                  </button>
+                </div>
+
+                {/* Chat Messages Stream */}
+                <div style={{flex: 1, minHeight: '160px', maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '14px'}}>
+                  {peerMessages.map(msg => {
+                    const isMe = msg.sender === sessionUser;
+                    return (
+                      <div key={msg.id} style={{alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%'}}>
+                        <div style={{fontSize: '0.7rem', color: isMe ? 'var(--accent-physics)' : 'var(--accent-chem)', marginBottom: '2px', textAlign: isMe ? 'right' : 'left', fontWeight: 600}}>
+                          {isMe ? 'You' : msg.sender} · {msg.time}
+                        </div>
+                        <div style={{padding: '8px 12px', borderRadius: '12px', fontSize: '0.85rem', lineHeight: 1.35, background: isMe ? 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(99,102,241,0.3))' : 'rgba(255,255,255,0.06)', border: isMe ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.08)', color: '#f8fafc'}}>
+                          {msg.text}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Chat Input Bar */}
+                <div style={{display: 'flex', gap: '8px'}}>
+                  <input
+                    type="text"
+                    value={peerChatInput}
+                    onChange={e => setPeerChatInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSendPeerChat(); }}
+                    placeholder="Message study buddy..."
+                    className="input-field"
+                    style={{fontSize: '0.85rem', padding: '10px 14px'}}
+                  />
+                  <button onClick={() => handleSendPeerChat()} className="btn-primary" style={{padding: '0 16px', borderRadius: '12px'}}>
+                    <Send size={15} />
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Idle Matchmaker Hero Card */
+          <div className="omegle-match-hero">
+            <div style={{display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '100px', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', color: '#c084fc', fontSize: '0.85rem', fontWeight: 700, marginBottom: '1.25rem'}}>
+              <Sparkles size={16} /> Omegle For Serious Education · 1-on-1 Instant Match
+            </div>
+            
+            <h2 style={{fontSize: 'clamp(1.6rem, 3.5vw, 2.4rem)', fontWeight: 900, marginBottom: '0.75rem', lineHeight: 1.2, color: '#fff'}}>
+              Find a Random Serious Study Partner
+            </h2>
+            
+            <p style={{color: '#cbd5e1', fontSize: 'clamp(0.95rem, 2vw, 1.1rem)', maxWidth: '620px', margin: '0 auto 2rem', lineHeight: 1.5}}>
+              Skip the isolation. Get instantly connected on video + synchronized chat with an aspirant studying your exact target. Keep each other accountable for 25-minute deep work blocks.
+            </p>
+
+            <div style={{display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem'}}>
+              <button
+                onClick={() => handleStartMatching()}
+                className="btn-primary"
+                style={{
+                  padding: '14px 32px',
+                  borderRadius: '100px',
+                  fontSize: '1.05rem',
+                  fontWeight: 800,
+                  background: 'linear-gradient(90deg, #8b5cf6, #ec4899)',
+                  border: 'none',
+                  boxShadow: '0 8px 30px rgba(139,92,246,0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                <Radio size={20} /> Start 1-on-1 Matching Now
+              </button>
+            </div>
+
+            <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'clamp(1rem, 3vw, 2.5rem)', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                <Shield size={16} color="var(--accent-success)" /> 100% Academic & Safe
+              </div>
+              <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                <RefreshCw size={16} color="var(--accent-physics)" /> Skip / Next Partner Anytime
+              </div>
+              <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                <Clock size={16} color="var(--accent-math)" /> Shared 25m Pomodoro Accountability
+              </div>
             </div>
           </div>
         )}
 
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem'}}>
-          {isEventsLoading ? (
-            [1, 2, 3].map(i => (
-              <div key={i} className="glass" style={{padding: '1.5rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: 1 - i * 0.2}}>
-                <div style={{width: '60%', height: '24px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', animation: 'pulse 1.5s infinite'}}></div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                  <div style={{width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', animation: 'pulse 1.5s infinite'}}></div>
-                  <div style={{width: '40%', height: '14px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', animation: 'pulse 1.5s infinite'}}></div>
-                </div>
-                <div style={{width: '80%', height: '14px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', animation: 'pulse 1.5s infinite'}}></div>
-                <div style={{width: '100px', height: '32px', background: 'rgba(255,255,255,0.1)', borderRadius: '100px', alignSelf: 'flex-end', animation: 'pulse 1.5s infinite'}}></div>
+        {/* ── SCHEDULED LIVE STUDY EVENTS ── */}
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)'}}>
+           <h3 style={{fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px'}}><Calendar size={22} color="var(--accent-math)"/> Scheduled Group Sprints</h3>
+           <button className="btn-primary" onClick={() => setShowEventModal(true)} style={{borderRadius: '100px', background: 'linear-gradient(90deg, var(--accent-math), var(--accent-physics))', border: 'none', padding: '8px 18px', fontSize: '0.85rem'}}>+ Schedule Sprint</button>
+        </div>
+        
+        {showEventModal && (
+          <div className="animate-fade-in" style={{background: 'rgba(0,0,0,0.8)', position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', padding: '1rem'}}>
+            <div style={{background: '#0f172a', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid #334155', width: '100%', maxWidth: '440px', borderRadius: '24px', position: 'relative', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <h3 style={{fontSize: '1.25rem', fontWeight: 800}}>Schedule Study Sprint</h3>
+                <button onClick={() => setShowEventModal(false)} style={{background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer'}}><X size={20}/></button>
+              </div>
+              <input type="text" placeholder="Session Title (e.g. HC Verma Mechanics Sprint)" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} className="input-field" />
+              <input type="text" placeholder="Time (e.g. Today 8:00 PM IST)" value={newEventTime} onChange={e => setNewEventTime(e.target.value)} className="input-field" />
+              <select value={newEventDuration} onChange={e => setNewEventDuration(e.target.value)} className="input-field">
+                <option value="25 mins (1 Pomodoro)">25 mins (1 Pomodoro)</option>
+                <option value="50 mins (2 Pomodoros)">50 mins (2 Pomodoros)</option>
+                <option value="90 mins (Deep Grind)">90 mins (Deep Grind)</option>
+                <option value="2 Hours (Mock Review)">2 Hours (Mock Review)</option>
+              </select>
+              <button className="btn-primary" onClick={() => {
+                if (newEventTitle.trim()) {
+                  createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime, newEventDuration);
+                  setShowEventModal(false);
+                  setNewEventTitle('');
+                  awardXP(20, 'Scheduled a Live Study Sprint');
+                }
+              }}>Publish Sprint</button>
+            </div>
+          </div>
+        )}
+
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem'}}>
+          {studyEvents.length === 0 ? (
+            <div className="glass" style={{padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', gridColumn: '1 / -1', borderRadius: '18px'}}>
+              No scheduled sprints yet. Click '+ Schedule Sprint' above to host one for fellow aspirants!
+            </div>
+          ) : (
+            studyEvents.map(e => (
+              <div key={e.id} className="glass" style={{padding: '1.25rem', borderRadius: '18px', background: 'linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.06)'}}>
+                 <h4 style={{fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.4rem', lineHeight: 1.3}}>{e.title}</h4>
+                 <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.8rem'}}>
+                   <div style={{width: '20px', height: '20px', borderRadius: '50%', background: getAvatarColor(e.host || 'Guest'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 'bold'}}>{(e.host || 'G').charAt(0).toUpperCase()}</div>
+                   <p style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>{e.host || 'Host'}</p>
+                 </div>
+                 <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1rem', flexWrap: 'wrap'}}>
+                   <span style={{fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '4px 10px', borderRadius: '6px', color: 'var(--accent-math)', fontWeight: 700}}>⏰ {e.scheduledTime}</span>
+                   {e.duration && <span style={{fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '4px 10px', borderRadius: '6px', color: '#cbd5e1'}}>⏳ {e.duration}</span>}
+                 </div>
+                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem'}}>
+                   <span style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>👥 {e.participants?.length || 1} joined</span>
+                   <div style={{display: 'flex', gap: '6px'}}>
+                     <button onClick={() => deleteEvent(e.id)} style={{background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px'}} title="Delete"><Trash2 size={15} /></button>
+                     <button onClick={() => shareToWhatsApp(e.id, e.title)} style={{background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: '4px'}} title="Share on WhatsApp"><Send size={15} /></button>
+                     <button className="btn-primary" onClick={() => { joinEvent(e.id); setConnectRoom(e.id); setInCall(true); awardXP(10, 'Joined a Scheduled Event'); }} style={{padding: '6px 14px', fontSize: '0.8rem', borderRadius: '100px'}}>Join</button>
+                   </div>
+                 </div>
               </div>
             ))
-          ) : studyEvents.length === 0 ? <p style={{color: 'var(--text-muted)'}}>No upcoming events. Be the first to schedule one!</p> : studyEvents.map(e => (
-            <div key={e.id} className="glass" style={{padding: '1.5rem', borderRadius: '20px', background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden', transition: 'transform 0.2s'}} onMouseEnter={ev => ev.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={ev => ev.currentTarget.style.transform = 'none'}>
-               <div style={{position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'linear-gradient(to bottom, var(--accent-math), var(--accent-physics))'}}></div>
-               <h4 style={{fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem', lineHeight: 1.3}}>{e.title}</h4>
-               
-               <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.2rem'}}>
-                 <div style={{width: '24px', height: '24px', borderRadius: '50%', background: getAvatarColor(e.host || 'Guest'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 'bold'}}>{(e.host || 'G').charAt(0).toUpperCase()}</div>
-                 <p style={{fontSize: '0.9rem', color: 'var(--text-muted)'}}>{e.host || 'Guest'}</p>
-               </div>
-               
-               <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1.5rem', flexWrap: 'wrap'}}>
-                 <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '8px'}}>
-                   <Clock size={14} color="var(--accent-math)" />
-                   <p style={{fontSize: '0.85rem', color: 'var(--accent-math)', fontWeight: 700}}>{e.scheduledTime}</p>
-                 </div>
-                 {e.duration && (
-                   <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '8px'}}>
-                     <span style={{fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 600}}>⏳ {e.duration}</span>
-                   </div>
-                 )}
-               </div>
-               
-               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem'}}>
-                 <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                   <Users size={16} color="var(--text-muted)" />
-                   <span style={{fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600}}>{e.participants?.length || 1} joined</span>
-                 </div>
-                 <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
-                   <button onClick={() => deleteEvent(e.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '50%', transition: 'all 0.2s'}} onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(239,68,68,0.1)'} onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'} title="Delete Event"><Trash2 size={16} /></button>
-                   <button onClick={() => shareToWhatsApp(e.id, e.title)} style={{background: 'transparent', border: 'none', color: '#10b981', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '50%', transition: 'all 0.2s'}} onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(16,185,129,0.1)'} onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'} title="Share on WhatsApp"><Send size={16} /></button>
-                   <button className="btn-primary" onClick={() => { joinEvent(e.id); setConnectRoom(e.id); setInCall(true); awardXP(10, 'Joined a Scheduled Event'); }} style={{padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: 700, background: 'rgba(255,255,255,0.1)', color: 'white'}}>Join</button>
-                 </div>
-               </div>
+          )}
+        </div>
+
+        {/* ── EXAM STUDY POD LOUNGES ── */}
+        <h3 style={{fontSize: '1.3rem', fontWeight: 800, marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
+          <Globe size={22} color="var(--accent-physics)" /> 24/7 Dedicated Exam Lounges
+        </h3>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.25rem'}}>
+          {examRooms.map(room => (
+            <div
+              key={room.id}
+              className="glass subject-card"
+              style={{
+                padding: '1.75rem 1.25rem',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                borderColor: room.id === currentUserProfile?.prepType ? room.color : '',
+                transition: 'all 0.25s'
+              }}
+              onClick={() => { setConnectRoom(room.id); setInCall(true); awardXP(10, 'Joined Study Connect Room'); }}
+            >
+              <div style={{color: room.color, background: `${room.color}22`, border: `1px solid ${room.color}44`, borderRadius: '14px', padding: '12px'}}>
+                {room.icon}
+              </div>
+              <h4 style={{fontSize: '1.1rem', fontWeight: 700}}>{room.label}</h4>
+              <p style={{color: 'var(--text-muted)', fontSize: '0.8rem'}}>{room.desc}</p>
+              {room.id === currentUserProfile?.prepType && (
+                <span style={{background: `${room.color}33`, color: room.color, border: `1px solid ${room.color}55`, padding: '2px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700}}>Your Exam ⭐</span>
+              )}
+              <button className="btn-primary" style={{width: '100%', background: `${room.color}22`, borderColor: `${room.color}55`, color: room.color, marginTop: '4px', fontSize: '0.85rem', padding: '8px'}}>
+                <PhoneCall size={14}/> Enter Lounge
+              </button>
             </div>
           ))}
         </div>
 
-        <h3 style={{fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-muted)'}}>Join an Exam Study Room</h3>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem'}}>
-          {examRooms.map(room => (
-            <div key={room.id} className="glass subject-card" style={{textAlign: 'center', padding: '2.5rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', cursor: 'pointer', borderColor: room.id === currentUserProfile?.prepType ? room.color : '', transition: 'all 0.25s ease'}} onClick={() => { setConnectRoom(room.id); setInCall(true); awardXP(10, 'Joined Study Connect Room'); }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 12px 40px ${room.color}33`; }} onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
-              <div style={{color: room.color, background: `${room.color}22`, border: `1px solid ${room.color}44`, borderRadius: '16px', padding: '16px'}}>{room.icon}</div>
-              <h3 style={{fontSize: '1.25rem', fontWeight: 700}}>{room.label}</h3>
-              <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{room.desc}</p>
-              {room.id === currentUserProfile?.prepType && <span style={{background: `${room.color}33`, color: room.color, border: `1px solid ${room.color}55`, padding: '2px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 600}}>Your Exam ⭐</span>}
-              <button className="btn-primary" style={{width: '100%', background: `${room.color}22`, borderColor: `${room.color}55`, color: room.color}}><PhoneCall size={16}/> Join Room</button>
-            </div>
-          ))}
-        </div>
-        <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-          <h3 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem'}}><Wifi size={20} color="var(--accent-success)"/> Private Study Room</h3>
-          <p style={{color: 'var(--text-muted)', fontSize: '0.95rem'}}>Create a private room with a custom name and share it with a friend to study 1-on-1.</p>
-          <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
-            <input type="text" className="input-field" placeholder="Enter a custom room name (e.g. JEECrack-Batch2025)" value={customRoomName} onChange={e => setCustomRoomName(e.target.value)} style={{flex: '1 1 200px'}} />
-            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { shareToWhatsApp(customRoomName.trim()); } }} style={{flex: '0 0 auto', whiteSpace: 'nowrap', background: '#10b981', color: 'white'}} disabled={!customRoomName.trim()}><Send size={16}/> Share Invite</button>
-            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} style={{flex: '0 0 auto', whiteSpace: 'nowrap'}}><PhoneCall size={16}/> Start Private Call</button>
+        {/* ── PRIVATE STUDY ROOM ── */}
+        <div className="glass" style={{padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderRadius: '20px'}}>
+          <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700}}>
+            <Wifi size={18} color="var(--accent-success)"/> Create Private 1-on-1 Study Room
+          </h4>
+          <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Create an instant custom link and send to a study partner to practice together privately.</p>
+          <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap'}}>
+            <input type="text" className="input-field" placeholder="Enter custom room name (e.g. JEE-Crack-Batch-2025)" value={customRoomName} onChange={e => setCustomRoomName(e.target.value)} style={{flex: '1 1 200px'}} />
+            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { shareToWhatsApp(customRoomName.trim()); } }} style={{background: '#10b981', color: 'white'}} disabled={!customRoomName.trim()}><Send size={15}/> Share Invite</button>
+            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} disabled={!customRoomName.trim()}><PhoneCall size={15}/> Start Private Call</button>
           </div>
         </div>
-
 
       </div>
     );
   };
+
 
   const renderLectures = () => {
     const activeVideoObj = playlist.find(v => v.id === activeVideo);
@@ -2929,209 +4495,405 @@ const App = () => {
     const userPosts = feed.filter(f => f.user === sessionUser);
     
     const xpForNextLevel = level * 100;
-    const progressPercent = ((currentXP % 100) / 100) * 100;
+    const progressPercent = Math.min(100, Math.max(0, ((currentXP % 100) / 100) * 100));
+
+    // Achievement Badges Configuration
+    const ACHIEVEMENT_BADGES = [
+      { id: 'b1', title: 'Velocity Starter', icon: '⚡', desc: 'Completed your first practice task', unlocked: totalTasksCompleted > 0, progress: totalTasksCompleted > 0 ? '1/1 Done' : '0/1 Task' },
+      { id: 'b2', title: 'Active Recall Pro', icon: '🧠', desc: 'Generated lecture quizzes or logged mistakes', unlocked: (mistakesList && mistakesList.length > 0) || totalNotes > 0, progress: (mistakesList && mistakesList.length > 0) ? 'Active Master' : 'Log 1 Mistake' },
+      { id: 'b3', title: 'Focus Titan', icon: '⏱️', desc: 'Completed 25m+ deep Pomodoro sessions', unlocked: streak > 0 || totalTasksCompleted >= 3, progress: streak > 0 ? `${streak}d Streak` : 'Start 1 Sprint' },
+      { id: 'b4', title: 'Study Connector', icon: '🤝', desc: 'Connected on Omegle 1-on-1 study matching', unlocked: true, progress: 'Unlocked' },
+      { id: 'b5', title: 'Streak Warrior', icon: '🔥', desc: 'Maintained consecutive daily study streak', unlocked: streak >= 2, progress: `${streak}/2 Days` },
+      { id: 'b6', title: 'Grand Scholar', icon: '🏆', desc: 'Earned 100+ lifetime XP through practice', unlocked: currentXP >= 100, progress: `${currentXP}/100 XP` }
+    ];
+
+    const currentBio = currentUserProfile?.bio || "Dedicated aspirant relentless on the daily grind. Focus Mode 24/7.";
+    const currentCollege = currentUserProfile?.dreamCollege || "IIT Bombay / AIIMS Delhi";
+    const currentMotto = currentUserProfile?.motto || "Champions do in practice what they expect to perform in the arena.";
+    const currentStrengths = currentUserProfile?.strengths || "Kinematics, Organic Reactions, Rapid Problem Solving";
+    const currentWeakness = currentUserProfile?.weakness || "Time management in full-length mocks";
+    const currentHours = currentUserProfile?.targetHours || 8;
 
     return (
-      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '900px'}}>
+      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1000px', margin: '0 auto', width: '100%'}}>
         
-        {/* Profile Header Card */}
-        <div className="glass" style={{padding: 'clamp(1.5rem, 4vw, 3rem)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2rem', background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(16,185,129,0.05))', position: 'relative', overflow: 'hidden'}}>
-          <div style={{position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'var(--accent-physics)', opacity: '0.1', borderRadius: '50%', filter: 'blur(40px)'}}></div>
-          
-          <div style={{width: 'clamp(80px, 15vw, 120px)', height: 'clamp(80px, 15vw, 120px)', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', fontWeight: 'bold', border: '4px solid rgba(255,255,255,0.1)', flexShrink: 0, boxShadow: '0 0 30px rgba(139,92,246,0.3)'}}>
-            {sessionUser.charAt(0).toUpperCase()}
-          </div>
-          
-          <div style={{flex: '1 1 300px'}}>
-            {isEditingProfile ? (
-              <div style={{display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
-                <input 
-                  type="text" 
-                  value={editProfileData.name} 
-                  onChange={e => setEditProfileData({...editProfileData, name: e.target.value})}
-                  className="input-field" 
-                  placeholder="Username"
-                />
-                <select 
-                  value={editProfileData.prepType} 
-                  onChange={e => setEditProfileData({...editProfileData, prepType: e.target.value})}
-                  className="input-field"
-                >
-                  <option value="JEE">JEE</option>
-                  <option value="NEET">NEET</option>
-                  <option value="UPSC">UPSC</option>
-                  <option value="General">General / Other</option>
-                </select>
-                <input 
-                  type="number" 
-                  value={editProfileData.targetYear} 
-                  onChange={e => setEditProfileData({...editProfileData, targetYear: e.target.value})}
-                  className="input-field" 
-                  placeholder="Target Year"
-                />
-                <div style={{display: 'flex', gap: '10px', marginTop: '5px'}}>
-                  <button className="btn-primary" onClick={() => {
-                    let newName = editProfileData.name.trim();
-                    if (!newName) newName = sessionUser;
-                    setUsersDb(prev => {
-                      const newDb = { ...prev };
-                      if (newName !== sessionUser) {
-                        if (newDb[newName]) {
-                           alert("Username already taken!");
-                           return prev;
+        {/* ── EXECUTIVE PROFILE HERO ── */}
+        <div className="glass" style={{padding: 'clamp(1.5rem, 4vw, 2.75rem)', borderRadius: '28px', background: 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(236,72,153,0.08) 50%, rgba(15,23,42,0.9) 100%)', border: '1px solid rgba(139,92,246,0.25)', position: 'relative', overflow: 'hidden'}}>
+          <div style={{position: 'absolute', top: '-60px', right: '-60px', width: '220px', height: '220px', background: 'var(--accent-physics)', opacity: 0.12, borderRadius: '50%', filter: 'blur(50px)'}}></div>
+
+          <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2rem', position: 'relative', zIndex: 1}}>
+            {/* Glowing Avatar */}
+            <div style={{position: 'relative', flexShrink: 0}}>
+              <div style={{width: 'clamp(85px, 14vw, 125px)', height: 'clamp(85px, 14vw, 125px)', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(2.5rem, 5vw, 3.6rem)', fontWeight: 900, border: '4px solid rgba(255,255,255,0.15)', boxShadow: '0 0 35px rgba(139,92,246,0.35)', color: '#fff'}}>
+                {sessionUser.charAt(0).toUpperCase()}
+              </div>
+              <div style={{position: 'absolute', bottom: '2px', right: '4px', background: '#10b981', width: '22px', height: '22px', borderRadius: '50%', border: '3px solid #0f172a', boxShadow: '0 0 10px #10b981'}} title="Online & Studying"></div>
+            </div>
+
+            {/* Profile Content */}
+            <div style={{flex: '1 1 320px'}}>
+              {isEditingProfile ? (
+                /* Rich Edit Form */
+                <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.4)', padding: '1.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)'}}>
+                  <h3 style={{fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginBottom: '4px'}}>✏️ Edit Profile & Goals</h3>
+                  
+                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px'}}>
+                    <div>
+                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Username</label>
+                      <input type="text" value={editProfileData.name} onChange={e => setEditProfileData({...editProfileData, name: e.target.value})} className="input-field" placeholder="Username" />
+                    </div>
+                    <div>
+                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Exam Target</label>
+                      <select value={editProfileData.prepType} onChange={e => setEditProfileData({...editProfileData, prepType: e.target.value})} className="input-field">
+                        <option value="JEE">JEE (Advanced & Main)</option>
+                        <option value="NEET">NEET UG</option>
+                        <option value="UPSC">UPSC CSE</option>
+                        <option value="NDA">NDA</option>
+                        <option value="SAT">SAT / Global</option>
+                        <option value="General">General / Board Exams</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Target Year</label>
+                      <input type="number" value={editProfileData.targetYear} onChange={e => setEditProfileData({...editProfileData, targetYear: e.target.value})} className="input-field" placeholder="Target Year" />
+                    </div>
+                    <div>
+                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Dream College / Institute</label>
+                      <input type="text" value={editProfileData.dreamCollege || ''} onChange={e => setEditProfileData({...editProfileData, dreamCollege: e.target.value})} className="input-field" placeholder="e.g. IIT Bombay / AIIMS Delhi" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Bio / Aspirant Statement</label>
+                    <textarea rows="2" value={editProfileData.bio || ''} onChange={e => setEditProfileData({...editProfileData, bio: e.target.value})} className="input-field" placeholder="Briefly describe your focus..." style={{resize: 'none'}} />
+                  </div>
+
+                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px'}}>
+                    <div>
+                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Study Motto / Quote</label>
+                      <input type="text" value={editProfileData.motto || ''} onChange={e => setEditProfileData({...editProfileData, motto: e.target.value})} className="input-field" placeholder="Your driving quote..." />
+                    </div>
+                    <div>
+                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Key Academic Strengths</label>
+                      <input type="text" value={editProfileData.strengths || ''} onChange={e => setEditProfileData({...editProfileData, strengths: e.target.value})} className="input-field" placeholder="e.g. Mechanics, Calculus" />
+                    </div>
+                    <div>
+                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Current Weak Area / Priority</label>
+                      <input type="text" value={editProfileData.weakness || ''} onChange={e => setEditProfileData({...editProfileData, weakness: e.target.value})} className="input-field" placeholder="e.g. Time management in mocks" />
+                    </div>
+                    <div>
+                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Target Daily Study Hours</label>
+                      <input type="number" value={editProfileData.targetHours || 8} onChange={e => setEditProfileData({...editProfileData, targetHours: Number(e.target.value)})} className="input-field" placeholder="8" />
+                    </div>
+                  </div>
+
+                  <div style={{display: 'flex', gap: '10px', marginTop: '6px'}}>
+                    <button className="btn-primary" onClick={() => {
+                      let newName = editProfileData.name.trim();
+                      if (!newName) newName = sessionUser;
+                      setUsersDb(prev => {
+                        const newDb = { ...prev };
+                        const existingUser = newDb[sessionUser] || { profile: {} };
+                        const updatedProfile = {
+                          ...existingUser.profile,
+                          prepType: editProfileData.prepType,
+                          targetYear: editProfileData.targetYear,
+                          dreamCollege: editProfileData.dreamCollege,
+                          bio: editProfileData.bio,
+                          motto: editProfileData.motto,
+                          strengths: editProfileData.strengths,
+                          weakness: editProfileData.weakness,
+                          targetHours: editProfileData.targetHours
+                        };
+
+                        if (newName !== sessionUser) {
+                          if (newDb[newName]) {
+                            alert("Username already taken!");
+                            return prev;
+                          }
+                          delete newDb[sessionUser];
+                          newDb[newName] = { ...existingUser, profile: updatedProfile };
+                          const keys = ['pm_sub_', 'pm_jour_', 'pm_playlist_', 'pm_planner_', 'pm_syllabus_', 'pm_notes_', 'pm_streak_', 'pm_lastdate_', 'pm_mistakes_'];
+                          keys.forEach(k => {
+                            const val = localStorage.getItem(`${k}${sessionUser}`);
+                            if(val) localStorage.setItem(`${k}${newName}`, val);
+                            localStorage.removeItem(`${k}${sessionUser}`);
+                          });
+                          setSessionUser(newName);
+                          localStorage.setItem('planmaker_session', newName);
+                        } else {
+                          newDb[sessionUser] = { ...existingUser, profile: updatedProfile };
                         }
-                        const userData = newDb[sessionUser];
-                        delete newDb[sessionUser];
-                        userData.profile.prepType = editProfileData.prepType;
-                        userData.profile.targetYear = editProfileData.targetYear;
-                        newDb[newName] = userData;
-                        
-                        const keys = ['pm_sub_', 'pm_jour_', 'pm_playlist_', 'pm_planner_', 'pm_syllabus_', 'pm_notes_', 'pm_streak_', 'pm_lastdate_'];
-                        keys.forEach(k => {
-                          const val = localStorage.getItem(`${k}${sessionUser}`);
-                          if(val) localStorage.setItem(`${k}${newName}`, val);
-                          localStorage.removeItem(`${k}${sessionUser}`);
+                        return newDb;
+                      });
+                      awardXP(20, 'Updated Profile Bio & Academic Goals');
+                      setIsEditingProfile(false);
+                    }}>Save Profile</button>
+                    <button className="btn-secondary" onClick={() => setIsEditingProfile(false)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                /* Profile Display */
+                <div>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px'}}>
+                    <div>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'}}>
+                        <h1 style={{fontSize: 'clamp(1.75rem, 3.5vw, 2.4rem)', fontWeight: 900, margin: 0, color: '#fff'}}>
+                          {isGuest ? 'Guest Aspirant' : sessionUser}
+                        </h1>
+                        <span style={{fontSize: '0.8rem', padding: '3px 10px', borderRadius: '100px', background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)', color: 'var(--accent-physics)', fontWeight: 700}}>
+                          {currentUserProfile?.prepType || 'JEE'} Aspirant · Class of {currentUserProfile?.targetYear || '2026'}
+                        </span>
+                      </div>
+                      <div style={{fontSize: '0.95rem', color: 'var(--accent-math)', fontWeight: 700, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                        <Target size={16} /> Aiming for: {currentCollege}
+                      </div>
+                    </div>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => {
+                        setEditProfileData({
+                          name: sessionUser,
+                          prepType: currentUserProfile?.prepType || 'JEE',
+                          targetYear: currentUserProfile?.targetYear || new Date().getFullYear(),
+                          dreamCollege: currentCollege,
+                          bio: currentBio,
+                          motto: currentMotto,
+                          strengths: currentStrengths,
+                          weakness: currentWeakness,
+                          targetHours: currentHours
                         });
-                        
-                        setSessionUser(newName);
-                        localStorage.setItem('planmaker_session', newName);
-                      } else {
-                        newDb[sessionUser].profile.prepType = editProfileData.prepType;
-                        newDb[sessionUser].profile.targetYear = editProfileData.targetYear;
-                      }
-                      return newDb;
-                    });
-                    setIsEditingProfile(false);
-                  }}>Save</button>
-                  <button className="btn-secondary" onClick={() => setIsEditingProfile(false)}>Cancel</button>
+                        setIsEditingProfile(true);
+                      }}
+                      style={{padding: '7px 16px', fontSize: '0.85rem', borderRadius: '100px'}}
+                    >
+                      ✏️ Edit Bio & Goals
+                    </button>
+                  </div>
+
+                  <p style={{fontSize: '0.95rem', color: '#cbd5e1', margin: '0.75rem 0', lineHeight: 1.5, fontStyle: 'italic', background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '12px', borderLeft: '3px solid var(--accent-physics)'}}>
+                    "{currentBio}"
+                  </p>
+
+                  <div style={{display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '1rem'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', padding: '4px 12px', borderRadius: '100px', color: '#f87171', fontWeight: 700, fontSize: '0.85rem'}}>
+                      <Flame size={15} /> {streak} Day Streak
+                    </div>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '4px 12px', borderRadius: '100px', color: '#10b981', fontWeight: 700, fontSize: '0.85rem'}}>
+                      <Award size={15} /> Level {level}: {title}
+                    </div>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', padding: '4px 12px', borderRadius: '100px', color: '#fbbf24', fontWeight: 700, fontSize: '0.85rem'}}>
+                      <Zap size={15} /> {currentXP} Total XP
+                    </div>
+                  </div>
+
+                  {/* Level Progress Bar */}
+                  <div style={{marginTop: '1rem'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.85rem'}}>
+                      <span style={{color: 'var(--text-muted)'}}>Progress to Level {level + 1}</span>
+                      <span style={{fontWeight: 700, color: '#10b981'}}>{currentXP % 100} / 100 XP</span>
+                    </div>
+                    <div className="progress-bar-bg" style={{height: '8px', background: 'rgba(255,255,255,0.06)'}}>
+                      <div className="progress-bar-fill" style={{width: `${progressPercent}%`, background: 'linear-gradient(90deg, #10b981, #3b82f6)'}}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── "HOW PEERS SEE YOUR PROFILE" LIVE CARD PREVIEW ── */}
+        <div className="glass" style={{padding: '1.75rem', borderRadius: '24px', border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(135deg, rgba(30,27,75,0.4) 0%, rgba(15,23,42,0.8) 100%)'}}>
+          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '8px'}}>
+            <h3 style={{fontSize: '1.15rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px'}}>
+              <Share2 size={18} color="var(--accent-physics)" /> Peer View Preview (How Others See You in Community & Omegle)
+            </h3>
+            <span style={{fontSize: '0.75rem', padding: '4px 10px', borderRadius: '100px', background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', fontWeight: 700}}>
+              ✓ Live Holographic Student ID
+            </span>
+          </div>
+
+          <div style={{padding: '1.5rem', borderRadius: '20px', background: 'linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '14px'}}>
+                <div style={{width: '54px', height: '54px', borderRadius: '50%', background: getAvatarColor(sessionUser), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 900, color: '#fff', border: '2px solid rgba(255,255,255,0.2)'}}>
+                  {sessionUser.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <span style={{fontSize: '1.2rem', fontWeight: 900, color: '#fff'}}>{sessionUser}</span>
+                    <span style={{fontSize: '0.75rem', padding: '2px 8px', borderRadius: '100px', background: 'rgba(16,185,129,0.2)', color: '#10b981', fontWeight: 700}}>🟢 Verified Aspirant</span>
+                  </div>
+                  <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
+                    🎯 {currentUserProfile?.prepType || 'JEE'} {currentUserProfile?.targetYear || '2026'} · Target: <strong style={{color: '#f8fafc'}}>{currentCollege}</strong>
+                  </div>
                 </div>
               </div>
-            ) : (
-              <>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                  <div>
-                    <h1 className="greeting" style={{fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', margin: '0 0 4px', wordBreak: 'break-word'}}>{isGuest ? 'Guest Aspirant' : sessionUser}</h1>
-                    <p style={{color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '1rem'}}>
-                      {currentUserProfile?.prepType} Aspirant · Target {currentUserProfile?.targetYear}
-                    </p>
-                  </div>
-                  <button className="btn-secondary" style={{padding: '6px 12px', fontSize: '0.9rem'}} onClick={() => {
-                    setEditProfileData({
-                      name: sessionUser,
-                      prepType: currentUserProfile?.prepType || 'General',
-                      targetYear: currentUserProfile?.targetYear || new Date().getFullYear()
-                    });
-                    setIsEditingProfile(true);
-                  }}>
-                    <Settings size={14} style={{marginRight: '6px', verticalAlign: 'middle'}}/> Edit
-                  </button>
+
+              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <div style={{padding: '6px 14px', borderRadius: '100px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                  <Flame size={15} /> {streak}d Streak
                 </div>
-                
-                <div style={{background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
-                  <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
-                    <span style={{fontWeight: 'bold', color: 'var(--accent-success)'}}>Level {level}: {title}</span>
-                    <span style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>{currentXP} / {xpForNextLevel} XP</span>
-                  </div>
-                  <div className="progress-bar-bg" style={{height: '10px', background: 'rgba(255,255,255,0.05)'}}>
-                    <div className="progress-bar-fill" style={{width: `${progressPercent}%`, background: 'var(--accent-success)'}}></div>
-                  </div>
+                <div style={{padding: '6px 14px', borderRadius: '100px', background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)', color: 'var(--accent-physics)', fontWeight: 700, fontSize: '0.85rem'}}>
+                  Lvl {level} {title}
                 </div>
-                
-                {isGuest && (
-                  <div style={{marginTop: '1rem'}}>
-                    <span className="tag" style={{background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)'}}>Unsaved Account</span>
-                  </div>
-                )}
-              </>
-            )}
+              </div>
+            </div>
+
+            <div style={{fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.4, padding: '10px 14px', background: 'rgba(0,0,0,0.25)', borderRadius: '12px'}}>
+              "{currentBio}"
+            </div>
+
+            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.85rem'}}>
+              <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
+                💡 Motto: <em style={{color: '#cbd5e1'}}>"{currentMotto}"</em>
+              </div>
+              <div style={{fontSize: '0.85rem', color: 'var(--accent-math)', fontWeight: 600}}>
+                ⚡ Strengths: {currentStrengths}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem'}}>
-          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
-            <div style={{padding: '12px', background: 'rgba(16,185,129,0.1)', borderRadius: '50%', color: 'var(--accent-success)'}}><Check size={24}/></div>
-            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalTasksCompleted}</div>
-            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Tasks Completed</div>
+        {/* ── 6 GAMIFIED ACHIEVEMENT BADGES ── */}
+        <div>
+          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem'}}>
+            <h3 style={{fontSize: '1.25rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px'}}>
+              <Trophy size={20} color="var(--accent-math)" /> Academic Achievement Badges
+            </h3>
+            <span style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Earned through active learning</span>
           </div>
-          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
-            <div style={{padding: '12px', background: 'rgba(139,92,246,0.1)', borderRadius: '50%', color: 'var(--accent-physics)'}}><Video size={24}/></div>
-            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{playlist.length}</div>
-            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Lectures Saved</div>
-          </div>
-          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
-            <div style={{padding: '12px', background: 'rgba(236,72,153,0.1)', borderRadius: '50%', color: 'var(--accent-chem)'}}><FileText size={24}/></div>
-            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalNotes}</div>
-            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Lecture Notes</div>
-          </div>
-          <div className="glass" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px'}}>
-            <div style={{padding: '12px', background: 'rgba(245,158,11,0.1)', borderRadius: '50%', color: '#f59e0b'}}><BookOpen size={24}/></div>
-            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalJournals}</div>
-            <div style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Journal Entries</div>
+
+          <div className="profile-badges-grid">
+            {ACHIEVEMENT_BADGES.map(badge => (
+              <div
+                key={badge.id}
+                className="achievement-badge-card"
+                style={{
+                  border: badge.unlocked ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                  background: badge.unlocked ? 'linear-gradient(145deg, rgba(16,185,129,0.08) 0%, rgba(255,255,255,0.02) 100%)' : 'rgba(255,255,255,0.02)'
+                }}
+              >
+                <div style={{fontSize: '2rem', padding: '10px', background: badge.unlocked ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)', borderRadius: '14px', border: badge.unlocked ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)'}}>
+                  {badge.icon}
+                </div>
+                <div style={{flex: 1}}>
+                  <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px'}}>
+                    <div style={{fontWeight: 800, fontSize: '0.95rem', color: badge.unlocked ? '#fff' : 'var(--text-muted)'}}>{badge.title}</div>
+                    <span style={{fontSize: '0.7rem', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, background: badge.unlocked ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)', color: badge.unlocked ? '#10b981' : 'var(--text-muted)'}}>
+                      {badge.unlocked ? '✓ UNLOCKED' : 'LOCKED'}
+                    </span>
+                  </div>
+                  <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.3}}>{badge.desc}</div>
+                  <div style={{fontSize: '0.75rem', color: badge.unlocked ? 'var(--accent-physics)' : 'var(--text-muted)', fontWeight: 600, marginTop: '4px'}}>
+                    {badge.progress}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Info & Activity Row */}
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem'}}>
+        {/* ── ACADEMIC BLUEPRINT & FOCUS PRIORITIES ── */}
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem'}}>
           
-          <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-            <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '0.5rem'}}><Target size={20} color="var(--accent-math)"/> Identified Weakness</h2>
-            <div style={{background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', flex: 1}}>
-              <p style={{fontSize: '1.05rem', lineHeight: '1.6', color: 'var(--text-muted)', fontStyle: currentUserProfile?.weakness ? 'normal' : 'italic'}}>
-                {currentUserProfile?.weakness || "You haven't specified a weakness."}
+          {/* Key Strengths */}
+          <div className="glass" style={{padding: '1.75rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
+            <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-physics)'}}>
+              <Zap size={18} /> Mastered Strengths
+            </h4>
+            <div style={{background: 'rgba(0,0,0,0.25)', padding: '1.25rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', flex: 1}}>
+              <p style={{fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.5, margin: 0}}>
+                {currentStrengths}
               </p>
             </div>
           </div>
 
-          <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-            <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '0.5rem'}}><Flame size={20} color="#ef4444"/> Recent Community Activity</h2>
-            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1}}>
-              {userPosts.length === 0 ? (
-                <p style={{color: 'var(--text-muted)', fontStyle: 'italic', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', textAlign: 'center'}}>No posts yet. Go to Community to share an update!</p>
-              ) : (
-                userPosts.slice(0, 3).map(post => (
-                  <div key={post.id} style={{background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)'}}>
-                    <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px'}}>{post.time}</div>
-                    <div style={{fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.4}}>"{post.action.length > 80 ? post.action.slice(0,80) + '...' : post.action}"</div>
-                    <div style={{marginTop: '8px', fontSize: '0.8rem', color: 'var(--accent-physics)'}}>❤️ {post.likes||0} Likes · 💬 {(post.comments||[]).length} Comments</div>
-                  </div>
-                ))
-              )}
+          {/* Identified Weakness & Fixes */}
+          <div className="glass" style={{padding: '1.75rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
+            <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 800, color: '#f59e0b'}}>
+              <AlertCircle size={18} /> High-Priority Improvement Area
+            </h4>
+            <div style={{background: 'rgba(0,0,0,0.25)', padding: '1.25rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', flex: 1}}>
+              <p style={{fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.5, margin: 0}}>
+                {currentWeakness}
+              </p>
+            </div>
+          </div>
+
+          {/* Target Study Hours Daily */}
+          <div className="glass" style={{padding: '1.75rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
+            <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 800, color: '#10b981'}}>
+              <Clock size={18} /> Daily Grind Commitment
+            </h4>
+            <div style={{background: 'rgba(0,0,0,0.25)', padding: '1.25rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', flex: 1, display: 'flex', alignItems: 'center', gap: '14px'}}>
+              <div style={{fontSize: '2.4rem', fontWeight: 900, color: '#10b981'}}>{currentHours}h</div>
+              <div>
+                <div style={{fontSize: '0.9rem', fontWeight: 700, color: '#fff'}}>Target Study Hours / Day</div>
+                <div style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Pomodoro sprints & practice drills</div>
+              </div>
             </div>
           </div>
 
         </div>
-        
-        {/* Theme Selection */}
-        <div className="glass" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-          <h2 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '0.5rem'}}><Sparkles size={20} color="var(--accent-math)"/> Dashboard Theme</h2>
+
+        {/* ── STATS BREAKDOWN ── */}
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '1rem'}}>
+          <div className="glass" style={{padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', borderRadius: '18px'}}>
+            <div style={{padding: '10px', background: 'rgba(16,185,129,0.1)', borderRadius: '50%', color: 'var(--accent-success)'}}><Check size={22}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalTasksCompleted}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>Practice Tasks</div>
+          </div>
+          <div className="glass" style={{padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', borderRadius: '18px'}}>
+            <div style={{padding: '10px', background: 'rgba(139,92,246,0.1)', borderRadius: '50%', color: 'var(--accent-physics)'}}><Video size={22}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{playlist.length}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>Active Lectures</div>
+          </div>
+          <div className="glass" style={{padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', borderRadius: '18px'}}>
+            <div style={{padding: '10px', background: 'rgba(236,72,153,0.1)', borderRadius: '50%', color: 'var(--accent-chem)'}}><FileText size={22}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{mistakesList ? mistakesList.length : 0}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>Mistakes Logged</div>
+          </div>
+          <div className="glass" style={{padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', borderRadius: '18px'}}>
+            <div style={{padding: '10px', background: 'rgba(245,158,11,0.1)', borderRadius: '50%', color: '#f59e0b'}}><BookOpen size={22}/></div>
+            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalJournals}</div>
+            <div style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>Daily Logs</div>
+          </div>
+        </div>
+
+        {/* ── THEME SELECTION ── */}
+        <div className="glass" style={{padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderRadius: '20px'}}>
+          <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', fontWeight: 800}}>
+            <Sparkles size={18} color="var(--accent-math)"/> Workspace Background Theme
+          </h4>
           <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
             <button 
               onClick={() => setBgTheme('universe-bg')} 
-              style={{flex: 1, padding: '1rem', background: bgTheme === 'universe-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'universe-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '150px'}}>
+              style={{flex: 1, padding: '1rem', background: bgTheme === 'universe-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'universe-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '140px', fontWeight: 600}}>
               🌌 Deep Universe
             </button>
             <button 
               onClick={() => setBgTheme('solid-dark-bg')} 
-              style={{flex: 1, padding: '1rem', background: bgTheme === 'solid-dark-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'solid-dark-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '150px'}}>
+              style={{flex: 1, padding: '1rem', background: bgTheme === 'solid-dark-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'solid-dark-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '140px', fontWeight: 600}}>
               🌑 Solid Dark
             </button>
             <button 
               onClick={() => setBgTheme('mesh-bg')} 
-              style={{flex: 1, padding: '1rem', background: bgTheme === 'mesh-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'mesh-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '150px'}}>
+              style={{flex: 1, padding: '1rem', background: bgTheme === 'mesh-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'mesh-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '140px', fontWeight: 600}}>
               🕸️ Grid Mesh
             </button>
           </div>
         </div>
 
-        {/* Actions Row */}
-        <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
+        {/* ── ACCOUNT ACTIONS ROW ── */}
+        <div style={{display: 'flex', gap: '1rem', marginTop: '0.5rem', flexWrap: 'wrap'}}>
           {isGuest ? (
-            <button onClick={() => { setAuthWallMsg('Create a permanent account to save your XP and profile data.'); setShowAuthWall(true); }} className="btn-primary" style={{padding: '14px 24px'}}>
+            <button onClick={() => { setAuthWallMsg('Create a permanent account to save your XP and profile data.'); setShowAuthWall(true); }} className="btn-primary" style={{padding: '14px 24px', borderRadius: '14px'}}>
               <User size={18} /> Create Permanent Account
             </button>
           ) : (
-            <button onClick={handleLogout} className="btn-primary" style={{background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171', padding: '14px 24px'}}>
+            <button onClick={handleLogout} className="btn-primary" style={{background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171', padding: '14px 24px', borderRadius: '14px'}}>
               <LogOut size={18} /> Logout
             </button>
           )}
@@ -3141,7 +4903,8 @@ const App = () => {
     );
   };
 
-  return (
+
+return (
     <div className="app-layout">
 
 
@@ -3210,78 +4973,81 @@ const App = () => {
       </nav>
 
       {/* Main Content */}
-      <main className="main-content">
-        {/* Mobile Header */}
-        <div className="mobile-header">
-          <div className="mobile-brand"><Headphones size={20} color="var(--accent-physics)" /> <span>Focus Mode <span style={{background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800}}>Player</span></span></div>
-          {true && <div className="mobile-xp-badge">⚡ {currentXP} XP</div>}
-        </div>
+      <main className={`main-content ${activeTab === 'community' ? 'community-full-mode' : ''}`}>
+        {/* Mobile Header (Hidden in community full-bleed mode) */}
+        {activeTab !== 'community' && (
+          <div className="mobile-header">
+            <div className="mobile-brand"><Headphones size={20} color="var(--accent-physics)" /> <span>Focus Mode <span style={{background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800}}>Player</span></span></div>
+            {true && <div className="mobile-xp-badge">⚡ {currentXP} XP</div>}
+          </div>
+        )}
 
-        <header className="page-header" style={{paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem'}}>
-          <div>
-            <h1 className="greeting">
-              {activeTab === 'dashboard' && `Welcome, ${sessionUser}!` }
-              {activeTab === 'planner' && 'Study Planner'}
-              {activeTab === 'journal' && 'Learning Journal'}
-              {activeTab === 'lectures' && 'Ad-Free Lectures'}
-              {activeTab === 'connect' && 'Study Connect'}
-              {activeTab === 'community' && 'Community'}
-              {activeTab === 'profile' && 'My Profile'}
-            </h1>
-            <p className="subtitle">
-              {activeTab === 'dashboard' && "Crush your tasks for today."}
-              {activeTab === 'planner' && "Plan your weekly study schedule."}
-              {activeTab === 'journal' && "Log your learnings and mistakes."}
-              {activeTab === 'lectures' && "Watch lectures ad-free."}
-              {activeTab === 'connect' && "Video rooms with fellow aspirants."}
-              {activeTab === 'community' && "Compete, share, and grow."}
-              {activeTab === 'profile' && "Your stats and progress."}
-            </p>
-          </div>
-          
-          {/* Global Theme Selector Pill */}
-          <div className="glass" style={{
-            display: 'flex', 
-            alignItems: 'center', 
-            padding: '6px', 
-            borderRadius: '100px',
-            background: 'rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.4)',
-            gap: '4px'
-          }}>
-            <button 
-              onClick={() => setBgTheme('universe-bg')} 
-              style={{
-                padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none',
-                background: bgTheme === 'universe-bg' ? 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))' : 'transparent', 
-                color: bgTheme === 'universe-bg' ? 'white' : 'var(--text-muted)', 
-                boxShadow: bgTheme === 'universe-bg' ? '0 4px 15px rgba(139,92,246,0.4)' : 'none',
-                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
-            >🌌 Universe</button>
-            <button 
-              onClick={() => setBgTheme('solid-dark-bg')} 
-              style={{
-                padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none',
-                background: bgTheme === 'solid-dark-bg' ? 'linear-gradient(135deg, var(--accent-success), #059669)' : 'transparent', 
-                color: bgTheme === 'solid-dark-bg' ? 'white' : 'var(--text-muted)', 
-                boxShadow: bgTheme === 'solid-dark-bg' ? '0 4px 15px rgba(16,185,129,0.4)' : 'none',
-                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
-            >🌑 Dark</button>
-            <button 
-              onClick={() => setBgTheme('mesh-bg')} 
-              style={{
-                padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none',
-                background: bgTheme === 'mesh-bg' ? 'linear-gradient(135deg, var(--accent-math), #2563eb)' : 'transparent', 
-                color: bgTheme === 'mesh-bg' ? 'white' : 'var(--text-muted)', 
-                boxShadow: bgTheme === 'mesh-bg' ? '0 4px 15px rgba(59,130,246,0.4)' : 'none',
-                cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
-            >🕸️ Mesh</button>
-          </div>
-        </header>
+        {/* Page Header (Hidden in community full-bleed mode for maximum spacious chat height) */}
+        {activeTab !== 'community' && (
+          <header className="page-header" style={{paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem'}}>
+            <div>
+              <h1 className="greeting">
+                {activeTab === 'dashboard' && `Welcome, ${sessionUser}!` }
+                {activeTab === 'planner' && 'Study Planner'}
+                {activeTab === 'journal' && 'Learning Journal'}
+                {activeTab === 'lectures' && 'Ad-Free Lectures'}
+                {activeTab === 'connect' && 'Study Connect'}
+                {activeTab === 'profile' && 'My Profile'}
+              </h1>
+              <p className="subtitle">
+                {activeTab === 'dashboard' && "Crush your tasks for today."}
+                {activeTab === 'planner' && "Plan your weekly study schedule."}
+                {activeTab === 'journal' && "Log your learnings and mistakes."}
+                {activeTab === 'lectures' && "Watch lectures ad-free."}
+                {activeTab === 'connect' && "Video rooms with fellow aspirants."}
+                {activeTab === 'profile' && "Your stats and progress."}
+              </p>
+            </div>
+            
+            {/* Global Theme Selector Pill */}
+            <div className="glass" style={{
+              display: 'flex', 
+              alignItems: 'center', 
+              padding: '6px', 
+              borderRadius: '100px',
+              background: 'rgba(0,0,0,0.3)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.4)',
+              gap: '4px'
+            }}>
+              <button 
+                onClick={() => setBgTheme('universe-bg')} 
+                style={{
+                  padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none',
+                  background: bgTheme === 'universe-bg' ? 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))' : 'transparent', 
+                  color: bgTheme === 'universe-bg' ? 'white' : 'var(--text-muted)', 
+                  boxShadow: bgTheme === 'universe-bg' ? '0 4px 15px rgba(139,92,246,0.4)' : 'none',
+                  cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >🌌 Universe</button>
+              <button 
+                onClick={() => setBgTheme('solid-dark-bg')} 
+                style={{
+                  padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none',
+                  background: bgTheme === 'solid-dark-bg' ? 'linear-gradient(135deg, var(--accent-success), #059669)' : 'transparent', 
+                  color: bgTheme === 'solid-dark-bg' ? 'white' : 'var(--text-muted)', 
+                  boxShadow: bgTheme === 'solid-dark-bg' ? '0 4px 15px rgba(16,185,129,0.4)' : 'none',
+                  cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >🌑 Dark</button>
+              <button 
+                onClick={() => setBgTheme('mesh-bg')} 
+                style={{
+                  padding: '8px 16px', fontSize: '0.85rem', borderRadius: '100px', fontWeight: '700', border: 'none',
+                  background: bgTheme === 'mesh-bg' ? 'linear-gradient(135deg, var(--accent-math), #2563eb)' : 'transparent', 
+                  color: bgTheme === 'mesh-bg' ? 'white' : 'var(--text-muted)', 
+                  boxShadow: bgTheme === 'mesh-bg' ? '0 4px 15px rgba(59,130,246,0.4)' : 'none',
+                  cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >🕸️ Mesh</button>
+            </div>
+          </header>
+        )}
         {activeTab === 'dashboard' && renderDashboard()}
         {activeTab === 'planner' && renderPlanner()}
         {activeTab === 'journal' && renderJournal()}

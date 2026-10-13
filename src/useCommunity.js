@@ -10,9 +10,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const FIREBASE_URL = 'https://studentmesh-878b5-default-rtdb.asia-southeast1.firebasedatabase.app';
 const POSTS_PATH = `${FIREBASE_URL}/focusmode/community`;
 const USERS_PATH = `${FIREBASE_URL}/focusmode/users`;
+const BANNED_PATH = `${FIREBASE_URL}/focusmode/bannedUsers`;
 
 export const syncUserToFirebase = async (username, profile) => {
   if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
+  if (!username || username.startsWith('Guest_')) return; // Never sync guest users
   try {
     await fetch(`${USERS_PATH}/${username}.json`, {
       method: 'PUT',
@@ -21,6 +23,89 @@ export const syncUserToFirebase = async (username, profile) => {
     });
   } catch (e) {
     console.error("Error syncing user to firebase", e);
+  }
+};
+
+/**
+ * Moderation API: Ban, Unban, Remove user and purge posts
+ */
+export const fetchBannedUsers = async () => {
+  if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return [];
+  try {
+    const res = await fetch(`${BANNED_PATH}.json`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data && typeof data === 'object' ? Object.keys(data) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const banUserInFirebase = async (username, reason = 'Banned by moderator') => {
+  if (!FIREBASE_URL || !username) return;
+  try {
+    await fetch(`${BANNED_PATH}/${username}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bannedAt: Date.now(), reason }),
+    });
+    await fetch(`${USERS_PATH}/${username}.json`, { method: 'DELETE' });
+    await purgeUserPostsFromFirebase(username);
+  } catch (err) {
+    console.error("Error banning user in Firebase:", err);
+  }
+};
+
+export const unbanUserInFirebase = async (username) => {
+  if (!FIREBASE_URL || !username) return;
+  try {
+    await fetch(`${BANNED_PATH}/${username}.json`, { method: 'DELETE' });
+  } catch (err) {
+    console.error("Error unbanning user in Firebase:", err);
+  }
+};
+
+export const removeUserFromFirebase = async (username) => {
+  if (!FIREBASE_URL || !username) return;
+  try {
+    await fetch(`${USERS_PATH}/${username}.json`, { method: 'DELETE' });
+    await purgeUserPostsFromFirebase(username);
+  } catch (err) {
+    console.error("Error removing user from Firebase:", err);
+  }
+};
+
+export const purgeUserPostsFromFirebase = async (username) => {
+  if (!FIREBASE_URL || !username) return 0;
+  try {
+    const posts = await fetchPosts();
+    const deletePromises = [];
+    Object.entries(posts || {}).forEach(([id, val]) => {
+      if (val && val.user === username) {
+        deletePromises.push(fetch(`${POSTS_PATH}/${id}.json`, { method: 'DELETE' }));
+      }
+    });
+    await Promise.allSettled(deletePromises);
+    return deletePromises.length;
+  } catch (err) {
+    console.error("Error purging user posts:", err);
+    return 0;
+  }
+};
+
+export const cleanupGuestUsersFromFirebase = async () => {
+  if (!FIREBASE_URL) return 0;
+  try {
+    const res = await fetch(`${USERS_PATH}.json`);
+    const users = await res.json();
+    if (!users || typeof users !== 'object') return 0;
+    const guestKeys = Object.keys(users).filter(k => k.startsWith('Guest_'));
+    const deletePromises = guestKeys.map(k => fetch(`${USERS_PATH}/${k}.json`, { method: 'DELETE' }));
+    await Promise.allSettled(deletePromises);
+    return guestKeys.length;
+  } catch (err) {
+    console.error("Error cleaning up guest accounts:", err);
+    return 0;
   }
 };
 
@@ -123,8 +208,9 @@ export const maskAbuse = (text) => {
   return maskedText;
 };
 
-const parsePostsMap = (data) => {
+const parsePostsMap = (data, banned = []) => {
   if (!data || typeof data !== 'object') return [];
+  const bannedSet = new Set(banned);
   return Object.entries(data)
     .map(([key, val]) => ({
       id: key,
@@ -137,16 +223,59 @@ const parsePostsMap = (data) => {
       likes: val.likes || 0,
       likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
       comments: Array.isArray(val.comments) ? val.comments.map(c => ({...c, text: maskAbuse(c.text)})) : [],
+      reactions: val.reactions && typeof val.reactions === 'object' ? val.reactions : {},
+      replyTo: val.replyTo || null,
     }))
-    .filter(p => p.action && !p.user.startsWith('Guest_'))
+    .filter(p => p.action && !p.user.startsWith('Guest_') && !bannedSet.has(p.user))
     .map(p => ({...p, action: maskAbuse(p.action)}))
     .sort((a, b) => b.createdAt - a.createdAt);
 };
 
 export const useCommunity = (sessionUser, currentXP, prepType) => {
   const [posts, setPosts] = useState([]);
+  const [bannedUsers, setBannedUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const sseRef = useRef(null);
+  const bannedSseRef = useRef(null);
+
+  // Sync Banned Users
+  useEffect(() => {
+    if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
+
+    fetchBannedUsers().then(users => {
+      setBannedUsers(users || []);
+    });
+
+    let es;
+    try {
+      es = new EventSource(`${BANNED_PATH}.json`);
+      bannedSseRef.current = es;
+      const handleBanned = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.data === undefined) return;
+          if (payload.path === '/') {
+            setBannedUsers(payload.data && typeof payload.data === 'object' ? Object.keys(payload.data) : []);
+          } else {
+            const user = payload.path.split('/').filter(Boolean)[0];
+            if (user) {
+              if (payload.data === null) {
+                setBannedUsers(prev => prev.filter(u => u !== user));
+              } else {
+                setBannedUsers(prev => prev.includes(user) ? prev : [...prev, user]);
+              }
+            }
+          }
+        } catch {}
+      };
+      es.addEventListener('put', handleBanned);
+      es.addEventListener('patch', handleBanned);
+    } catch {}
+
+    return () => {
+      if (es) es.close();
+    };
+  }, []);
 
   useEffect(() => {
     if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') {
@@ -156,7 +285,7 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
 
     // Initial load
     fetchPosts().then(data => {
-      setPosts(parsePostsMap(data));
+      setPosts(parsePostsMap(data, bannedUsers));
       setIsLoading(false);
     });
 
@@ -220,8 +349,10 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
               likes: val.likes || 0,
               likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
               comments: Array.isArray(val.comments) ? val.comments.map(c => ({...c, text: maskAbuse(c.text)})) : [],
+              reactions: val.reactions && typeof val.reactions === 'object' ? val.reactions : {},
+              replyTo: val.replyTo || null,
             }))
-            .filter(p => p.action && !p.user.startsWith('Guest_'))
+            .filter(p => p.action && !p.user.startsWith('Guest_') && !bannedUsers.includes(p.user))
             .map(p => ({...p, action: maskAbuse(p.action)}))
             .sort((a, b) => b.createdAt - a.createdAt);
         });
@@ -244,13 +375,15 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
       isComponentMounted = false;
       if (es) es.close();
     };
-  }, []);
+  }, [bannedUsers]);
 
-  const postMessage = useCallback(async (text) => {
+  const postMessage = useCallback(async (text, replyTo = null) => {
     if (!text?.trim() || !FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
+    if (bannedUsers.includes(sessionUser)) {
+      alert("Access restricted: This account has been suspended from the community.");
+      return;
+    }
     
-    // We don't block locally anymore, we just let it sync and it will be masked on display
-    // but optionally we can mask it before sending to database.
     const cleanText = maskAbuse(text);
 
     const id = `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -264,6 +397,12 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
       likes: 0,
       likedBy: [],
       comments: [],
+      reactions: {},
+      replyTo: replyTo ? {
+        id: replyTo.id,
+        user: replyTo.user,
+        text: replyTo.text?.slice(0, 140) || '',
+      } : null,
     };
     
     // Optimistic UI update
@@ -275,7 +414,45 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
       console.error("Failed to post message (Check Firebase Rules):", err);
     }
     return id;
-  }, [sessionUser, currentXP, prepType]);
+  }, [sessionUser, currentXP, prepType, bannedUsers]);
+
+
+  const toggleReaction = useCallback(async (postId, emoji = '❤️') => {
+    if (!sessionUser || !postId) return;
+
+    // Optimistic UI update
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      const reactions = { ...(p.reactions || {}) };
+      const users = Array.isArray(reactions[emoji]) ? [...reactions[emoji]] : [];
+      const hasReacted = users.includes(sessionUser);
+      if (hasReacted) {
+        reactions[emoji] = users.filter(u => u !== sessionUser);
+        if (reactions[emoji].length === 0) delete reactions[emoji];
+      } else {
+        reactions[emoji] = [...users, sessionUser];
+      }
+      return { ...p, reactions };
+    }));
+
+    try {
+      const res = await fetch(`${POSTS_PATH}/${postId}.json`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const reactions = { ...(data?.reactions || {}) };
+      const users = Array.isArray(reactions[emoji]) ? [...reactions[emoji]] : [];
+      const hasReacted = users.includes(sessionUser);
+      if (hasReacted) {
+        reactions[emoji] = users.filter(u => u !== sessionUser);
+        if (reactions[emoji].length === 0) delete reactions[emoji];
+      } else {
+        reactions[emoji] = [...users, sessionUser];
+      }
+      await patchPost(postId, { reactions });
+    } catch (err) {
+      console.error("Failed to toggle reaction:", err);
+    }
+  }, [sessionUser]);
 
   const toggleLike = useCallback(async (postId) => {
     // Optimistic UI update
@@ -303,6 +480,10 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
 
   const addComment = useCallback(async (postId, text) => {
     if (!text?.trim()) return;
+    if (bannedUsers.includes(sessionUser)) {
+      alert("Access restricted: This account has been suspended.");
+      return;
+    }
 
     const cleanText = maskAbuse(text);
     
@@ -322,7 +503,7 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     } catch (err) {
       console.error("Failed to add comment (Check Firebase Rules):", err);
     }
-  }, [sessionUser]);
+  }, [sessionUser, bannedUsers]);
 
   const deletePost = useCallback(async (postId) => {
     // Optimistic UI update
@@ -335,7 +516,50 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     }
   }, []);
 
-  return { posts, isLoading, postMessage, toggleLike, addComment, deletePost };
+  const banUser = useCallback(async (username, reason) => {
+    if (!username) return;
+    setBannedUsers(prev => prev.includes(username) ? prev : [...prev, username]);
+    setPosts(prev => prev.filter(p => p.user !== username));
+    await banUserInFirebase(username, reason);
+  }, []);
+
+  const unbanUser = useCallback(async (username) => {
+    if (!username) return;
+    setBannedUsers(prev => prev.filter(u => u !== username));
+    await unbanUserInFirebase(username);
+  }, []);
+
+  const removeUser = useCallback(async (username) => {
+    if (!username) return;
+    setPosts(prev => prev.filter(p => p.user !== username));
+    await removeUserFromFirebase(username);
+  }, []);
+
+  const purgeUserPosts = useCallback(async (username) => {
+    if (!username) return;
+    setPosts(prev => prev.filter(p => p.user !== username));
+    await purgeUserPostsFromFirebase(username);
+  }, []);
+
+  const cleanupGuestUsers = useCallback(async () => {
+    return await cleanupGuestUsersFromFirebase();
+  }, []);
+
+  return {
+    posts,
+    isLoading,
+    postMessage,
+    toggleReaction,
+    toggleLike,
+    addComment,
+    deletePost,
+    bannedUsers,
+    banUser,
+    unbanUser,
+    removeUser,
+    purgeUserPosts,
+    cleanupGuestUsers,
+  };
 };
 
 export const useFirebaseUsers = () => {
@@ -349,7 +573,13 @@ export const useFirebaseUsers = () => {
       .then(res => res.json())
       .then(data => {
         if (data && typeof data === 'object') {
-          setFirebaseUsers(data);
+          const clean = {};
+          Object.entries(data).forEach(([key, val]) => {
+            if (!key.startsWith('Guest_')) {
+              clean[key] = val;
+            }
+          });
+          setFirebaseUsers(clean);
         }
       })
       .catch(err => console.error("Error fetching users", err));
@@ -375,7 +605,7 @@ export const useFirebaseUsers = () => {
           if (path === '/') {
             if (payload.data && typeof payload.data === 'object') {
               Object.entries(payload.data).forEach(([key, val]) => {
-                if (val === null) delete updated[key];
+                if (key.startsWith('Guest_') || val === null) delete updated[key];
                 else updated[key] = { ...updated[key], ...val };
               });
             } else if (payload.data === null) {
@@ -385,12 +615,14 @@ export const useFirebaseUsers = () => {
             const segments = path.split('/').filter(Boolean);
             const userId = segments[0];
 
-            if (segments.length === 1) {
-              if (payload.data === null) delete updated[userId];
-              else updated[userId] = { ...updated[userId], ...payload.data };
-            } else if (segments.length > 1 && updated[userId]) {
-              const field = segments[1];
-              updated[userId][field] = payload.data;
+            if (userId && !userId.startsWith('Guest_')) {
+              if (segments.length === 1) {
+                if (payload.data === null) delete updated[userId];
+                else updated[userId] = { ...updated[userId], ...payload.data };
+              } else if (segments.length > 1 && updated[userId]) {
+                const field = segments[1];
+                updated[userId][field] = payload.data;
+              }
             }
           }
           return updated;
