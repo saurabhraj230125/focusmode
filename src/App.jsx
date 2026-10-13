@@ -17,7 +17,7 @@ import {
   trackJournalSaved, trackPostCreated, trackPostLiked, trackCommentPosted,
   trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned
 } from './analytics.js';
-import { useCommunity, containsAbuse, useFirebaseUsers, syncUserToFirebase } from './useCommunity.js';
+import { useCommunity, containsAbuse, useFirebaseUsers, syncUserToFirebase, isDmBetween, getDmOtherUser, extractDmText } from './useCommunity.js';
 import { useEvents } from './useEvents.js';
 import { usePushNotifications } from './usePushNotifications.js';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -525,6 +525,8 @@ const App = () => {
     try { return localStorage.getItem('pm_user_note') || 'Deep Work ⚡'; } catch { return 'Deep Work ⚡'; }
   });
 
+  const [showPeerPicker, setShowPeerPicker] = useState(false);
+  const [peerSearchQuery, setPeerSearchQuery] = useState('');
   const [showModerationModal, setShowModerationModal] = useState(false);
   const [modSearch, setModSearch] = useState('');
   const [modFilterTab, setModFilterTab] = useState('all');
@@ -1386,13 +1388,6 @@ const App = () => {
   };
 
   const handleTabChange = (tab) => {
-    const isGuest = usersDb[sessionUser]?.profile?.isGuest;
-    if ((tab === 'community' || tab === 'connect') && isGuest) {
-      setAuthMode('register');
-      setAuthWallMsg(`You need to create a free account to access ${tab === 'community' ? 'the Community' : 'Study Connect'}.`);
-      setShowAuthWall(true);
-      return;
-    }
     trackTabChange(tab);
     setActiveTab(tab);
   };
@@ -2765,79 +2760,75 @@ const App = () => {
     });
     
     let allPeers = Array.from(recentUsersMap.values())
-       .filter(f => !f.user.startsWith('Guest_'))
        .map(f => {
        const isOnline = f.createdAt ? (now - f.createdAt) < onlineThreshold : false;
        const { level } = getLevelData(f.xp || 0);
-       return { name: f.user, xp: f.xp, level, isOnline };
+       return { name: f.user, xp: f.xp || 0, level, isOnline };
     });
 
     allPeers = allPeers.sort((a,b) => b.isOnline - a.isOnline);
 
-    const conversationNames = new Set();
+    const conversationMap = new Map();
     feed.forEach(message => {
-      if (!message.action.startsWith('@DM_')) return;
-      
-      let matched = false;
-      for (const peer of allPeers) {
-        if (peer.name === sessionUser) continue;
-        const p1 = `@DM_${sessionUser}_${peer.name} `;
-        const p2 = `@DM_${peer.name}_${sessionUser} `;
-        if (message.action.startsWith(p1) || message.action.startsWith(p2)) {
-          conversationNames.add(peer.name);
-          matched = true;
-          break;
-        }
-      }
-      
-      if (!matched) {
-        const messagePrefix = `@DM_${sessionUser}_`;
-        const reversePrefix = '@DM_';
-        if (message.action.startsWith(messagePrefix)) {
-          const target = message.action.slice(messagePrefix.length).split(' ')[0];
-          if (target) conversationNames.add(target);
-        } else if (message.action.startsWith(reversePrefix)) {
-          const header = message.action.slice(reversePrefix.length).split(' ')[0];
-          const separator = header.lastIndexOf(`_${sessionUser}`);
-          if (separator > 0) conversationNames.add(header.slice(0, separator));
+      const otherUser = getDmOtherUser(message.action, sessionUser);
+      if (otherUser) {
+        if (!conversationMap.has(otherUser)) {
+          conversationMap.set(otherUser, {
+            name: otherUser,
+            lastMessage: message,
+            hasUnread: message.user !== sessionUser
+          });
         }
       }
     });
 
-    const conversationPeers = allPeers
-      .filter(peer => conversationNames.has(peer.name))
-      .sort((a, b) => b.isOnline - a.isOnline);
-    const otherPeers = allPeers.filter(peer => !conversationNames.has(peer.name));
+    const conversationPeers = Array.from(conversationMap.keys()).map(name => {
+      const peerObj = allPeers.find(p => p.name.toLowerCase() === name.toLowerCase());
+      const convData = conversationMap.get(name);
+      return {
+        name,
+        xp: peerObj?.xp || 0,
+        level: peerObj?.level || 1,
+        isOnline: peerObj?.isOnline || false,
+        lastMessage: convData?.lastMessage,
+        hasUnread: convData?.hasUnread
+      };
+    });
+
+    const otherPeers = allPeers.filter(peer => 
+      peer.name !== sessionUser && 
+      !conversationPeers.some(cp => cp.name.toLowerCase() === peer.name.toLowerCase())
+    );
 
     const chatMessages = feed.filter(f => {
-       if (activeChat === "global") return !f.action.startsWith("@DM_");
+       if (activeChat === "global") return !f.action?.startsWith("@DM_");
        const targetUser = activeChat.split(":")[1];
-       return f.action.startsWith(`@DM_${sessionUser}_${targetUser} `) || f.action.startsWith(`@DM_${targetUser}_${sessionUser} `);
+       return isDmBetween(f.action, sessionUser, targetUser);
     });
 
     const handleSendMessage = async (e) => {
       e.preventDefault();
       if (!chatInput.trim()) return;
       
-      let finalMsg = chatInput;
+      const currentInput = chatInput.trim();
       const currentReply = replyingTo;
       setChatInput(""); // Clear immediately for snappy UX
       setReplyingTo(null);
 
+      let finalMsg = currentInput;
       if (activeChat !== "global") {
         const targetUser = activeChat.split(":")[1];
         finalMsg = `@DM_${sessionUser}_${targetUser} ${finalMsg}`;
       }
       
-      if (containsAbuse(finalMsg)) {
-        alert("Restricted: Abusive language is not permitted.");
-        return;
-      }
-      
       trackPostCreated();
-      const id = await gunPostMessage(finalMsg, currentReply);
-      if (id) {
-        awardXP(2, 'Community Post');
+      try {
+        const id = await gunPostMessage(finalMsg, currentReply);
+        if (id) {
+          awardXP(2, 'Community Post');
+        }
+      } catch (err) {
+        console.error("Failed sending message:", err);
       }
     };
 
@@ -3080,7 +3071,67 @@ const App = () => {
         })()}
 
         {/* Study Doubt & Practice Question Modal */}
-        {showDoubtModal && (
+                {/* Direct Message Aspirant Picker Modal */}
+        {showPeerPicker && (
+          <div style={{position: "fixed", inset: 0, zIndex: 650, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)", padding: "1rem"}} onClick={() => setShowPeerPicker(false)}>
+            <div className="glass" style={{maxWidth: "460px", width: "100%", maxHeight: "80vh", display: "flex", flexDirection: "column", borderRadius: "24px", padding: "1.5rem", border: "1px solid rgba(236, 72, 153, 0.3)", background: "#0f172a", position: "relative"}} onClick={e => e.stopPropagation()}>
+              <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "10px"}}>
+                <h3 style={{fontSize: "1.1rem", fontWeight: "800", color: "white", display: "flex", alignItems: "center", gap: "8px", margin: 0}}>
+                  <Users color="#ec4899" size={20}/> Message a Peer
+                </h3>
+                <button onClick={() => setShowPeerPicker(false)} style={{background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px"}}><X size={18}/></button>
+              </div>
+
+              <div style={{marginBottom: "12px"}}>
+                <input
+                  type="text"
+                  placeholder="Search aspirants by name..."
+                  value={peerSearchQuery}
+                  onChange={e => setPeerSearchQuery(e.target.value)}
+                  style={{width: "100%", padding: "10px 14px", borderRadius: "12px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: "0.9rem", outline: "none", boxSizing: "border-box"}}
+                />
+              </div>
+
+              <div className="custom-scrollbar" style={{overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "6px", maxHeight: "350px"}}>
+                {allPeers
+                  .filter(p => p.name !== sessionUser && p.name.toLowerCase().includes((peerSearchQuery || '').toLowerCase()))
+                  .map(peer => (
+                    <div 
+                      key={peer.name}
+                      onClick={() => {
+                        setActiveChat(`user:${peer.name}`);
+                        setShowPeerPicker(false);
+                      }}
+                      style={{display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "12px", background: "rgba(255,255,255,0.04)", cursor: "pointer", border: "1px solid rgba(255,255,255,0.06)", transition: "all 0.2s"}}
+                    >
+                      <div style={{display: "flex", alignItems: "center", gap: "10px"}}>
+                        <div style={{position: "relative"}}>
+                          <div style={{width: "36px", height: "36px", borderRadius: "10px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", color: "white", fontSize: "0.95rem"}}>
+                            {peer.name.charAt(0).toUpperCase()}
+                          </div>
+                          {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "9px", height: "9px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
+                        </div>
+                        <div>
+                          <div style={{fontWeight: "700", fontSize: "0.88rem", color: "white"}}>{peer.name}</div>
+                          <div style={{fontSize: "0.68rem", color: peer.isOnline ? "#10b981" : "var(--text-muted)"}}>
+                            {peer.isOnline ? "🟢 Active now" : `Lvl ${peer.level}`}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        style={{background: "linear-gradient(135deg, #ec4899, #8b5cf6)", border: "none", color: "white", padding: "6px 14px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: "bold", cursor: "pointer"}}
+                      >
+                        Chat
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+{showDoubtModal && (
           <div style={{position: "fixed", inset: 0, zIndex: 650, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)", padding: "1rem"}} onClick={() => setShowDoubtModal(false)}>
             <div className="glass" style={{maxWidth: "520px", width: "100%", borderRadius: "24px", padding: "1.75rem", border: "1px solid rgba(168, 85, 247, 0.3)", background: "#0f172a", position: "relative"}} onClick={e => e.stopPropagation()}>
               <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "10px"}}>
@@ -3308,8 +3359,18 @@ const App = () => {
                            {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "10px", height: "10px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
                         </div>
                         <div style={{display: "flex", flexDirection: "column", flex: 1, minWidth: 0}}>
-                           <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: peer.isOnline ? "white" : "var(--text-muted)", fontWeight: "600", fontSize: "0.85rem"}}>{peer.name}</span>
+                           <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4px"}}>
+                             <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: peer.isOnline ? "white" : "var(--text-muted)", fontWeight: "600", fontSize: "0.85rem"}}>{peer.name}</span>
+                             {peer.hasUnread && activeChat !== `user:${peer.name}` && (
+                               <span style={{fontSize: "0.58rem", background: "#ec4899", color: "white", padding: "1px 5px", borderRadius: "100px", fontWeight: "900"}}>NEW</span>
+                             )}
+                           </div>
                            <span style={{fontSize: "0.62rem", color: "var(--accent-physics)", fontWeight: "bold"}}>Lvl {peer.level}</span>
+                           {peer.lastMessage && (
+                             <span style={{fontSize: "0.68rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                               {extractDmText(peer.lastMessage.action)}
+                             </span>
+                           )}
                         </div>
                       </div>
                     ))}
@@ -3386,7 +3447,79 @@ const App = () => {
                 </div>
               </div>
 
-              {/* Mobile Instagram Notes Tray (Visible only on mobile screens) */}
+              
+              {/* Quick Conversation Switcher Strip (Visible on Desktop & Mobile) */}
+              <div style={{display: "flex", alignItems: "center", gap: "8px", padding: "7px 12px", borderBottom: "1px solid rgba(255, 255, 255, 0.06)", background: "rgba(15, 23, 42, 0.55)", overflowX: "auto", scrollbarWidth: "none", flexShrink: 0}}>
+                <button
+                  type="button"
+                  onClick={() => setActiveChat("global")}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 12px", borderRadius: "100px", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", whiteSpace: "nowrap",
+                    border: activeChat === "global" ? "1px solid rgba(139, 92, 246, 0.6)" : "1px solid rgba(255,255,255,0.08)",
+                    background: activeChat === "global" ? "linear-gradient(135deg, rgba(59,130,246,0.3), rgba(139,92,246,0.35))" : "rgba(255,255,255,0.04)",
+                    color: activeChat === "global" ? "#fff" : "var(--text-muted)", transition: "all 0.2s"
+                  }}
+                >
+                  <span>🌍</span> Global Lounge
+                </button>
+
+                {conversationPeers.map(peer => {
+                  const isActive = activeChat === `user:${peer.name}`;
+                  return (
+                    <button
+                      key={peer.name}
+                      type="button"
+                      onClick={() => setActiveChat(`user:${peer.name}`)}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 12px", borderRadius: "100px", fontSize: "0.8rem", fontWeight: isActive ? "700" : "600", cursor: "pointer", whiteSpace: "nowrap",
+                        border: isActive ? "1px solid rgba(236, 72, 153, 0.6)" : "1px solid rgba(255,255,255,0.08)",
+                        background: isActive ? "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(168,85,247,0.25))" : "rgba(255,255,255,0.04)",
+                        color: isActive ? "#fff" : "var(--text-muted)", transition: "all 0.2s"
+                      }}
+                    >
+                      <span style={{width: "7px", height: "7px", borderRadius: "50%", background: peer.isOnline ? "#10b981" : "rgba(255,255,255,0.25)", display: "inline-block"}}></span>
+                      <span>💬 {peer.name}</span>
+                      {peer.hasUnread && !isActive && (
+                        <span style={{background: "#ec4899", color: "white", borderRadius: "100px", fontSize: "0.58rem", padding: "1px 5px", fontWeight: "900", marginLeft: "2px", boxShadow: "0 0 8px rgba(236,72,153,0.8)"}}>NEW</span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => setShowPeerPicker(true)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "100px", fontSize: "0.78rem", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap",
+                    border: "1px dashed rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.02)", color: "var(--text-muted)", transition: "all 0.2s"
+                  }}
+                >
+                  <Users size={12}/> + Peer DM
+                </button>
+              </div>
+
+              {/* In-Lounge DM Alert Banner when receiving DMs */}
+              {activeChat === "global" && conversationPeers.some(cp => cp.hasUnread) && (() => {
+                const unreadPeer = conversationPeers.find(cp => cp.hasUnread);
+                if (!unreadPeer) return null;
+                return (
+                  <div style={{margin: "8px 12px 0 12px", padding: "8px 14px", borderRadius: "12px", background: "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(139,92,246,0.3))", border: "1px solid rgba(236,72,153,0.45)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexShrink: 0}}>
+                    <div style={{display: "flex", alignItems: "center", gap: "8px", minWidth: 0}}>
+                      <span style={{fontSize: "1.05rem"}}>💬</span>
+                      <span style={{fontSize: "0.82rem", color: "#fff", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                        Direct message from <b style={{color: "#f472b6"}}>@{unreadPeer.name}</b>: "{extractDmText(unreadPeer.lastMessage?.action).slice(0, 40)}"
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setActiveChat(`user:${unreadPeer.name}`)}
+                      style={{background: "#ec4899", border: "none", color: "#fff", padding: "4px 12px", borderRadius: "100px", fontSize: "0.74rem", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(236,72,153,0.5)"}}
+                    >
+                      Open Chat →
+                    </button>
+                  </div>
+                );
+              })()}
+{/* Mobile Instagram Notes Tray (Visible only on mobile screens) */}
               <div className="mobile-notes-tray">
                 {/* Self Note */}
                 <div 
@@ -3449,12 +3582,7 @@ const App = () => {
                     const isMe = msg.user === sessionUser;
                     let text = msg.action;
                     if (activeChat !== "global") {
-                      const targetUser = activeChat.split(":")[1];
-                      const p1 = `@DM_${sessionUser}_${targetUser} `;
-                      const p2 = `@DM_${targetUser}_${sessionUser} `;
-                      if (text.startsWith(p1)) text = text.slice(p1.length);
-                      else if (text.startsWith(p2)) text = text.slice(p2.length);
-                      else text = text.replace(/^@DM_.*?_.*?\s/, "");
+                      text = extractDmText(msg.action);
                     }
                     const { level: mLvl } = getLevelData(msg.xp || 0);
                     const isShowingHeart = heartBurstId === msg.id;

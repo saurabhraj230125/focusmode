@@ -14,7 +14,7 @@ const BANNED_PATH = `${FIREBASE_URL}/focusmode/bannedUsers`;
 
 export const syncUserToFirebase = async (username, profile) => {
   if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
-  if (!username || username.startsWith('Guest_')) return; // Never sync guest users
+  if (!username) return;
   try {
     await fetch(`${USERS_PATH}/${username}.json`, {
       method: 'PUT',
@@ -145,67 +145,81 @@ const patchPost = async (id, patch) => {
   });
 };
 
-const BAD_WORDS_LONG = [
+const ABUSIVE_WORDS = new Set([
   'madharchod', 'maderchod', 'randi', 'bsdk', 'gendu', 'gandu', 'chutiya', 
   'bhenchod', 'behenchod', 'bhosdike', 'bhosadi', 'laude', 'nigger', 'faggot',
   'muthiya', 'mutth', 'raand', 'bhosda', 'bhosada', 'machod', 'madarchod',
   'lawda', 'lond', 'loda', 'lode', 'lund', 'bhadwa', 'bhadwe', 'bhadwi',
   'bhand', 'chod', 'chut', 'chutiye', 'gaandu', 'haramkhor', 
   'harami', 'kuttiya', 'kameena', 'kaminey', 'kamine', 'machuda',
-  'betichod', 'gand', 'gaand', 'gaande', 'gande', 'tatte', 'tatta', 'ullukepatthe',
+  'betichod', 'tatte', 'tatta', 'ullukepatthe',
   'chamar', 'bhangi', 'chinal', 'chinnal', 'bhosadike',
-  'bhakchod', 'bakchod', 'bakchodi', 'bakaiti', 'chapri', 'chhapri', 'nibba', 'nibbi',
-  'jhaat', 'jhatu', 'jhaatu', 'rand', 'dalal', 'kutta', 'kutti', 'chutiyapa'
-];
-const BAD_WORDS_STRICT = [
-  'mc', 'bc', 'mkc', 'tmkc', 'fuck', 'shit', 'bitch', 'whore', 'slut', 'dick', 
-  'pussy', 'cunt', 'loda', 'lode', 'bastard', 'asshole', 'chut', 'chooth', 'choot',
-  'sexy', 'porn', 'nude', 'boobs', 'tits', 'cock', 'horny', 'lawda', 'lund', 'land',
-  'bsdk', 'gandu', 'randi', 'bhenchod', 'madarchod'
-];
+  'bhakchod', 'bakchod', 'bakchodi',
+  'jhaat', 'jhatu', 'jhaatu', 'dalal', 'chutiyapa',
+  'fuck', 'shit', 'bitch', 'whore', 'slut', 'dick', 
+  'pussy', 'cunt', 'bastard', 'asshole', 'boobs', 'tits'
+]);
 
 const BAD_PHRASES = [
-  'teri maa', 'teri ma', 'maa ka', 'ma ka', 'kutte',
-  'teri behen', 'teri bahan', 'teri bhen', 'behen ki', 'bhen ki', 'bahan ki',
-  'maa ki', 'ma ki', 'bhosdike', 'maa chuda', 'ma chuda', 'gand mara', 'gaand mara',
-  'teri maka', 'teri maa ka', 'bhen ke lode', 'beti chod', 'maa ki chut', 'ma ki chut',
-  'madar chod', 'bhen ki chut', 'ullu ke patthe', 'chutiya', 'teri keh ke', 'keh ke lunga',
-  'muth maar', 'mutth maar'
+  'teri maa ki chut', 'teri ma ki chut', 'maa ki chut', 'ma ki chut',
+  'bhen ke lode', 'bhen ki chut', 'behen ki chut', 'madar chod', 'madarchod',
+  'maderchod', 'ullu ke patthe', 'gand mara', 'gaand mara', 'maa chuda', 'ma chuda',
+  'beti chod', 'bhosadike'
 ];
 
 export const containsAbuse = (text) => {
   if (!text) return false;
   const lowerText = text.toLowerCase();
-  
   if (BAD_PHRASES.some(phrase => lowerText.includes(phrase))) return true;
-  const normalized = lowerText.replace(/[^a-z0-9]/g, '');
-  if (BAD_WORDS_LONG.some(bw => normalized.includes(bw))) return true;
-  const words = lowerText.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
-  return BAD_WORDS_STRICT.some(sw => words.includes(sw));
+  const words = lowerText.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean);
+  return words.some(w => ABUSIVE_WORDS.has(w));
 };
 
 export const maskAbuse = (text) => {
   if (!text) return text;
-  if (!containsAbuse(text)) return text;
-  
   let maskedText = text;
-  
   BAD_PHRASES.forEach(phrase => {
     const regex = new RegExp(phrase, 'gi');
     maskedText = maskedText.replace(regex, '***');
   });
-
-  BAD_WORDS_STRICT.forEach(sw => {
-    const regex = new RegExp(`\\b${sw}\\b`, 'gi');
+  ABUSIVE_WORDS.forEach(badWord => {
+    const regex = new RegExp(`\\b${badWord}\\b`, 'gi');
     maskedText = maskedText.replace(regex, '***');
   });
-  
-  // For long words without boundaries, just return a fully masked string to be safe
-  if (containsAbuse(maskedText)) {
-      return "[Message hidden due to abusive content]";
-  }
-
   return maskedText;
+};
+
+// DM utility functions for reliable community chat messaging
+export const isDmBetween = (action, userA, userB) => {
+  if (!action || !action.startsWith('@DM_')) return false;
+  const firstSpace = action.indexOf(' ');
+  const header = (firstSpace !== -1 ? action.slice(4, firstSpace) : action.slice(4)).toLowerCase();
+  const uA = (userA || '').toLowerCase();
+  const uB = (userB || '').toLowerCase();
+  return header === `${uA}_${uB}` || header === `${uB}_${uA}`;
+};
+
+export const extractDmText = (action) => {
+  if (!action || !action.startsWith('@DM_')) return action;
+  const firstSpace = action.indexOf(' ');
+  return firstSpace !== -1 ? action.slice(firstSpace + 1) : '';
+};
+
+export const getDmOtherUser = (action, currentUser) => {
+  if (!action || !action.startsWith('@DM_')) return null;
+  const firstSpace = action.indexOf(' ');
+  const header = firstSpace !== -1 ? action.slice(4, firstSpace) : action.slice(4);
+  const cur = (currentUser || '').toLowerCase();
+  const lowerHeader = header.toLowerCase();
+  
+  if (lowerHeader.startsWith(cur + '_')) {
+    return header.slice(currentUser.length + 1);
+  }
+  const idx = lowerHeader.lastIndexOf('_' + cur);
+  if (idx > 0) {
+    return header.slice(0, idx);
+  }
+  return null;
 };
 
 const parsePostsMap = (data, banned = []) => {
@@ -226,7 +240,7 @@ const parsePostsMap = (data, banned = []) => {
       reactions: val.reactions && typeof val.reactions === 'object' ? val.reactions : {},
       replyTo: val.replyTo || null,
     }))
-    .filter(p => p.action && !p.user.startsWith('Guest_') && !bannedSet.has(p.user))
+    .filter(p => p.action && !bannedSet.has(p.user))
     .map(p => ({...p, action: maskAbuse(p.action)}))
     .sort((a, b) => b.createdAt - a.createdAt);
 };
@@ -283,16 +297,34 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
       return;
     }
 
+    let isComponentMounted = true;
+    let es;
+
+    // Heartbeat sync fallback: guarantees incoming updates even if SSE sleeps or drops on mobile
+    const syncPosts = async () => {
+      if (!isComponentMounted) return;
+      try {
+        const data = await fetchPosts();
+        if (!isComponentMounted) return;
+        const fresh = parsePostsMap(data, bannedUsers);
+        setPosts(prev => {
+          if (fresh.length !== prev.length || (fresh[0]?.id !== prev[0]?.id) || (fresh[0]?.createdAt !== prev[0]?.createdAt)) {
+            return fresh;
+          }
+          return prev;
+        });
+        setIsLoading(false);
+      } catch (err) {
+        console.warn('Community sync fallback error:', err);
+      }
+    };
+
     // Initial load
-    fetchPosts().then(data => {
-      setPosts(parsePostsMap(data, bannedUsers));
-      setIsLoading(false);
-    });
+    syncPosts();
+    const pollInterval = setInterval(syncPosts, 3500);
 
     // SSE real-time listener — Firebase Realtime Database natively supports SSE
     const url = `${POSTS_PATH}.json`;
-    let isComponentMounted = true;
-    let es;
 
     const connectSSE = () => {
       if (!isComponentMounted) return;
@@ -302,61 +334,61 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
       sseRef.current = es;
 
       const handleEvent = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.data === undefined) return;
-        const path = payload.path;
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.data === undefined) return;
+          const path = payload.path;
 
-        setPosts(prev => {
-          const map = {};
-          prev.forEach(p => { map[p.id] = p; });
+          setPosts(prev => {
+            const map = {};
+            prev.forEach(p => { map[p.id] = p; });
 
-          if (path === '/') {
-            if (payload.data && typeof payload.data === 'object') {
-              Object.entries(payload.data).forEach(([key, val]) => {
-                if (val === null) delete map[key];
-                else map[key] = { ...map[key], ...val, id: key };
-              });
-            } else if (payload.data === null) {
-              return [];
-            }
-          } else {
-            const segments = path.split('/').filter(Boolean);
-            const postId = segments[0];
-
-            if (segments.length === 1) {
-              if (payload.data === null) {
-                delete map[postId];
-              } else {
-                map[postId] = { ...map[postId], ...payload.data, id: postId };
+            if (path === '/') {
+              if (payload.data && typeof payload.data === 'object') {
+                Object.entries(payload.data).forEach(([key, val]) => {
+                  if (val === null) delete map[key];
+                  else map[key] = { ...map[key], ...val, id: key };
+                });
+              } else if (payload.data === null) {
+                return [];
               }
-            } else if (segments.length > 1 && map[postId]) {
-               const field = segments[1];
-               map[postId][field] = payload.data;
-            }
-          }
+            } else {
+              const segments = path.split('/').filter(Boolean);
+              const postId = segments[0];
 
-          // Format all mapped posts safely
-          return Object.values(map)
-            .map(val => ({
-              id: val.id,
-              user: val.user || 'Anonymous',
-              prep: val.prep || '',
-              xp: val.xp || 0,
-              action: val.action || '',
-              time: val.time || 'just now',
-              createdAt: val.createdAt || 0,
-              likes: val.likes || 0,
-              likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
-              comments: Array.isArray(val.comments) ? val.comments.map(c => ({...c, text: maskAbuse(c.text)})) : [],
-              reactions: val.reactions && typeof val.reactions === 'object' ? val.reactions : {},
-              replyTo: val.replyTo || null,
-            }))
-            .filter(p => p.action && !p.user.startsWith('Guest_') && !bannedUsers.includes(p.user))
-            .map(p => ({...p, action: maskAbuse(p.action)}))
-            .sort((a, b) => b.createdAt - a.createdAt);
-        });
-      } catch {}
+              if (segments.length === 1) {
+                if (payload.data === null) {
+                  delete map[postId];
+                } else {
+                  map[postId] = { ...map[postId], ...payload.data, id: postId };
+                }
+              } else if (segments.length > 1 && map[postId]) {
+                 const field = segments[1];
+                 map[postId][field] = payload.data;
+              }
+            }
+
+            // Format all mapped posts safely
+            return Object.values(map)
+              .map(val => ({
+                id: val.id,
+                user: val.user || 'Anonymous',
+                prep: val.prep || '',
+                xp: val.xp || 0,
+                action: val.action || '',
+                time: val.time || 'just now',
+                createdAt: val.createdAt || 0,
+                likes: val.likes || 0,
+                likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
+                comments: Array.isArray(val.comments) ? val.comments.map(c => ({...c, text: maskAbuse(c.text)})) : [],
+                reactions: val.reactions && typeof val.reactions === 'object' ? val.reactions : {},
+                replyTo: val.replyTo || null,
+              }))
+              .filter(p => p.action && !bannedUsers.includes(p.user))
+              .map(p => ({...p, action: maskAbuse(p.action)}))
+              .sort((a, b) => b.createdAt - a.createdAt);
+          });
+        } catch {}
       };
 
       es.addEventListener('put', handleEvent);
@@ -373,6 +405,7 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
 
     return () => {
       isComponentMounted = false;
+      clearInterval(pollInterval);
       if (es) es.close();
     };
   }, [bannedUsers]);
