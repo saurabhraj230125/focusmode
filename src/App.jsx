@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, ChevronDown, BookOpen, FlaskConical, Calculator, 
@@ -515,6 +515,38 @@ const App = () => {
     purgeUserPosts,
     cleanupGuestUsers,
   } = useCommunity(sessionUser, currentXP, currentUserProfile?.prepType);
+
+  const [profileActiveTab, setProfileActiveTab] = useState('badges'); // 'badges' | 'stats' | 'theme'
+  const [lastCommunityVisit, setLastCommunityVisit] = useState(() => {
+    try {
+      const stored = localStorage.getItem('pm_last_community_visit');
+      return stored ? Number(stored) : Date.now();
+    } catch {
+      return Date.now();
+    }
+  });
+
+  // Calculate unread community messages for badge counter (shows 1 when someone messages)
+  const unreadCommunityCount = useMemo(() => {
+    if (!feed || !sessionUser || activeTab === 'community') return 0;
+    const newMsgs = feed.filter(f => {
+      if (!f.createdAt || f.user === sessionUser) return false;
+      if (f.createdAt <= lastCommunityVisit) return false;
+      if (!f.action?.startsWith('@DM_')) return true; // Global lounge post
+      const otherUser = getDmOtherUser(f.action, sessionUser);
+      return isDmBetween(f.action, sessionUser, otherUser);
+    });
+    return newMsgs.length;
+  }, [feed, sessionUser, activeTab, lastCommunityVisit]);
+
+  // Keep lastCommunityVisit fresh when activeTab is community
+  useEffect(() => {
+    if (activeTab === 'community') {
+      const now = Date.now();
+      setLastCommunityVisit(now);
+      try { localStorage.setItem('pm_last_community_visit', now.toString()); } catch {}
+    }
+  }, [activeTab]);
 
   // Instagram Chat States
   const [replyingTo, setReplyingTo] = useState(null);
@@ -1392,6 +1424,11 @@ const App = () => {
   const handleTabChange = (tab) => {
     trackTabChange(tab);
     setActiveTab(tab);
+    if (tab === 'community') {
+      const now = Date.now();
+      setLastCommunityVisit(now);
+      try { localStorage.setItem('pm_last_community_visit', now.toString()); } catch {}
+    }
   };
 
   // Auth Functions
@@ -2806,12 +2843,24 @@ const App = () => {
     feed.forEach(message => {
       const otherUser = getDmOtherUser(message.action, sessionUser);
       if (otherUser) {
+        const lastRead = Number(localStorage.getItem(`pm_last_read_dm_${otherUser}`)) || 0;
+        const isFromOther = message.user !== sessionUser;
+        const isUnread = isFromOther && (!message.createdAt || message.createdAt > lastRead);
+
         if (!conversationMap.has(otherUser)) {
           conversationMap.set(otherUser, {
             name: otherUser,
             lastMessage: message,
-            hasUnread: message.user !== sessionUser
+            hasUnread: isUnread,
+            unreadCount: isUnread ? 1 : 0
           });
+        } else {
+          const prev = conversationMap.get(otherUser);
+          if (isUnread) prev.unreadCount = (prev.unreadCount || 0) + 1;
+          if (message.createdAt > (prev.lastMessage?.createdAt || 0)) {
+            prev.lastMessage = message;
+          }
+          if (isUnread) prev.hasUnread = true;
         }
       }
     });
@@ -2825,7 +2874,8 @@ const App = () => {
         level: peerObj?.level || 1,
         isOnline: peerObj?.isOnline || false,
         lastMessage: convData?.lastMessage,
-        hasUnread: convData?.hasUnread
+        hasUnread: convData?.hasUnread,
+        unreadCount: convData?.unreadCount || 0
       };
     });
 
@@ -3311,6 +3361,11 @@ const App = () => {
            <div style={{display: "flex", alignItems: "center", gap: "6px", flexWrap: "nowrap", overflowX: "auto"}}>
              <button onClick={() => setActiveCommunityTab("chat")} style={{padding: "6px 14px", borderRadius: "100px", background: activeCommunityTab === "chat" ? "linear-gradient(135deg, var(--accent-physics), #c026d3)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", whiteSpace: "nowrap"}}>
                <MessageSquare size={14}/> Live Lounge
+               {activeCommunityTab !== "chat" && unreadCommunityCount > 0 && (
+                 <span style={{background: "#ef4444", color: "white", fontSize: "0.6rem", padding: "1px 6px", borderRadius: "100px", fontWeight: 900}}>
+                   {unreadCommunityCount > 9 ? '9+' : unreadCommunityCount}
+                 </span>
+               )}
              </button>
              <button onClick={() => setActiveCommunityTab("peers")} style={{padding: "6px 14px", borderRadius: "100px", background: activeCommunityTab === "peers" ? "linear-gradient(135deg, #10b981, #059669)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", whiteSpace: "nowrap"}}>
                <Users size={14}/> Aspirants ({allPeers.length})
@@ -3548,7 +3603,7 @@ const App = () => {
                   
                   <div style={{display: "flex", flexDirection: "column", gap: "4px"}}>
                     {conversationPeers.map(peer => (
-                      <div key={peer.name} className={`peer-item ${activeChat === `user:${peer.name}` ? "active" : ""}`} onClick={() => setActiveChat(`user:${peer.name}`)} style={{display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "12px", cursor: "pointer", transition: "all 0.2s", background: activeChat === `user:${peer.name}` ? "rgba(255,255,255,0.08)" : "transparent"}}>
+                      <div key={peer.name} className={`peer-item ${activeChat === `user:${peer.name}` ? "active" : ""}`} onClick={() => { setActiveChat(`user:${peer.name}`); try { localStorage.setItem(`pm_last_read_dm_${peer.name}`, Date.now().toString()); } catch {} }} style={{display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "12px", cursor: "pointer", transition: "all 0.2s", background: activeChat === `user:${peer.name}` ? "rgba(255,255,255,0.08)" : "transparent"}}>
                         <div style={{position: "relative"}}>
                            <div style={{width: "34px", height: "34px", borderRadius: "10px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.95rem", fontWeight: "bold", flexShrink: 0, border: peer.isOnline ? "2px solid #10b981" : "2px solid rgba(255,255,255,0.1)"}}>{peer.name.charAt(0).toUpperCase()}</div>
                            {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "10px", height: "10px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>}
@@ -3557,7 +3612,9 @@ const App = () => {
                            <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4px"}}>
                              <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: peer.isOnline ? "white" : "var(--text-muted)", fontWeight: "600", fontSize: "0.85rem"}}>{peer.name}</span>
                              {peer.hasUnread && activeChat !== `user:${peer.name}` && (
-                               <span style={{fontSize: "0.58rem", background: "#ec4899", color: "white", padding: "1px 5px", borderRadius: "100px", fontWeight: "900"}}>NEW</span>
+                               <span style={{fontSize: "0.6rem", background: "#ef4444", color: "white", padding: "1px 6px", borderRadius: "100px", fontWeight: "900", display: "inline-flex", alignItems: "center", boxShadow: "0 0 6px rgba(239, 68, 68, 0.7)"}}>
+                                 {peer.unreadCount > 9 ? '9+' : (peer.unreadCount || 1)}
+                               </span>
                              )}
                            </div>
                            <span style={{fontSize: "0.62rem", color: "var(--accent-physics)", fontWeight: "bold"}}>Lvl {peer.level}</span>
@@ -4844,389 +4901,428 @@ const App = () => {
     const currentHours = currentUserProfile?.targetHours || 8;
 
     return (
-      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1000px', margin: '0 auto', width: '100%'}}>
+      <div className="animate-fade-in ig-profile-wrapper">
         
-        {/* ── EXECUTIVE PROFILE HERO ── */}
-        <div className="glass" style={{padding: 'clamp(1.5rem, 4vw, 2.75rem)', borderRadius: '28px', background: 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(236,72,153,0.08) 50%, rgba(15,23,42,0.9) 100%)', border: '1px solid rgba(139,92,246,0.25)', position: 'relative', overflow: 'hidden'}}>
-          <div style={{position: 'absolute', top: '-60px', right: '-60px', width: '220px', height: '220px', background: 'var(--accent-physics)', opacity: 0.12, borderRadius: '50%', filter: 'blur(50px)'}}></div>
-
-          <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2rem', position: 'relative', zIndex: 1}}>
-            {/* Glowing Avatar */}
-            <div style={{position: 'relative', flexShrink: 0}}>
-              <div style={{width: 'clamp(85px, 14vw, 125px)', height: 'clamp(85px, 14vw, 125px)', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(2.5rem, 5vw, 3.6rem)', fontWeight: 900, border: '4px solid rgba(255,255,255,0.15)', boxShadow: '0 0 35px rgba(139,92,246,0.35)', color: '#fff'}}>
-                {safeUser.charAt(0).toUpperCase()}
-              </div>
-              <div style={{position: 'absolute', bottom: '2px', right: '4px', background: '#10b981', width: '22px', height: '22px', borderRadius: '50%', border: '3px solid #0f172a', boxShadow: '0 0 10px #10b981'}} title="Online & Studying"></div>
-            </div>
-
-            {/* Profile Content */}
-            <div style={{flex: '1 1 320px'}}>
-              {isEditingProfile ? (
-                /* Rich Edit Form */
-                <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.4)', padding: '1.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)'}}>
-                  <h3 style={{fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginBottom: '4px'}}>✏️ Edit Profile & Goals</h3>
-                  
-                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px'}}>
-                    <div>
-                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Username</label>
-                      <input type="text" value={editProfileData.name} onChange={e => setEditProfileData({...editProfileData, name: e.target.value})} className="input-field" placeholder="Username" />
-                    </div>
-                    <div>
-                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Exam Target</label>
-                      <select value={editProfileData.prepType} onChange={e => setEditProfileData({...editProfileData, prepType: e.target.value})} className="input-field">
-                        <option value="JEE">JEE (Advanced & Main)</option>
-                        <option value="NEET">NEET UG</option>
-                        <option value="UPSC">UPSC CSE</option>
-                        <option value="NDA">NDA</option>
-                        <option value="SAT">SAT / Global</option>
-                        <option value="General">General / Board Exams</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Target Year</label>
-                      <input type="number" value={editProfileData.targetYear} onChange={e => setEditProfileData({...editProfileData, targetYear: e.target.value})} className="input-field" placeholder="Target Year" />
-                    </div>
-                    <div>
-                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Dream College / Institute</label>
-                      <input type="text" value={editProfileData.dreamCollege || ''} onChange={e => setEditProfileData({...editProfileData, dreamCollege: e.target.value})} className="input-field" placeholder="e.g. IIT Bombay / AIIMS Delhi" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Bio / Aspirant Statement</label>
-                    <textarea rows="2" value={editProfileData.bio || ''} onChange={e => setEditProfileData({...editProfileData, bio: e.target.value})} className="input-field" placeholder="Briefly describe your focus..." style={{resize: 'none'}} />
-                  </div>
-
-                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px'}}>
-                    <div>
-                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Study Motto / Quote</label>
-                      <input type="text" value={editProfileData.motto || ''} onChange={e => setEditProfileData({...editProfileData, motto: e.target.value})} className="input-field" placeholder="Your driving quote..." />
-                    </div>
-                    <div>
-                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Key Academic Strengths</label>
-                      <input type="text" value={editProfileData.strengths || ''} onChange={e => setEditProfileData({...editProfileData, strengths: e.target.value})} className="input-field" placeholder="e.g. Mechanics, Calculus" />
-                    </div>
-                    <div>
-                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Current Weak Area / Priority</label>
-                      <input type="text" value={editProfileData.weakness || ''} onChange={e => setEditProfileData({...editProfileData, weakness: e.target.value})} className="input-field" placeholder="e.g. Time management in mocks" />
-                    </div>
-                    <div>
-                      <label style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Target Daily Study Hours</label>
-                      <input type="number" value={editProfileData.targetHours || 8} onChange={e => setEditProfileData({...editProfileData, targetHours: Number(e.target.value)})} className="input-field" placeholder="8" />
-                    </div>
-                  </div>
-
-                  <div style={{display: 'flex', gap: '10px', marginTop: '6px'}}>
-                    <button className="btn-primary" onClick={() => {
-                      let newName = editProfileData.name.trim();
-                      if (!newName) newName = sessionUser;
-                      setUsersDb(prev => {
-                        const newDb = { ...prev };
-                        const existingUser = newDb[sessionUser] || { profile: {} };
-                        const updatedProfile = {
-                          ...existingUser.profile,
-                          prepType: editProfileData.prepType,
-                          targetYear: editProfileData.targetYear,
-                          dreamCollege: editProfileData.dreamCollege,
-                          bio: editProfileData.bio,
-                          motto: editProfileData.motto,
-                          strengths: editProfileData.strengths,
-                          weakness: editProfileData.weakness,
-                          targetHours: editProfileData.targetHours
-                        };
-
-                        if (newName !== sessionUser) {
-                          if (newDb[newName]) {
-                            alert("Username already taken!");
-                            return prev;
-                          }
-                          delete newDb[sessionUser];
-                          newDb[newName] = { ...existingUser, profile: updatedProfile };
-                          const keys = ['pm_sub_', 'pm_jour_', 'pm_playlist_', 'pm_planner_', 'pm_syllabus_', 'pm_notes_', 'pm_streak_', 'pm_lastdate_', 'pm_mistakes_'];
-                          keys.forEach(k => {
-                            const val = localStorage.getItem(`${k}${sessionUser}`);
-                            if(val) localStorage.setItem(`${k}${newName}`, val);
-                            localStorage.removeItem(`${k}${sessionUser}`);
-                          });
-                          setSessionUser(newName);
-                          localStorage.setItem('planmaker_session', newName);
-                        } else {
-                          newDb[sessionUser] = { ...existingUser, profile: updatedProfile };
-                        }
-                        return newDb;
-                      });
-                      awardXP(20, 'Updated Profile Bio & Academic Goals');
-                      setIsEditingProfile(false);
-                    }}>Save Profile</button>
-                    <button className="btn-secondary" onClick={() => setIsEditingProfile(false)}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                /* Profile Display */
-                <div>
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px'}}>
-                    <div>
-                      <div style={{display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'}}>
-                        <h1 style={{fontSize: 'clamp(1.75rem, 3.5vw, 2.4rem)', fontWeight: 900, margin: 0, color: '#fff'}}>
-                          {isGuest ? 'Guest Aspirant' : sessionUser}
-                        </h1>
-                        <span style={{fontSize: '0.8rem', padding: '3px 10px', borderRadius: '100px', background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)', color: 'var(--accent-physics)', fontWeight: 700}}>
-                          {currentUserProfile?.prepType || 'JEE'} Aspirant · Class of {currentUserProfile?.targetYear || '2026'}
-                        </span>
-                      </div>
-                      <div style={{fontSize: '0.95rem', color: 'var(--accent-math)', fontWeight: 700, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                        <Target size={16} /> Aiming for: {currentCollege}
-                      </div>
-                    </div>
-                    <button
-                      className="btn-secondary"
-                      onClick={() => {
-                        setEditProfileData({
-                          name: sessionUser,
-                          prepType: currentUserProfile?.prepType || 'JEE',
-                          targetYear: currentUserProfile?.targetYear || new Date().getFullYear(),
-                          dreamCollege: currentCollege,
-                          bio: currentBio,
-                          motto: currentMotto,
-                          strengths: currentStrengths,
-                          weakness: currentWeakness,
-                          targetHours: currentHours
-                        });
-                        setIsEditingProfile(true);
-                      }}
-                      style={{padding: '7px 16px', fontSize: '0.85rem', borderRadius: '100px'}}
-                    >
-                      ✏️ Edit Bio & Goals
-                    </button>
-                  </div>
-
-                  <p style={{fontSize: '0.95rem', color: '#cbd5e1', margin: '0.75rem 0', lineHeight: 1.5, fontStyle: 'italic', background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '12px', borderLeft: '3px solid var(--accent-physics)'}}>
-                    "{currentBio}"
-                  </p>
-
-                  <div style={{display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '1rem'}}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', padding: '4px 12px', borderRadius: '100px', color: '#f87171', fontWeight: 700, fontSize: '0.85rem'}}>
-                      <Flame size={15} /> {streak} Day Streak
-                    </div>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '4px 12px', borderRadius: '100px', color: '#10b981', fontWeight: 700, fontSize: '0.85rem'}}>
-                      <Award size={15} /> Level {level}: {title}
-                    </div>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', padding: '4px 12px', borderRadius: '100px', color: '#fbbf24', fontWeight: 700, fontSize: '0.85rem'}}>
-                      <Zap size={15} /> {currentXP} Total XP
-                    </div>
-                  </div>
-
-                  {/* Level Progress Bar */}
-                  <div style={{marginTop: '1rem'}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.85rem'}}>
-                      <span style={{color: 'var(--text-muted)'}}>Progress to Level {level + 1}</span>
-                      <span style={{fontWeight: 700, color: '#10b981'}}>{currentXP % 100} / 100 XP</span>
-                    </div>
-                    <div className="progress-bar-bg" style={{height: '8px', background: 'rgba(255,255,255,0.06)'}}>
-                      <div className="progress-bar-fill" style={{width: `${progressPercent}%`, background: 'linear-gradient(90deg, #10b981, #3b82f6)'}}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── "HOW PEERS SEE YOUR PROFILE" LIVE CARD PREVIEW ── */}
-        <div className="glass" style={{padding: '1.75rem', borderRadius: '24px', border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(135deg, rgba(30,27,75,0.4) 0%, rgba(15,23,42,0.8) 100%)'}}>
-          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '8px'}}>
-            <h3 style={{fontSize: '1.15rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px'}}>
-              <Share2 size={18} color="var(--accent-physics)" /> Peer View Preview (How Others See You in Community & Omegle)
-            </h3>
-            <span style={{fontSize: '0.75rem', padding: '4px 10px', borderRadius: '100px', background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', fontWeight: 700}}>
-              ✓ Live Holographic Student ID
+        {/* ── TOP HEADER / USERNAME BAR ── */}
+        <div className="ig-profile-top-bar">
+          <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+            <span style={{fontWeight: 800, fontSize: '1.2rem', color: '#fff', letterSpacing: '-0.3px'}}>
+              {safeUser}
             </span>
+            <span className="ig-verified-badge" title="Verified FocusMode Aspirant">✓</span>
           </div>
 
-          <div style={{padding: '1.5rem', borderRadius: '20px', background: 'linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem'}}>
-              <div style={{display: 'flex', alignItems: 'center', gap: '14px'}}>
-                <div style={{width: '54px', height: '54px', borderRadius: '50%', background: getAvatarColor(sessionUser), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 900, color: '#fff', border: '2px solid rgba(255,255,255,0.2)'}}>
-                  {sessionUser.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                    <span style={{fontSize: '1.2rem', fontWeight: 900, color: '#fff'}}>{sessionUser}</span>
-                    <span style={{fontSize: '0.75rem', padding: '2px 8px', borderRadius: '100px', background: 'rgba(16,185,129,0.2)', color: '#10b981', fontWeight: 700}}>🟢 Verified Aspirant</span>
-                  </div>
-                  <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
-                    🎯 {currentUserProfile?.prepType || 'JEE'} {currentUserProfile?.targetYear || '2026'} · Target: <strong style={{color: '#f8fafc'}}>{currentCollege}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                <div style={{padding: '6px 14px', borderRadius: '100px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                  <Flame size={15} /> {streak}d Streak
-                </div>
-                <div style={{padding: '6px 14px', borderRadius: '100px', background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)', color: 'var(--accent-physics)', fontWeight: 700, fontSize: '0.85rem'}}>
-                  Lvl {level} {title}
-                </div>
-              </div>
-            </div>
-
-            <div style={{fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.4, padding: '10px 14px', background: 'rgba(0,0,0,0.25)', borderRadius: '12px'}}>
-              "{currentBio}"
-            </div>
-
-            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.85rem'}}>
-              <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
-                💡 Motto: <em style={{color: '#cbd5e1'}}>"{currentMotto}"</em>
-              </div>
-              <div style={{fontSize: '0.85rem', color: 'var(--accent-math)', fontWeight: 600}}>
-                ⚡ Strengths: {currentStrengths}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── 6 GAMIFIED ACHIEVEMENT BADGES ── */}
-        <div>
-          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem'}}>
-            <h3 style={{fontSize: '1.25rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px'}}>
-              <Trophy size={20} color="var(--accent-math)" /> Academic Achievement Badges
-            </h3>
-            <span style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Earned through active learning</span>
-          </div>
-
-          <div className="profile-badges-grid">
-            {ACHIEVEMENT_BADGES.map(badge => (
-              <div
-                key={badge.id}
-                className="achievement-badge-card"
-                style={{
-                  border: badge.unlocked ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.06)',
-                  background: badge.unlocked ? 'linear-gradient(145deg, rgba(16,185,129,0.08) 0%, rgba(255,255,255,0.02) 100%)' : 'rgba(255,255,255,0.02)'
-                }}
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+            <button 
+              className="btn-secondary" 
+              onClick={() => setProfileActiveTab('theme')} 
+              style={{padding: '6px 12px', fontSize: '0.78rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px'}}
+              title="Appearance & Themes"
+            >
+              <Sparkles size={14} color="var(--accent-math)"/> Theme
+            </button>
+            {isGuest ? (
+              <button 
+                onClick={() => { setAuthWallMsg('Create an account to save your progress permanently.'); setShowAuthWall(true); }}
+                style={{padding: '6px 12px', fontSize: '0.78rem', borderRadius: '8px', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer'}}
               >
-                <div style={{fontSize: '2rem', padding: '10px', background: badge.unlocked ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)', borderRadius: '14px', border: badge.unlocked ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)'}}>
-                  {badge.icon}
-                </div>
-                <div style={{flex: 1}}>
-                  <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px'}}>
-                    <div style={{fontWeight: 800, fontSize: '0.95rem', color: badge.unlocked ? '#fff' : 'var(--text-muted)'}}>{badge.title}</div>
-                    <span style={{fontSize: '0.7rem', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, background: badge.unlocked ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)', color: badge.unlocked ? '#10b981' : 'var(--text-muted)'}}>
-                      {badge.unlocked ? '✓ UNLOCKED' : 'LOCKED'}
-                    </span>
-                  </div>
-                  <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.3}}>{badge.desc}</div>
-                  <div style={{fontSize: '0.75rem', color: badge.unlocked ? 'var(--accent-physics)' : 'var(--text-muted)', fontWeight: 600, marginTop: '4px'}}>
-                    {badge.progress}
-                  </div>
-                </div>
-              </div>
-            ))}
+                Sign Up
+              </button>
+            ) : (
+              <button 
+                onClick={handleLogout}
+                style={{padding: '6px 10px', fontSize: '0.78rem', borderRadius: '8px', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'}}
+                title="Logout"
+              >
+                <LogOut size={14}/>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* ── ACADEMIC BLUEPRINT & FOCUS PRIORITIES ── */}
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem'}}>
-          
-          {/* Key Strengths */}
-          <div className="glass" style={{padding: '1.75rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-            <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-physics)'}}>
-              <Zap size={18} /> Mastered Strengths
-            </h4>
-            <div style={{background: 'rgba(0,0,0,0.25)', padding: '1.25rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', flex: 1}}>
-              <p style={{fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.5, margin: 0}}>
-                {currentStrengths}
-              </p>
+        {/* ── PROFILE HEADER: AVATAR & 3 STATS (INSTAGRAM STYLE) ── */}
+        <div className="ig-header-layout">
+          {/* Circular Story Avatar */}
+          <div className="ig-avatar-ring" onClick={() => {
+            setEditProfileData({
+              name: sessionUser,
+              prepType: currentUserProfile?.prepType || 'JEE',
+              targetYear: currentUserProfile?.targetYear || new Date().getFullYear(),
+              dreamCollege: currentCollege,
+              bio: currentBio,
+              motto: currentMotto,
+              strengths: currentStrengths,
+              weakness: currentWeakness,
+              targetHours: currentHours
+            });
+            setIsEditingProfile(true);
+          }} title="Click to edit profile">
+            <div className="ig-avatar-inner" style={{background: getAvatarColor(safeUser)}}>
+              {safeUser.charAt(0).toUpperCase()}
+            </div>
+            <div style={{position: 'absolute', bottom: '3px', right: '5px', width: '16px', height: '16px', borderRadius: '50%', background: '#10b981', border: '2.5px solid #0b0f19'}} title="Active Studying"/>
+          </div>
+
+          {/* 3 Horizontal Instagram Stats */}
+          <div className="ig-stats-row">
+            <div className="ig-stat-col" onClick={() => setProfileActiveTab('stats')}>
+              <div className="ig-stat-num">{totalTasksCompleted}</div>
+              <div className="ig-stat-label">Tasks Done</div>
+            </div>
+            <div className="ig-stat-col" onClick={() => setProfileActiveTab('stats')}>
+              <div className="ig-stat-num">Lvl {level}</div>
+              <div className="ig-stat-label">{currentXP} XP</div>
+            </div>
+            <div className="ig-stat-col" onClick={() => setProfileActiveTab('stats')}>
+              <div className="ig-stat-num" style={{color: '#f97316'}}>{streak}d 🔥</div>
+              <div className="ig-stat-label">Streak</div>
             </div>
           </div>
+        </div>
 
-          {/* Identified Weakness & Fixes */}
-          <div className="glass" style={{padding: '1.75rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-            <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 800, color: '#f59e0b'}}>
-              <AlertCircle size={18} /> High-Priority Improvement Area
-            </h4>
-            <div style={{background: 'rgba(0,0,0,0.25)', padding: '1.25rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', flex: 1}}>
-              <p style={{fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.5, margin: 0}}>
-                {currentWeakness}
-              </p>
+        {/* ── BIO & ASPIRANT STATEMENT ── */}
+        <div className="ig-bio-section">
+          <div className="ig-username-title">
+            <span>{isGuest ? 'Guest Aspirant' : safeUser}</span>
+            <span style={{fontSize: '0.75rem', color: '#10b981', fontWeight: 700}}>• Online</span>
+          </div>
+
+          <div className="ig-category-tag">
+            <span>🎓 {currentUserProfile?.prepType || 'JEE'} Aspirant</span>
+            <span>· Class of {currentUserProfile?.targetYear || '2026'}</span>
+          </div>
+
+          <div className="ig-target-college">
+            🎯 Target: <strong>{currentCollege}</strong>
+          </div>
+
+          <div className="ig-bio-description">
+            {currentBio}
+          </div>
+
+          {currentMotto && (
+            <div className="ig-bio-quote">
+              💡 "{currentMotto}"
             </div>
-          </div>
-
-          {/* Target Study Hours Daily */}
-          <div className="glass" style={{padding: '1.75rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-            <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 800, color: '#10b981'}}>
-              <Clock size={18} /> Daily Grind Commitment
-            </h4>
-            <div style={{background: 'rgba(0,0,0,0.25)', padding: '1.25rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', flex: 1, display: 'flex', alignItems: 'center', gap: '14px'}}>
-              <div style={{fontSize: '2.4rem', fontWeight: 900, color: '#10b981'}}>{currentHours}h</div>
-              <div>
-                <div style={{fontSize: '0.9rem', fontWeight: 700, color: '#fff'}}>Target Study Hours / Day</div>
-                <div style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Pomodoro sprints & practice drills</div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* ── STATS BREAKDOWN ── */}
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '1rem'}}>
-          <div className="glass" style={{padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', borderRadius: '18px'}}>
-            <div style={{padding: '10px', background: 'rgba(16,185,129,0.1)', borderRadius: '50%', color: 'var(--accent-success)'}}><Check size={22}/></div>
-            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalTasksCompleted}</div>
-            <div style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>Practice Tasks</div>
-          </div>
-          <div className="glass" style={{padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', borderRadius: '18px'}}>
-            <div style={{padding: '10px', background: 'rgba(139,92,246,0.1)', borderRadius: '50%', color: 'var(--accent-physics)'}}><Video size={22}/></div>
-            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{playlist.length}</div>
-            <div style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>Active Lectures</div>
-          </div>
-          <div className="glass" style={{padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', borderRadius: '18px'}}>
-            <div style={{padding: '10px', background: 'rgba(236,72,153,0.1)', borderRadius: '50%', color: 'var(--accent-chem)'}}><FileText size={22}/></div>
-            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{mistakesList ? mistakesList.length : 0}</div>
-            <div style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>Mistakes Logged</div>
-          </div>
-          <div className="glass" style={{padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', borderRadius: '18px'}}>
-            <div style={{padding: '10px', background: 'rgba(245,158,11,0.1)', borderRadius: '50%', color: '#f59e0b'}}><BookOpen size={22}/></div>
-            <div style={{fontSize: '1.75rem', fontWeight: 800}}>{totalJournals}</div>
-            <div style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>Daily Logs</div>
-          </div>
-        </div>
-
-        {/* ── THEME SELECTION ── */}
-        <div className="glass" style={{padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderRadius: '20px'}}>
-          <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', fontWeight: 800}}>
-            <Sparkles size={18} color="var(--accent-math)"/> Workspace Background Theme
-          </h4>
-          <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
-            <button 
-              onClick={() => setBgTheme('universe-bg')} 
-              style={{flex: 1, padding: '1rem', background: bgTheme === 'universe-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'universe-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '140px', fontWeight: 600}}>
-              🌌 Deep Universe
-            </button>
-            <button 
-              onClick={() => setBgTheme('solid-dark-bg')} 
-              style={{flex: 1, padding: '1rem', background: bgTheme === 'solid-dark-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'solid-dark-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '140px', fontWeight: 600}}>
-              🌑 Solid Dark
-            </button>
-            <button 
-              onClick={() => setBgTheme('mesh-bg')} 
-              style={{flex: 1, padding: '1rem', background: bgTheme === 'mesh-bg' ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)', border: bgTheme === 'mesh-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', minWidth: '140px', fontWeight: 600}}>
-              🕸️ Grid Mesh
-            </button>
-          </div>
-        </div>
-
-        {/* ── ACCOUNT ACTIONS ROW ── */}
-        <div style={{display: 'flex', gap: '1rem', marginTop: '0.5rem', flexWrap: 'wrap'}}>
-          {isGuest ? (
-            <button onClick={() => { setAuthWallMsg('Create a permanent account to save your XP and profile data.'); setShowAuthWall(true); }} className="btn-primary" style={{padding: '14px 24px', borderRadius: '14px'}}>
-              <User size={18} /> Create Permanent Account
-            </button>
-          ) : (
-            <button onClick={handleLogout} className="btn-primary" style={{background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171', padding: '14px 24px', borderRadius: '14px'}}>
-              <LogOut size={18} /> Logout
-            </button>
           )}
+
+          {currentStrengths && (
+            <div className="ig-bio-meta">
+              ⚡ Strengths: {currentStrengths}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="ig-action-bar">
+            <button 
+              className="ig-btn ig-btn-primary"
+              onClick={() => {
+                setEditProfileData({
+                  name: sessionUser,
+                  prepType: currentUserProfile?.prepType || 'JEE',
+                  targetYear: currentUserProfile?.targetYear || new Date().getFullYear(),
+                  dreamCollege: currentCollege,
+                  bio: currentBio,
+                  motto: currentMotto,
+                  strengths: currentStrengths,
+                  weakness: currentWeakness,
+                  targetHours: currentHours
+                });
+                setIsEditingProfile(true);
+              }}
+            >
+              Edit profile
+            </button>
+            <button 
+              className="ig-btn ig-btn-secondary"
+              onClick={() => setProfileActiveTab(profileActiveTab === 'stats' ? 'badges' : 'stats')}
+            >
+              {profileActiveTab === 'stats' ? 'Badges' : 'Stats & Goals'}
+            </button>
+            <button 
+              className="ig-btn ig-btn-secondary"
+              onClick={() => setProfileActiveTab('theme')}
+            >
+              Themes
+            </button>
+          </div>
         </div>
+
+        {/* ── EDIT PROFILE INLINE CARD (WHEN ACTIVE) ── */}
+        {isEditingProfile && (
+          <div className="ig-edit-card animate-fade-in">
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px'}}>
+              <h3 style={{fontSize: '1.05rem', fontWeight: 800, color: '#fff', margin: 0}}>✏️ Edit Profile</h3>
+              <button onClick={() => setIsEditingProfile(false)} style={{background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer'}}><X size={18}/></button>
+            </div>
+
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginTop: '6px'}}>
+              <div>
+                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Username</label>
+                <input type="text" value={editProfileData.name} onChange={e => setEditProfileData({...editProfileData, name: e.target.value})} className="input-field" placeholder="Username" />
+              </div>
+              <div>
+                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Exam Target</label>
+                <select value={editProfileData.prepType} onChange={e => setEditProfileData({...editProfileData, prepType: e.target.value})} className="input-field">
+                  <option value="JEE">JEE (Advanced & Main)</option>
+                  <option value="NEET">NEET UG</option>
+                  <option value="UPSC">UPSC CSE</option>
+                  <option value="NDA">NDA</option>
+                  <option value="SAT">SAT / Global</option>
+                  <option value="General">General / Board Exams</option>
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Target Year</label>
+                <input type="number" value={editProfileData.targetYear} onChange={e => setEditProfileData({...editProfileData, targetYear: e.target.value})} className="input-field" placeholder="Target Year" />
+              </div>
+              <div>
+                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Dream College / Target</label>
+                <input type="text" value={editProfileData.dreamCollege || ''} onChange={e => setEditProfileData({...editProfileData, dreamCollege: e.target.value})} className="input-field" placeholder="e.g. IIT Bombay / AIIMS Delhi" />
+              </div>
+            </div>
+
+            <div>
+              <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Bio / Aspirant Statement</label>
+              <textarea rows="2" value={editProfileData.bio || ''} onChange={e => setEditProfileData({...editProfileData, bio: e.target.value})} className="input-field" placeholder="Your study focus & goal..." style={{resize: 'none'}} />
+            </div>
+
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px'}}>
+              <div>
+                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Study Motto</label>
+                <input type="text" value={editProfileData.motto || ''} onChange={e => setEditProfileData({...editProfileData, motto: e.target.value})} className="input-field" placeholder="Your driving quote..." />
+              </div>
+              <div>
+                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Key Strengths</label>
+                <input type="text" value={editProfileData.strengths || ''} onChange={e => setEditProfileData({...editProfileData, strengths: e.target.value})} className="input-field" placeholder="e.g. Mechanics, Calculus" />
+              </div>
+              <div>
+                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Weak Area / Priority</label>
+                <input type="text" value={editProfileData.weakness || ''} onChange={e => setEditProfileData({...editProfileData, weakness: e.target.value})} className="input-field" placeholder="e.g. Mock test time management" />
+              </div>
+              <div>
+                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Daily Study Target (Hours)</label>
+                <input type="number" value={editProfileData.targetHours || 8} onChange={e => setEditProfileData({...editProfileData, targetHours: Number(e.target.value)})} className="input-field" placeholder="8" />
+              </div>
+            </div>
+
+            <div style={{display: 'flex', gap: '10px', marginTop: '6px'}}>
+              <button className="btn-primary" style={{flex: 1, padding: '10px'}} onClick={() => {
+                let newName = editProfileData.name.trim();
+                if (!newName) newName = sessionUser;
+                setUsersDb(prev => {
+                  const newDb = { ...prev };
+                  const existingUser = newDb[sessionUser] || { profile: {} };
+                  const updatedProfile = {
+                    ...existingUser.profile,
+                    prepType: editProfileData.prepType,
+                    targetYear: editProfileData.targetYear,
+                    dreamCollege: editProfileData.dreamCollege,
+                    bio: editProfileData.bio,
+                    motto: editProfileData.motto,
+                    strengths: editProfileData.strengths,
+                    weakness: editProfileData.weakness,
+                    targetHours: editProfileData.targetHours
+                  };
+
+                  if (newName !== sessionUser) {
+                    if (newDb[newName]) {
+                      alert("Username already taken!");
+                      return prev;
+                    }
+                    delete newDb[sessionUser];
+                    newDb[newName] = { ...existingUser, profile: updatedProfile };
+                    const keys = ['pm_sub_', 'pm_jour_', 'pm_playlist_', 'pm_planner_', 'pm_syllabus_', 'pm_notes_', 'pm_streak_', 'pm_lastdate_', 'pm_mistakes_'];
+                    keys.forEach(k => {
+                      const val = localStorage.getItem(`${k}${sessionUser}`);
+                      if(val) localStorage.setItem(`${k}${newName}`, val);
+                      localStorage.removeItem(`${k}${sessionUser}`);
+                    });
+                    setSessionUser(newName);
+                    localStorage.setItem('planmaker_session', newName);
+                  } else {
+                    newDb[sessionUser] = { ...existingUser, profile: updatedProfile };
+                  }
+                  return newDb;
+                });
+                awardXP(20, 'Updated Profile Bio & Academic Goals');
+                setIsEditingProfile(false);
+              }}>Save Changes</button>
+              <button className="btn-secondary" style={{padding: '10px 18px'}} onClick={() => setIsEditingProfile(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── INSTAGRAM STORY HIGHLIGHTS ── */}
+        <div className="ig-highlights-scroll">
+          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('stats')}>
+            <div className="ig-highlight-circle">
+              <div className="ig-highlight-inner">🎯</div>
+            </div>
+            <span className="ig-highlight-label">{currentHours}h / day</span>
+          </div>
+
+          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('stats')}>
+            <div className="ig-highlight-circle">
+              <div className="ig-highlight-inner">🔥</div>
+            </div>
+            <span className="ig-highlight-label">{streak}d Streak</span>
+          </div>
+
+          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('stats')}>
+            <div className="ig-highlight-circle">
+              <div className="ig-highlight-inner">⚡</div>
+            </div>
+            <span className="ig-highlight-label">{currentXP} XP</span>
+          </div>
+
+          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('badges')}>
+            <div className="ig-highlight-circle">
+              <div className="ig-highlight-inner">🏆</div>
+            </div>
+            <span className="ig-highlight-label">{ACHIEVEMENT_BADGES.filter(b => b.unlocked).length}/6 Badges</span>
+          </div>
+
+          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('stats')}>
+            <div className="ig-highlight-circle">
+              <div className="ig-highlight-inner">📝</div>
+            </div>
+            <span className="ig-highlight-label">{totalNotes} Notes</span>
+          </div>
+        </div>
+
+        {/* ── INSTAGRAM PROFILE TABS ── */}
+        <div className="ig-tabs-nav">
+          <button 
+            className={`ig-tab-btn ${profileActiveTab === 'badges' ? 'active' : ''}`}
+            onClick={() => setProfileActiveTab('badges')}
+          >
+            <Trophy size={15} /> Badges
+          </button>
+          <button 
+            className={`ig-tab-btn ${profileActiveTab === 'stats' ? 'active' : ''}`}
+            onClick={() => setProfileActiveTab('stats')}
+          >
+            <Award size={15} /> Study Stats
+          </button>
+          <button 
+            className={`ig-tab-btn ${profileActiveTab === 'theme' ? 'active' : ''}`}
+            onClick={() => setProfileActiveTab('theme')}
+          >
+            <Sparkles size={15} /> Appearance
+          </button>
+        </div>
+
+        {/* ── TAB CONTENT ── */}
+        {profileActiveTab === 'badges' && (
+          <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <div className="profile-badges-grid">
+              {ACHIEVEMENT_BADGES.map(badge => (
+                <div
+                  key={badge.id}
+                  className="achievement-badge-card"
+                  style={{
+                    border: badge.unlocked ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(255,255,255,0.06)',
+                    background: badge.unlocked ? 'linear-gradient(145deg, rgba(16,185,129,0.09) 0%, rgba(255,255,255,0.02) 100%)' : 'rgba(255,255,255,0.02)'
+                  }}
+                >
+                  <div style={{fontSize: '1.75rem', padding: '9px', background: badge.unlocked ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)', borderRadius: '12px', flexShrink: 0}}>
+                    {badge.icon}
+                  </div>
+                  <div style={{flex: 1, minWidth: 0}}>
+                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '2px'}}>
+                      <div style={{fontWeight: 800, fontSize: '0.88rem', color: badge.unlocked ? '#fff' : 'var(--text-muted)'}}>{badge.title}</div>
+                      <span style={{fontSize: '0.62rem', padding: '2px 7px', borderRadius: '100px', fontWeight: 700, background: badge.unlocked ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)', color: badge.unlocked ? '#10b981' : 'var(--text-muted)'}}>
+                        {badge.unlocked ? '✓ UNLOCKED' : 'LOCKED'}
+                      </span>
+                    </div>
+                    <div style={{fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.3}}>{badge.desc}</div>
+                    <div style={{fontSize: '0.72rem', color: badge.unlocked ? 'var(--accent-physics)' : 'var(--text-muted)', fontWeight: 600, marginTop: '3px'}}>
+                      {badge.progress}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {profileActiveTab === 'stats' && (
+          <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
+            {/* 4 Metric Cards */}
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px'}}>
+              <div className="glass" style={{padding: '1.15rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px', borderRadius: '16px'}}>
+                <div style={{padding: '8px', background: 'rgba(16,185,129,0.1)', borderRadius: '50%', color: 'var(--accent-success)'}}><Check size={20}/></div>
+                <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff'}}>{totalTasksCompleted}</div>
+                <div style={{color: 'var(--text-muted)', fontSize: '0.78rem'}}>Tasks Completed</div>
+              </div>
+              <div className="glass" style={{padding: '1.15rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px', borderRadius: '16px'}}>
+                <div style={{padding: '8px', background: 'rgba(139,92,246,0.1)', borderRadius: '50%', color: 'var(--accent-physics)'}}><Video size={20}/></div>
+                <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff'}}>{playlist.length}</div>
+                <div style={{color: 'var(--text-muted)', fontSize: '0.78rem'}}>Active Lectures</div>
+              </div>
+              <div className="glass" style={{padding: '1.15rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px', borderRadius: '16px'}}>
+                <div style={{padding: '8px', background: 'rgba(236,72,153,0.1)', borderRadius: '50%', color: 'var(--accent-chem)'}}><FileText size={20}/></div>
+                <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff'}}>{mistakesList ? mistakesList.length : 0}</div>
+                <div style={{color: 'var(--text-muted)', fontSize: '0.78rem'}}>Mistakes Tracked</div>
+              </div>
+              <div className="glass" style={{padding: '1.15rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px', borderRadius: '16px'}}>
+                <div style={{padding: '8px', background: 'rgba(245,158,11,0.1)', borderRadius: '50%', color: '#f59e0b'}}><BookOpen size={20}/></div>
+                <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff'}}>{totalJournals}</div>
+                <div style={{color: 'var(--text-muted)', fontSize: '0.78rem'}}>Daily Study Journals</div>
+              </div>
+            </div>
+
+            {/* Daily Commitment & Level Progress */}
+            <div className="glass" style={{padding: '1.25rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <span style={{fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600}}>Level {level} Progress</span>
+                <span style={{fontSize: '0.85rem', fontWeight: 700, color: '#10b981'}}>{currentXP % 100} / 100 XP</span>
+              </div>
+              <div className="progress-bar-bg" style={{height: '8px', background: 'rgba(255,255,255,0.06)'}}>
+                <div className="progress-bar-fill" style={{width: `${progressPercent}%`, background: 'linear-gradient(90deg, #10b981, #3b82f6)'}}/>
+              </div>
+
+              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', marginTop: '4px'}}>
+                <div>
+                  <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Daily Grind Target</div>
+                  <div style={{fontSize: '1.1rem', fontWeight: 800, color: '#10b981'}}>{currentHours} Hours / Day</div>
+                </div>
+                {currentWeakness && (
+                  <div style={{textAlign: 'right', maxWidth: '55%'}}>
+                    <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Priority Improvement</div>
+                    <div style={{fontSize: '0.82rem', color: '#f59e0b', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentWeakness}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {profileActiveTab === 'theme' && (
+          <div className="animate-fade-in glass" style={{padding: '1.5rem', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <h4 style={{fontSize: '1rem', fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px'}}>
+              <Sparkles size={16} color="var(--accent-math)"/> Workspace Theme & Appearance
+            </h4>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px'}}>
+              <button 
+                onClick={() => setBgTheme('universe-bg')} 
+                style={{padding: '12px', background: bgTheme === 'universe-bg' ? 'rgba(139,92,246,0.25)' : 'rgba(0,0,0,0.3)', border: bgTheme === 'universe-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}}>
+                🌌 Deep Universe
+              </button>
+              <button 
+                onClick={() => setBgTheme('solid-dark-bg')} 
+                style={{padding: '12px', background: bgTheme === 'solid-dark-bg' ? 'rgba(139,92,246,0.25)' : 'rgba(0,0,0,0.3)', border: bgTheme === 'solid-dark-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}}>
+                🌑 Solid Dark
+              </button>
+              <button 
+                onClick={() => setBgTheme('mesh-bg')} 
+                style={{padding: '12px', background: bgTheme === 'mesh-bg' ? 'rgba(139,92,246,0.25)' : 'rgba(0,0,0,0.3)', border: bgTheme === 'mesh-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}}>
+                🕸️ Grid Mesh
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     );
@@ -5296,7 +5392,17 @@ return (
           <div className={`nav-item ${activeTab === 'journal' ? 'active' : ''}`} onClick={() => handleTabChange('journal')}><BookOpen size={18} /> Journal & Mistakes</div>
           <div className={`nav-item ${activeTab === 'lectures' ? 'active' : ''}`} onClick={() => handleTabChange('lectures')}><MonitorPlay size={18} /> Video Lectures</div>
           <div className={`nav-item ${activeTab === 'connect' ? 'active' : ''}`} onClick={() => handleTabChange('connect')}><PhoneCall size={18} /> Study Connect</div>
-          <div className={`nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => handleTabChange('community')}><Users size={18} /> Community</div>
+          <div className={`nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => handleTabChange('community')}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '8px', width: '100%'}}>
+              <Users size={18} />
+              <span>Community</span>
+              {unreadCommunityCount > 0 && (
+                <span className="sidebar-unread-badge" title={`${unreadCommunityCount} new message`}>
+                  {unreadCommunityCount > 9 ? '9+' : unreadCommunityCount}
+                </span>
+              )}
+            </div>
+          </div>
           <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => handleTabChange('profile')}><User size={18} /> My Profile</div>
         </div>
       </nav>
@@ -5567,7 +5673,15 @@ return (
           <PhoneCall size={20} /><span>Connect</span>
         </div>
         <div className={`bottom-nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => handleTabChange('community')}>
-          <Users size={20} /><span>Community</span>
+          <div style={{position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}>
+            <Users size={20} />
+            {unreadCommunityCount > 0 && (
+              <span className="mobile-unread-badge">
+                {unreadCommunityCount > 9 ? '9+' : unreadCommunityCount}
+              </span>
+            )}
+          </div>
+          <span>Community</span>
         </div>
         <div className={`bottom-nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => handleTabChange('profile')}>
           <User size={20} /><span>Profile</span>
