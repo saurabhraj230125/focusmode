@@ -527,6 +527,8 @@ const App = () => {
 
   const [showPeerPicker, setShowPeerPicker] = useState(false);
   const [peerSearchQuery, setPeerSearchQuery] = useState('');
+  const [aspirantSearchQuery, setAspirantSearchQuery] = useState('');
+  const [aspirantFilterExam, setAspirantFilterExam] = useState('all');
   const [showModerationModal, setShowModerationModal] = useState(false);
   const [modSearch, setModSearch] = useState('');
   const [modFilterTab, setModFilterTab] = useState('all');
@@ -576,7 +578,7 @@ const App = () => {
   const firebaseUsers = useFirebaseUsers();
 
   useEffect(() => {
-    if (sessionUser && usersDb[sessionUser] && !usersDb[sessionUser].profile.isGuest) {
+    if (sessionUser && usersDb[sessionUser]) {
       syncUserToFirebase(sessionUser, usersDb[sessionUser].profile);
     }
   }, [sessionUser, usersDb]);
@@ -2718,9 +2720,30 @@ const App = () => {
 
   const renderCommunity = () => {
     const getProfileData = (username) => {
-      if (usersDb[username]) return usersDb[username].profile;
+      if (usersDb && usersDb[username]?.profile) return usersDb[username].profile;
+      if (firebaseUsers && firebaseUsers[username]) {
+        return {
+          prepType: firebaseUsers[username].prepType || "JEE",
+          xp: firebaseUsers[username].xp || 0,
+          targetYear: firebaseUsers[username].targetYear || "2026",
+          dreamCollege: firebaseUsers[username].dreamCollege || "Top National Institute",
+          bio: firebaseUsers[username].bio || "Dedicated aspirant relentless on the daily grind.",
+          motto: firebaseUsers[username].motto || "Champions do in practice what they expect to perform in the arena.",
+          strengths: firebaseUsers[username].strengths || "Problem Solving, Consistency",
+          weakness: firebaseUsers[username].weakness || "Time management in mocks",
+          targetHours: firebaseUsers[username].targetHours || 8,
+          lastActive: firebaseUsers[username].lastActive || 0
+        };
+      }
       const post = feed.find(f => f.user === username);
-      return { prepType: post?.prep || "JEE", xp: post?.xp || 0 };
+      return { 
+        prepType: post?.prep || "JEE", 
+        xp: post?.xp || 0,
+        targetYear: "2026",
+        dreamCollege: "Top National Institute",
+        bio: "Dedicated aspirant relentless on the daily grind.",
+        motto: "Hard work beats talent."
+      };
     };
 
     const onlineThreshold = 5 * 60 * 1000;
@@ -2763,7 +2786,18 @@ const App = () => {
        .map(f => {
        const isOnline = f.createdAt ? (now - f.createdAt) < onlineThreshold : false;
        const { level } = getLevelData(f.xp || 0);
-       return { name: f.user, xp: f.xp || 0, level, isOnline };
+       const prof = getProfileData(f.user);
+       return { 
+         name: f.user, 
+         xp: f.xp || prof?.xp || 0, 
+         level, 
+         isOnline,
+         prepType: prof?.prepType || 'JEE',
+         targetYear: prof?.targetYear || '2026',
+         dreamCollege: prof?.dreamCollege || 'Top National Institute',
+         bio: prof?.bio || 'Dedicated aspirant relentless on the daily grind.',
+         motto: prof?.motto || 'Consistency is the key.'
+       };
     });
 
     allPeers = allPeers.sort((a,b) => b.isOnline - a.isOnline);
@@ -3209,25 +3243,77 @@ const App = () => {
         {viewingProfile && (() => {
           const prof = getProfileData(viewingProfile);
           const { level: pL, title: pT } = getLevelData(prof?.xp || 0);
+          const isOnline = allPeers.find(p => p.name.toLowerCase() === viewingProfile.toLowerCase())?.isOnline || false;
           return (
-            <div style={{position:"fixed", inset:0, zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.8)", backdropFilter:"blur(10px)", padding:"1rem"}} onClick={() => setViewingProfile(null)}>
-              <div className="glass" style={{maxWidth:"400px", width:"100%", padding:"2rem", borderRadius:"24px", position:"relative"}} onClick={e => e.stopPropagation()}>
-                <button onClick={() => setViewingProfile(null)} style={{position:"absolute", top:"16px", right:"16px", background:"transparent", border:"none", color:"var(--text-muted)", cursor:"pointer", zIndex: 10}}><X size={20}/></button>
-                <div style={{height:"80px", borderRadius:"14px 14px 0 0", marginBottom:"-30px", background:`linear-gradient(135deg, ${getAvatarColor(viewingProfile)}, #1a1c29)`, marginLeft:"-2rem", marginRight:"-2rem", marginTop:"-2rem"}}></div>
-                <div style={{width:"68px", height:"68px", borderRadius:"50%", background:getAvatarColor(viewingProfile), display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.8rem", fontWeight:"bold", border:"3px solid #0f1015", position:"relative", zIndex:1}}>{viewingProfile.charAt(0).toUpperCase()}</div>
-                <h2 style={{fontSize:"1.25rem", fontWeight:800, marginTop:"8px"}}>{viewingProfile}</h2>
-                <p style={{color:"var(--accent-success)", fontSize:"0.88rem", fontWeight:600, marginBottom:"12px"}}>⚡ Lvl {pL} · {pT}</p>
-                <button className="btn-primary" style={{width: "100%", padding: "8px"}} onClick={() => { setActiveChat(`user:${viewingProfile}`); setActiveCommunityTab("chat"); setViewingProfile(null); }}>💬 Direct Message</button>
+            <div style={{position:"fixed", inset:0, zIndex:700, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.85)", backdropFilter:"blur(12px)", padding:"1rem"}} onClick={() => setViewingProfile(null)}>
+              <div className="glass" style={{maxWidth:"440px", width:"100%", padding:"1.75rem", borderRadius:"24px", position:"relative", background: "#0f172a", border: "1px solid rgba(139,92,246,0.35)", boxShadow: "0 25px 60px rgba(0,0,0,0.7)"}} onClick={e => e.stopPropagation()}>
+                <button onClick={() => setViewingProfile(null)} style={{position:"absolute", top:"16px", right:"16px", background:"rgba(0,0,0,0.4)", border:"none", color:"#fff", cursor:"pointer", zIndex: 10, width: "32px", height: "32px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center"}}><X size={18}/></button>
+                
+                {/* Banner */}
+                <div style={{height:"90px", borderRadius:"18px 18px 0 0", marginBottom:"-36px", background:`linear-gradient(135deg, ${getAvatarColor(viewingProfile)}, #1e1b4b)`, marginLeft:"-1.75rem", marginRight:"-1.75rem", marginTop:"-1.75rem"}}></div>
+                
+                {/* Avatar with Online Dot */}
+                <div style={{display: "flex", alignItems: "flex-end", justifyContent: "space-between", position: "relative", zIndex: 1, marginBottom: "12px"}}>
+                  <div style={{position: "relative"}}>
+                    <div style={{width:"76px", height:"76px", borderRadius:"50%", background:getAvatarColor(viewingProfile), display:"flex", alignItems:"center", justifyContent:"center", fontSize:"2.2rem", fontWeight:900, color:"#fff", border:"4px solid #0f172a", boxShadow:"0 4px 20px rgba(0,0,0,0.5)"}}>
+                      {viewingProfile.charAt(0).toUpperCase()}
+                    </div>
+                    {isOnline && <div style={{position: "absolute", bottom: "4px", right: "4px", width: "16px", height: "16px", borderRadius: "50%", background: "#10b981", border: "3px solid #0f172a"}} title="Online Now"></div>}
+                  </div>
+                  <div style={{display: "flex", gap: "6px"}}>
+                    <span style={{fontSize: "0.75rem", padding: "3px 10px", borderRadius: "100px", background: "rgba(16,185,129,0.18)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", fontWeight: 700}}>
+                      {isOnline ? "🟢 Active Now" : "Offline"}
+                    </span>
+                    <span style={{fontSize: "0.75rem", padding: "3px 10px", borderRadius: "100px", background: "rgba(139,92,246,0.2)", color: "#c084fc", border: "1px solid rgba(139,92,246,0.35)", fontWeight: 700}}>
+                      Lvl {pL} · {pT}
+                    </span>
+                  </div>
+                </div>
+
+                {/* User Details */}
+                <h2 style={{fontSize:"1.4rem", fontWeight:900, margin:"0 0 4px 0", color:"#fff"}}>{viewingProfile}</h2>
+                <div style={{fontSize:"0.84rem", color:"var(--accent-math)", fontWeight:700, marginBottom:"10px", display: "flex", alignItems: "center", gap: "6px"}}>
+                  <Target size={14}/> {prof.prepType || "JEE"} {prof.targetYear || "2026"} · Aiming for: {prof.dreamCollege || "Top Institute"}
+                </div>
+
+                {/* Bio Quote */}
+                <div style={{fontSize: "0.88rem", color: "#e2e8f0", background: "rgba(255,255,255,0.04)", padding: "10px 14px", borderRadius: "12px", borderLeft: "3px solid var(--accent-physics)", marginBottom: "12px", fontStyle: "italic"}}>
+                  "{prof.bio || 'Dedicated aspirant grinding daily in Focus Mode.'}"
+                </div>
+
+                {/* Academic Highlights */}
+                <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "16px"}}>
+                  <div style={{background: "rgba(255,255,255,0.03)", padding: "8px 10px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.05)"}}>
+                    <span style={{fontSize: "0.68rem", color: "var(--text-muted)", display: "block"}}>⚡ Lifetime XP</span>
+                    <strong style={{fontSize: "0.95rem", color: "#fbbf24"}}>{prof.xp || 0} XP</strong>
+                  </div>
+                  <div style={{background: "rgba(255,255,255,0.03)", padding: "8px 10px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.05)"}}>
+                    <span style={{fontSize: "0.68rem", color: "var(--text-muted)", display: "block"}}>💡 Key Strengths</span>
+                    <strong style={{fontSize: "0.82rem", color: "#38bdf8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block"}}>{prof.strengths || "Physics & Math"}</strong>
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <button 
+                  className="btn-primary" 
+                  style={{width: "100%", padding: "11px", borderRadius: "100px", fontSize: "0.92rem", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", background: "linear-gradient(135deg, #ec4899, #8b5cf6)", boxShadow: "0 4px 15px rgba(236,72,153,0.4)"}} 
+                  onClick={() => { setActiveChat(`user:${viewingProfile}`); setActiveCommunityTab("chat"); setViewingProfile(null); }}
+                >
+                  <MessageSquare size={16}/> Direct Message @${viewingProfile}
+                </button>
               </div>
             </div>
           );
         })()}
 
-        {/* Top Navigation Bar - Ultra Compact */}
+                {/* Top Navigation Bar - Ultra Compact */}
         <div className="community-tabs">
            <div style={{display: "flex", alignItems: "center", gap: "6px", flexWrap: "nowrap", overflowX: "auto"}}>
              <button onClick={() => setActiveCommunityTab("chat")} style={{padding: "6px 14px", borderRadius: "100px", background: activeCommunityTab === "chat" ? "linear-gradient(135deg, var(--accent-physics), #c026d3)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", whiteSpace: "nowrap"}}>
                <MessageSquare size={14}/> Live Lounge
+             </button>
+             <button onClick={() => setActiveCommunityTab("peers")} style={{padding: "6px 14px", borderRadius: "100px", background: activeCommunityTab === "peers" ? "linear-gradient(135deg, #10b981, #059669)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", whiteSpace: "nowrap"}}>
+               <Users size={14}/> Aspirants ({allPeers.length})
              </button>
              <button onClick={() => setActiveCommunityTab("squads")} style={{padding: "6px 14px", borderRadius: "100px", background: activeCommunityTab === "squads" ? "linear-gradient(135deg, var(--accent-math), #2563eb)" : "rgba(255,255,255,0.05)", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", whiteSpace: "nowrap"}}>
                <Target size={14}/> Squad Missions
@@ -3258,7 +3344,116 @@ const App = () => {
         </div>
 
         {/* Tab Content */}
-        {activeCommunityTab === "chat" ? (
+        {activeCommunityTab === "peers" ? (
+          /* Aspirants Directory View */
+          <div style={{display: "flex", flexDirection: "column", gap: "1rem", flex: 1, minHeight: 0, overflow: "hidden"}}>
+            <div className="glass" style={{padding: "1rem 1.25rem", borderRadius: "20px", display: "flex", flexDirection: "column", gap: "12px", flexShrink: 0, background: "rgba(15, 23, 42, 0.75)"}}>
+              <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px"}}>
+                <div>
+                  <h2 style={{fontSize: "1.15rem", fontWeight: 800, margin: 0, color: "#fff", display: "flex", alignItems: "center", gap: "8px"}}>
+                    <Users color="#10b981" size={20}/> Community Aspirants ({allPeers.length})
+                  </h2>
+                  <p style={{fontSize: "0.8rem", color: "var(--text-muted)", margin: "2px 0 0 0"}}>
+                    Connect, exchange notes, and study with verified aspirants across India
+                  </p>
+                </div>
+                <div style={{display: "flex", gap: "6px", flexWrap: "wrap"}}>
+                  {['all', 'online', 'JEE', 'NEET', 'UPSC'].map(f => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setAspirantFilterExam(f)}
+                      style={{
+                        padding: "5px 12px", borderRadius: "100px", fontSize: "0.78rem", fontWeight: "700", border: "none", cursor: "pointer",
+                        background: aspirantFilterExam === f ? "linear-gradient(135deg, #10b981, #059669)" : "rgba(255,255,255,0.06)",
+                        color: "white", transition: "all 0.2s"
+                      }}
+                    >
+                      {f === 'all' ? `All (${allPeers.length})` : f === 'online' ? `🟢 Online (${allPeers.filter(p => p.isOnline).length})` : f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <input
+                type="text"
+                placeholder="Search aspirants by name, dream college, or prep type..."
+                value={aspirantSearchQuery}
+                onChange={e => setAspirantSearchQuery(e.target.value)}
+                style={{width: "100%", padding: "10px 16px", borderRadius: "12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: "0.9rem", outline: "none", boxSizing: "border-box"}}
+              />
+            </div>
+
+            <div className="custom-scrollbar" style={{flex: 1, overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px", paddingBottom: "1.5rem"}}>
+              {allPeers
+                .filter(p => {
+                  const matchQuery = p.name.toLowerCase().includes(aspirantSearchQuery.toLowerCase()) || 
+                                     (p.dreamCollege && p.dreamCollege.toLowerCase().includes(aspirantSearchQuery.toLowerCase())) ||
+                                     (p.prepType && p.prepType.toLowerCase().includes(aspirantSearchQuery.toLowerCase()));
+                  if (!matchQuery) return false;
+                  if (aspirantFilterExam === 'online') return p.isOnline;
+                  if (aspirantFilterExam !== 'all') return (p.prepType || '').toLowerCase() === aspirantFilterExam.toLowerCase();
+                  return true;
+                })
+                .map(peer => (
+                  <div
+                    key={peer.name}
+                    className="glass aspirant-card"
+                    style={{
+                      padding: "16px", borderRadius: "18px", display: "flex", flexDirection: "column", gap: "12px",
+                      background: "rgba(15, 23, 42, 0.65)", border: "1px solid rgba(255,255,255,0.08)", transition: "all 0.2s", position: "relative"
+                    }}
+                  >
+                    <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
+                      <div style={{display: "flex", alignItems: "center", gap: "12px"}}>
+                        <div style={{position: "relative", cursor: "pointer"}} onClick={() => setViewingProfile(peer.name)}>
+                          <div style={{width: "46px", height: "46px", borderRadius: "14px", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "1.2rem", color: "white", border: "2px solid rgba(255,255,255,0.12)"}}>
+                            {peer.name.charAt(0).toUpperCase()}
+                          </div>
+                          {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "12px", height: "12px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}} title="Online"></div>}
+                        </div>
+                        <div>
+                          <div style={{fontWeight: 800, fontSize: "0.98rem", color: "#fff", cursor: "pointer"}} onClick={() => setViewingProfile(peer.name)}>
+                            {peer.name}
+                          </div>
+                          <div style={{fontSize: "0.74rem", color: "var(--accent-physics)", fontWeight: 700}}>
+                            {peer.prepType || 'JEE'} {peer.targetYear || '2026'} · Lvl {peer.level}
+                          </div>
+                        </div>
+                      </div>
+                      <span style={{fontSize: "0.7rem", padding: "2px 8px", borderRadius: "100px", background: peer.isOnline ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.05)", color: peer.isOnline ? "#10b981" : "var(--text-muted)", fontWeight: 700}}>
+                        {peer.isOnline ? "🟢 Online" : "Offline"}
+                      </span>
+                    </div>
+
+                    <div style={{fontSize: "0.82rem", color: "#cbd5e1", background: "rgba(0,0,0,0.2)", padding: "8px 12px", borderRadius: "10px", lineHeight: 1.4, minHeight: "36px"}}>
+                      🎯 Target: <strong style={{color: "#fff"}}>{peer.dreamCollege}</strong>
+                    </div>
+
+                    <div style={{display: "flex", gap: "8px", marginTop: "auto"}}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveChat(`user:${peer.name}`);
+                          setActiveCommunityTab("chat");
+                        }}
+                        style={{flex: 1, padding: "8px", borderRadius: "100px", background: "linear-gradient(135deg, #ec4899, #8b5cf6)", border: "none", color: "white", fontWeight: "bold", fontSize: "0.78rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"}}
+                      >
+                        <MessageSquare size={14}/> Message
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewingProfile(peer.name)}
+                        style={{padding: "8px 14px", borderRadius: "100px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontWeight: "600", fontSize: "0.78rem", cursor: "pointer"}}
+                      >
+                        Profile
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        ) : activeCommunityTab === "chat" ? (
           <div className={`community-chat-layout ${isZenMode ? 'zen-mode' : ''}`}>
             
             {/* Left Peers List - Gamified Sidebar (Hidden in Zen Mode or on Mobile) */}
@@ -3725,9 +3920,12 @@ const App = () => {
                                <div 
                                  className="ig-reaction-capsule glass" 
                                  style={{
-                                   display: "flex", alignItems: "center", gap: "3px", padding: "4px 8px",
-                                   borderRadius: "100px", background: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(255,255,255,0.18)",
-                                   boxShadow: "0 6px 20px rgba(0,0,0,0.45)", zIndex: 15
+                                   position: "absolute",
+                                   top: "-42px",
+                                   [isMe ? "right" : "left"]: 0,
+                                   display: "flex", alignItems: "center", gap: "3px", padding: "3px 8px",
+                                   borderRadius: "100px", background: "rgba(15, 23, 42, 0.96)", border: "1px solid rgba(255,255,255,0.22)",
+                                   boxShadow: "0 8px 25px rgba(0,0,0,0.65)", zIndex: 35, whiteSpace: "nowrap"
                                  }}
                                >
                                  {['❤️', '🔥', '😂', '😮', '👏', '💯'].map(emoji => (
@@ -4617,6 +4815,8 @@ const App = () => {
   };
 
   const renderProfile = () => {
+    const streak = studyStreak || 0;
+    const safeUser = sessionUser || 'Aspirant';
     let totalTasksCompleted = 0;
     subjects.forEach(s => s.tasks.forEach(t => t.subtasks.forEach(st => { if(st.completed) totalTasksCompleted++; })));
     const totalNotes = Object.keys(videoNotes).filter(k => videoNotes[k]?.notes || videoNotes[k]?.mistakes).length;
@@ -4654,7 +4854,7 @@ const App = () => {
             {/* Glowing Avatar */}
             <div style={{position: 'relative', flexShrink: 0}}>
               <div style={{width: 'clamp(85px, 14vw, 125px)', height: 'clamp(85px, 14vw, 125px)', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(2.5rem, 5vw, 3.6rem)', fontWeight: 900, border: '4px solid rgba(255,255,255,0.15)', boxShadow: '0 0 35px rgba(139,92,246,0.35)', color: '#fff'}}>
-                {sessionUser.charAt(0).toUpperCase()}
+                {safeUser.charAt(0).toUpperCase()}
               </div>
               <div style={{position: 'absolute', bottom: '2px', right: '4px', background: '#10b981', width: '22px', height: '22px', borderRadius: '50%', border: '3px solid #0f172a', boxShadow: '0 0 10px #10b981'}} title="Online & Studying"></div>
             </div>

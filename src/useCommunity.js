@@ -602,24 +602,26 @@ export const useFirebaseUsers = () => {
   useEffect(() => {
     if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
 
-    fetch(`${USERS_PATH}.json`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && typeof data === 'object') {
-          const clean = {};
-          Object.entries(data).forEach(([key, val]) => {
-            if (!key.startsWith('Guest_')) {
-              clean[key] = val;
-            }
-          });
-          setFirebaseUsers(clean);
-        }
-      })
-      .catch(err => console.error("Error fetching users", err));
-
     let isComponentMounted = true;
-    let es;
 
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch(`${USERS_PATH}.json`);
+        if (!res.ok || !isComponentMounted) return;
+        const data = await res.json();
+        if (data && typeof data === 'object') {
+          setFirebaseUsers(data);
+        }
+      } catch (err) {
+        console.error("Error fetching users from Firebase:", err);
+      }
+    };
+
+    fetchUsers();
+    // 5-second polling fallback keeps the community directory populated on mobile & desktop
+    const pollInterval = setInterval(fetchUsers, 5000);
+
+    let es;
     const connectSSE = () => {
       if (!isComponentMounted) return;
       if (es) es.close();
@@ -628,48 +630,44 @@ export const useFirebaseUsers = () => {
       sseRef.current = es;
 
       const handleEvent = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.data === undefined) return;
-        const path = payload.path;
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.data === undefined) return;
+          const path = payload.path;
 
-        setFirebaseUsers(prev => {
-          let updated = { ...prev };
-          if (path === '/') {
-            if (payload.data && typeof payload.data === 'object') {
-              Object.entries(payload.data).forEach(([key, val]) => {
-                if (key.startsWith('Guest_') || val === null) delete updated[key];
-                else updated[key] = { ...updated[key], ...val };
-              });
-            } else if (payload.data === null) {
-              updated = {};
-            }
-          } else {
-            const segments = path.split('/').filter(Boolean);
-            const userId = segments[0];
+          setFirebaseUsers(prev => {
+            let updated = { ...prev };
+            if (path === '/') {
+              if (payload.data && typeof payload.data === 'object') {
+                return payload.data;
+              } else if (payload.data === null) {
+                return {};
+              }
+            } else {
+              const segments = path.split('/').filter(Boolean);
+              const userId = segments[0];
 
-            if (userId && !userId.startsWith('Guest_')) {
-              if (segments.length === 1) {
-                if (payload.data === null) delete updated[userId];
-                else updated[userId] = { ...updated[userId], ...payload.data };
-              } else if (segments.length > 1 && updated[userId]) {
-                const field = segments[1];
-                updated[userId][field] = payload.data;
+              if (userId) {
+                if (segments.length === 1) {
+                  if (payload.data === null) delete updated[userId];
+                  else updated[userId] = { ...updated[userId], ...payload.data };
+                } else if (segments.length > 1 && updated[userId]) {
+                  const field = segments[1];
+                  updated[userId][field] = payload.data;
+                }
               }
             }
-          }
-          return updated;
-        });
-      } catch {}
+            return updated;
+          });
+        } catch {}
       };
 
       es.addEventListener('put', handleEvent);
       es.addEventListener('patch', handleEvent);
 
       es.onerror = () => {
-        console.warn('SSE users connection error, reconnecting...');
         es.close();
-        setTimeout(connectSSE, 3000);
+        setTimeout(connectSSE, 4000);
       };
     };
 
@@ -677,6 +675,7 @@ export const useFirebaseUsers = () => {
 
     return () => {
       isComponentMounted = false;
+      clearInterval(pollInterval);
       if (es) es.close();
     };
   }, []);
