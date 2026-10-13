@@ -610,21 +610,6 @@ const App = () => {
   const [progress, setProgress] = useState(0);
   
   // Tasks/Journal
-  // Self-heal subjects if empty or if newTaskSubject is unselected
-  useEffect(() => {
-    if (sessionUser) {
-      if (subjects.length === 0) {
-        const prep = currentUserProfile?.prepType || 'JEE';
-        const initialSubs = examTemplates[prep] || examTemplates.JEE;
-        setSubjects(initialSubs);
-        setExpandedSubjects(initialSubs.map(s => s.id));
-        setNewTaskSubject(initialSubs[0].id);
-        localStorage.setItem(`pm_sub_${sessionUser}`, JSON.stringify(initialSubs));
-      } else if (!newTaskSubject || !subjects.some(s => s.id === newTaskSubject)) {
-        setNewTaskSubject(subjects[0].id);
-      }
-    }
-  }, [sessionUser, currentUserProfile?.prepType, subjects.length, newTaskSubject]);
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskSubject, setNewTaskSubject] = useState('');
@@ -1202,6 +1187,22 @@ const App = () => {
       if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
     };
   }, [activeVideo]); // Omit videoProgress to prevent reloading video on progress tick
+
+  // Self-heal subjects if empty or if newTaskSubject is unselected
+  useEffect(() => {
+    if (sessionUser) {
+      if (subjects.length === 0) {
+        const prep = currentUserProfile?.prepType || 'JEE';
+        const initialSubs = examTemplates[prep] || examTemplates.JEE;
+        setSubjects(initialSubs);
+        setExpandedSubjects(initialSubs.map(s => s.id));
+        setNewTaskSubject(initialSubs[0].id);
+        localStorage.setItem(`pm_sub_${sessionUser}`, JSON.stringify(initialSubs));
+      } else if (!newTaskSubject || !subjects.some(s => s.id === newTaskSubject)) {
+        setNewTaskSubject(subjects[0].id);
+      }
+    }
+  }, [sessionUser, currentUserProfile?.prepType, subjects.length, newTaskSubject]);
 
   // Sync specific user data when they change
   useEffect(() => {
