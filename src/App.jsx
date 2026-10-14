@@ -17,7 +17,8 @@ import {
   trackJournalSaved, trackPostCreated, trackPostLiked, trackCommentPosted,
   trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned
 } from './analytics.js';
-import { useCommunity, containsAbuse, useFirebaseUsers, syncUserToFirebase, isDmBetween, getDmOtherUser, extractDmText } from './useCommunity.js';
+import { useCommunity, containsAbuse, useFirebaseUsers, syncUserToFirebase, removeUserFromFirebase, isDmBetween, getDmOtherUser, extractDmText } from './useCommunity.js';
+import { COUNTRIES, detectUserCountry, getCountryData } from './countries.js';
 import { useEvents } from './useEvents.js';
 import { usePushNotifications } from './usePushNotifications.js';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -493,7 +494,23 @@ const App = () => {
   const [usersDb, setUsersDb] = useState({});
   const [sessionUser, setSessionUser] = useState(null); 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [editProfileData, setEditProfileData] = useState({ name: '', prepType: '', targetYear: '' });
+  const [editProfileData, setEditProfileData] = useState(() => {
+    const detected = detectUserCountry();
+    return {
+      name: '',
+      prepType: 'JEE',
+      targetYear: new Date().getFullYear(),
+      dreamCollege: '',
+      bio: '',
+      motto: '',
+      strengths: '',
+      weakness: '',
+      targetHours: 8,
+      country: detected?.name || 'India',
+      countryFlag: detected?.flag || '🇮🇳',
+      countryCode: detected?.code || 'IN'
+    };
+  });
 
   // Derived User State
   const currentUserProfile = usersDb[sessionUser]?.profile;
@@ -1346,17 +1363,27 @@ const App = () => {
     if (savedPlanner) setPlannerTasks(JSON.parse(savedPlanner));
   };
 
-  const awardXP = (amount, reason) => {
-    setUsersDb(prev => ({
-      ...prev,
-      [sessionUser]: {
-        ...prev[sessionUser],
+  const awardXP = (amount, reason, targetUser = null) => {
+    const userToAward = targetUser || sessionUser;
+    if (!userToAward) return;
+    setUsersDb(prev => {
+      const userObj = prev[userToAward] || {};
+      const userProfile = userObj.profile || {};
+      const newXP = (userProfile.xp || 0) + (amount || 0);
+      const updatedUser = {
+        ...userObj,
         profile: {
-          ...prev[sessionUser].profile,
-          xp: (prev[sessionUser].profile.xp || 0) + amount
+          ...userProfile,
+          xp: newXP
         }
-      }
-    }));
+      };
+      // Keep Firebase user profile in sync
+      syncUserToFirebase(userToAward, updatedUser.profile);
+      return {
+        ...prev,
+        [userToAward]: updatedUser
+      };
+    });
     trackXPEarned(amount, reason);
     setToastMsg({ id: Date.now() + Math.random(), amount, reason });
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -1365,13 +1392,13 @@ const App = () => {
 
   const calculateProgress = () => {
     let total = 0; let completed = 0;
-    subjects.forEach(s => s.tasks.forEach(t => {
-      if (t.subtasks && t.subtasks.length > 0) {
+    (subjects || []).forEach(s => (s?.tasks || []).forEach(t => {
+      if (t?.subtasks && t.subtasks.length > 0) {
         t.subtasks.forEach(sub => {
-          total++; if (sub.completed) completed++;
+          total++; if (sub?.completed) completed++;
         });
       } else {
-        total++; if (t.completed) completed++;
+        total++; if (t?.completed) completed++;
       }
     }));
     setProgress(total === 0 ? 0 : Math.round((completed / total) * 100));
@@ -2800,29 +2827,47 @@ const App = () => {
 
   const renderCommunity = () => {
     const getProfileData = (username) => {
-      if (usersDb && usersDb[username]?.profile) return usersDb[username].profile;
-      if (firebaseUsers && firebaseUsers[username]) {
+      const defaultCountry = detectUserCountry();
+      if (usersDb && usersDb[username]?.profile) {
+        const p = usersDb[username].profile;
+        const cData = getCountryData(p.country || defaultCountry.name);
         return {
-          prepType: firebaseUsers[username].prepType || "JEE",
-          xp: firebaseUsers[username].xp || 0,
-          targetYear: firebaseUsers[username].targetYear || "2026",
-          dreamCollege: firebaseUsers[username].dreamCollege || "Top National Institute",
-          bio: firebaseUsers[username].bio || "Dedicated aspirant relentless on the daily grind.",
-          motto: firebaseUsers[username].motto || "Champions do in practice what they expect to perform in the arena.",
-          strengths: firebaseUsers[username].strengths || "Problem Solving, Consistency",
-          weakness: firebaseUsers[username].weakness || "Time management in mocks",
-          targetHours: firebaseUsers[username].targetHours || 8,
-          lastActive: firebaseUsers[username].lastActive || 0
+          ...p,
+          country: cData.name,
+          countryFlag: cData.flag,
+          countryCode: cData.code
         };
       }
-      const post = feed.find(f => f.user === username);
+      if (firebaseUsers && firebaseUsers[username]) {
+        const fu = firebaseUsers[username];
+        const cData = getCountryData(fu.country || defaultCountry.name);
+        return {
+          prepType: fu.prepType || "JEE",
+          xp: fu.xp || 0,
+          targetYear: fu.targetYear || "2026",
+          dreamCollege: fu.dreamCollege || "Top National Institute",
+          bio: fu.bio || "Dedicated aspirant relentless on the daily grind.",
+          motto: fu.motto || "Champions do in practice what they expect to perform in the arena.",
+          strengths: fu.strengths || "Problem Solving, Consistency",
+          weakness: fu.weakness || "Time management in mocks",
+          targetHours: fu.targetHours || 8,
+          country: cData.name,
+          countryFlag: cData.flag,
+          countryCode: cData.code,
+          lastActive: fu.lastActive || 0
+        };
+      }
+      const post = (feed || []).find(f => f?.user === username);
       return { 
         prepType: post?.prep || "JEE", 
         xp: post?.xp || 0,
         targetYear: "2026",
         dreamCollege: "Top National Institute",
         bio: "Dedicated aspirant relentless on the daily grind.",
-        motto: "Hard work beats talent."
+        motto: "Hard work beats talent.",
+        country: defaultCountry.name,
+        countryFlag: defaultCountry.flag,
+        countryCode: defaultCountry.code
       };
     };
 
@@ -2830,13 +2875,13 @@ const App = () => {
     const now = Date.now();
     
     // Build unique users from feed and usersDb, and mark them online if active recently
-    // Build unique users from feed and usersDb, and mark them online if active recently
     const recentUsersMap = new Map();
 
     // Merge in actual feed activity
-    feed.forEach(f => {
+    (feed || []).forEach(f => {
+       if (!f?.user) return;
        if (!recentUsersMap.has(f.user)) recentUsersMap.set(f.user, f);
-       else if (f.createdAt > (recentUsersMap.get(f.user).createdAt || 0)) recentUsersMap.set(f.user, f);
+       else if (f.createdAt > (recentUsersMap.get(f.user)?.createdAt || 0)) recentUsersMap.set(f.user, f);
     });
 
     // Also ensure all registered users (local) are in the list
@@ -2844,7 +2889,7 @@ const App = () => {
        if (!recentUsersMap.has(username)) {
           recentUsersMap.set(username, {
              user: username,
-             xp: usersDb[username].profile?.xp || 0,
+             xp: usersDb[username]?.profile?.xp || 0,
              createdAt: 0 // Default to offline if no recent activity
           });
        }
@@ -2853,7 +2898,8 @@ const App = () => {
     // Merge global firebase users
     Object.keys(firebaseUsers || {}).forEach(username => {
        const fbUser = firebaseUsers[username];
-       if (!recentUsersMap.has(username) || fbUser.lastActive > (recentUsersMap.get(username).createdAt || 0)) {
+       if (!fbUser) return;
+       if (!recentUsersMap.has(username) || (fbUser.lastActive || 0) > (recentUsersMap.get(username)?.createdAt || 0)) {
           recentUsersMap.set(username, {
              user: username,
              xp: fbUser.xp || 0,
@@ -2863,6 +2909,7 @@ const App = () => {
     });
     
     let allPeers = Array.from(recentUsersMap.values())
+       .filter(f => Boolean(f?.user))
        .map(f => {
        const isOnline = f.createdAt ? (now - f.createdAt) < onlineThreshold : false;
        const { level } = getLevelData(f.xp || 0);
@@ -2876,7 +2923,10 @@ const App = () => {
          targetYear: prof?.targetYear || '2026',
          dreamCollege: prof?.dreamCollege || 'Top National Institute',
          bio: prof?.bio || 'Dedicated aspirant relentless on the daily grind.',
-         motto: prof?.motto || 'Consistency is the key.'
+         motto: prof?.motto || 'Consistency is the key.',
+         country: prof?.country || 'India',
+         countryFlag: prof?.countryFlag || '🇮🇳',
+         countryCode: prof?.countryCode || 'IN'
        };
     });
 
@@ -3367,9 +3417,17 @@ const App = () => {
                 </div>
 
                 {/* User Details */}
-                <h2 style={{fontSize:"1.4rem", fontWeight:900, margin:"0 0 4px 0", color:"#fff"}}>{viewingProfile}</h2>
-                <div style={{fontSize:"0.84rem", color:"var(--accent-math)", fontWeight:700, marginBottom:"10px", display: "flex", alignItems: "center", gap: "6px"}}>
-                  <Target size={14}/> {prof.prepType || "JEE"} {prof.targetYear || "2026"} · Aiming for: {prof.dreamCollege || "Top Institute"}
+                <h2 style={{fontSize:"1.4rem", fontWeight:900, margin:"0 0 4px 0", color:"#fff", display:"flex", alignItems:"center", gap:"8px"}}>
+                  {viewingProfile}
+                  <span style={{fontSize: "1.1rem"}} title={prof.country}>{prof.countryFlag}</span>
+                </h2>
+                <div style={{display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginBottom: "10px"}}>
+                  <span style={{fontSize: "0.78rem", padding: "2px 8px", borderRadius: "100px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#cbd5e1", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px"}}>
+                    <span>{prof.countryFlag}</span> {prof.country}
+                  </span>
+                  <span style={{fontSize:"0.8rem", color:"var(--accent-math)", fontWeight:700, display: "inline-flex", alignItems: "center", gap: "4px"}}>
+                    <Target size={13}/> {prof.prepType || "JEE"} {prof.targetYear || "2026"} · Aiming for: {prof.dreamCollege || "Top Institute"}
+                  </span>
                 </div>
 
                 {/* Bio Quote */}
@@ -3514,11 +3572,12 @@ const App = () => {
                           {peer.isOnline && <div style={{position: "absolute", bottom: "-2px", right: "-2px", width: "12px", height: "12px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}} title="Online"></div>}
                         </div>
                         <div>
-                          <div style={{fontWeight: 800, fontSize: "0.98rem", color: "#fff", cursor: "pointer"}} onClick={() => setViewingProfile(peer.name)}>
+                          <div style={{fontWeight: 800, fontSize: "0.98rem", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px"}} onClick={() => setViewingProfile(peer.name)}>
                             {peer.name}
+                            <span style={{fontSize: "0.9rem"}} title={peer.country}>{peer.countryFlag}</span>
                           </div>
                           <div style={{fontSize: "0.74rem", color: "var(--accent-physics)", fontWeight: 700}}>
-                            {peer.prepType || 'JEE'} {peer.targetYear || '2026'} · Lvl {peer.level}
+                            {peer.prepType || 'JEE'} {peer.targetYear || '2026'} · {peer.countryFlag} · Lvl {peer.level}
                           </div>
                         </div>
                       </div>
@@ -3923,6 +3982,11 @@ const App = () => {
                            {!isMe && activeChat === "global" && (
                               <div style={{display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px", cursor: "pointer", maxWidth: "100%"}} onClick={() => setViewingProfile(msg.user)}>
                                  <span style={{fontSize: "0.78rem", color: "white", fontWeight: "700", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{msg.user}</span>
+                                 {getProfileData(msg.user)?.countryFlag && (
+                                   <span style={{fontSize: "0.78rem"}} title={getProfileData(msg.user)?.country}>
+                                     {getProfileData(msg.user)?.countryFlag}
+                                   </span>
+                                 )}
                                  <span style={{fontSize: "0.6rem", background: "rgba(139,92,246,0.2)", color: "var(--accent-physics)", padding: "1px 5px", borderRadius: "6px", fontWeight: "bold", whiteSpace: "nowrap"}}>Lvl {mLvl}</span>
                               </div>
                            )}
@@ -4973,6 +5037,11 @@ const App = () => {
         { id: 'b6', title: 'Grand Scholar', icon: '🏆', desc: 'Earned 100+ lifetime XP through practice', unlocked: (currentXP || 0) >= 100, progress: `${currentXP || 0}/100 XP` }
       ];
 
+      const detectedCountry = detectUserCountry();
+      const currentCountry = currentUserProfile?.country || detectedCountry.name;
+      const currentCountryFlag = currentUserProfile?.countryFlag || detectedCountry.flag;
+      const currentCountryCode = currentUserProfile?.countryCode || detectedCountry.code;
+
       const currentBio = currentUserProfile?.bio || "Dedicated aspirant relentless on the daily grind. Focus Mode 24/7.";
       const currentCollege = currentUserProfile?.dreamCollege || "IIT Bombay / AIIMS Delhi";
       const currentMotto = currentUserProfile?.motto || "Champions do in practice what they expect to perform in the arena.";
@@ -4980,16 +5049,140 @@ const App = () => {
       const currentWeakness = currentUserProfile?.weakness || "Time management in full-length mocks";
       const currentHours = currentUserProfile?.targetHours || 8;
 
+      const openEditProfile = () => {
+        setEditProfileData({
+          name: sessionUser || '',
+          prepType: currentUserProfile?.prepType || 'JEE',
+          targetYear: currentUserProfile?.targetYear || new Date().getFullYear(),
+          dreamCollege: currentCollege,
+          bio: currentBio,
+          motto: currentMotto,
+          strengths: currentStrengths,
+          weakness: currentWeakness,
+          targetHours: currentHours,
+          country: currentCountry,
+          countryFlag: currentCountryFlag,
+          countryCode: currentCountryCode,
+        });
+        setIsEditingProfile(true);
+      };
+
+      const handleSaveProfile = () => {
+        try {
+          const rawName = (editProfileData.name || '').trim();
+          const newName = rawName || sessionUser || 'Aspirant';
+          const sanitizedName = newName.replace(/[.#$[\]/]/g, '_').trim() || 'Aspirant';
+
+          if (sanitizedName !== sessionUser && usersDb[sanitizedName]) {
+            alert("Username already taken! Please choose a different username.");
+            return;
+          }
+
+          const countryObj = getCountryData(editProfileData.country);
+          const oldUsername = sessionUser;
+
+          setUsersDb(prev => {
+            const newDb = { ...prev };
+            const existingUser = (oldUsername && newDb[oldUsername]) ? newDb[oldUsername] : { profile: {} };
+            const updatedProfile = {
+              ...(existingUser.profile || {}),
+              name: sanitizedName,
+              prepType: editProfileData.prepType || 'JEE',
+              targetYear: editProfileData.targetYear || new Date().getFullYear(),
+              dreamCollege: (editProfileData.dreamCollege || '').trim(),
+              bio: (editProfileData.bio || '').trim(),
+              motto: (editProfileData.motto || '').trim(),
+              strengths: (editProfileData.strengths || '').trim(),
+              weakness: (editProfileData.weakness || '').trim(),
+              targetHours: Math.max(1, Math.min(24, Number(editProfileData.targetHours) || 8)),
+              country: countryObj.name,
+              countryFlag: countryObj.flag,
+              countryCode: countryObj.code,
+              lastActive: Date.now()
+            };
+
+            if (sanitizedName !== oldUsername) {
+              if (oldUsername && newDb[oldUsername]) {
+                delete newDb[oldUsername];
+              }
+              newDb[sanitizedName] = {
+                ...existingUser,
+                profile: updatedProfile
+              };
+
+              const keys = [
+                'pm_sub_', 'pm_jour_', 'pm_playlist_', 'pm_planner_',
+                'pm_syllabus_', 'pm_notes_', 'pm_streak_', 'pm_lastdate_', 'pm_mistakes_'
+              ];
+              if (oldUsername) {
+                keys.forEach(k => {
+                  try {
+                    const val = localStorage.getItem(`${k}${oldUsername}`);
+                    if (val !== null) {
+                      localStorage.setItem(`${k}${sanitizedName}`, val);
+                      localStorage.removeItem(`${k}${oldUsername}`);
+                    }
+                  } catch (e) {
+                    console.warn("Storage migration error for key:", k, e);
+                  }
+                });
+              }
+
+              setSessionUser(sanitizedName);
+              localStorage.setItem('planmaker_session', sanitizedName);
+
+              if (oldUsername) {
+                removeUserFromFirebase(oldUsername).catch(e => console.warn("Firebase removal error:", e));
+              }
+            } else {
+              newDb[sanitizedName] = {
+                ...existingUser,
+                profile: updatedProfile
+              };
+            }
+
+            // Sync updated profile to Firebase backend immediately
+            syncUserToFirebase(sanitizedName, updatedProfile).catch(e => console.warn("Firebase sync error:", e));
+
+            return newDb;
+          });
+
+          awardXP(20, 'Updated Profile & Academic Goals', sanitizedName);
+          setIsEditingProfile(false);
+        } catch (err) {
+          console.error("Critical error in handleSaveProfile:", err);
+          alert("Could not update profile. Please try again.");
+        }
+      };
+
       return (
         <div className="animate-fade-in ig-profile-wrapper">
         
         {/* ── TOP HEADER / USERNAME BAR ── */}
         <div className="ig-profile-top-bar">
-          <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
             <span style={{fontWeight: 800, fontSize: '1.2rem', color: '#fff', letterSpacing: '-0.3px'}}>
               {safeUser}
             </span>
             <span className="ig-verified-badge" title="Verified FocusMode Aspirant">✓</span>
+            <span 
+              className="ig-country-badge" 
+              title={`Aspirant from ${currentCountry}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 10px',
+                borderRadius: '100px',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                color: '#e2e8f0'
+              }}
+            >
+              <span>{currentCountryFlag}</span> {currentCountry}
+            </span>
           </div>
 
           <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
@@ -5023,20 +5216,7 @@ const App = () => {
         {/* ── PROFILE HEADER: AVATAR & 3 STATS (INSTAGRAM STYLE) ── */}
         <div className="ig-header-layout">
           {/* Circular Story Avatar */}
-          <div className="ig-avatar-ring" onClick={() => {
-            setEditProfileData({
-              name: sessionUser,
-              prepType: currentUserProfile?.prepType || 'JEE',
-              targetYear: currentUserProfile?.targetYear || new Date().getFullYear(),
-              dreamCollege: currentCollege,
-              bio: currentBio,
-              motto: currentMotto,
-              strengths: currentStrengths,
-              weakness: currentWeakness,
-              targetHours: currentHours
-            });
-            setIsEditingProfile(true);
-          }} title="Click to edit profile">
+          <div className="ig-avatar-ring" onClick={openEditProfile} title="Click to edit profile">
             <div className="ig-avatar-inner" style={{background: getAvatarColor(safeUser)}}>
               {safeUser.charAt(0).toUpperCase()}
             </div>
@@ -5067,9 +5247,11 @@ const App = () => {
             <span style={{fontSize: '0.75rem', color: '#10b981', fontWeight: 700}}>• Online</span>
           </div>
 
-          <div className="ig-category-tag">
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8', margin: '2px 0 6px 0', flexWrap: 'wrap'}}>
+            <span style={{color: '#f8fafc', fontWeight: 600}}>📍 {currentCountryFlag} {currentCountry}</span>
+            <span>•</span>
             <span>🎓 {currentUserProfile?.prepType || 'JEE'} Aspirant</span>
-            <span>· Class of {currentUserProfile?.targetYear || '2026'}</span>
+            <span>• Class of {currentUserProfile?.targetYear || '2026'}</span>
           </div>
 
           <div className="ig-target-college">
@@ -5096,20 +5278,7 @@ const App = () => {
           <div className="ig-action-bar">
             <button 
               className="ig-btn ig-btn-primary"
-              onClick={() => {
-                setEditProfileData({
-                  name: sessionUser,
-                  prepType: currentUserProfile?.prepType || 'JEE',
-                  targetYear: currentUserProfile?.targetYear || new Date().getFullYear(),
-                  dreamCollege: currentCollege,
-                  bio: currentBio,
-                  motto: currentMotto,
-                  strengths: currentStrengths,
-                  weakness: currentWeakness,
-                  targetHours: currentHours
-                });
-                setIsEditingProfile(true);
-              }}
+              onClick={openEditProfile}
             >
               Edit profile
             </button>
@@ -5139,11 +5308,44 @@ const App = () => {
             <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginTop: '6px'}}>
               <div>
                 <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Username</label>
-                <input type="text" value={editProfileData.name} onChange={e => setEditProfileData({...editProfileData, name: e.target.value})} className="input-field" placeholder="Username" />
+                <input 
+                  type="text" 
+                  value={editProfileData.name || ''} 
+                  onChange={e => setEditProfileData(prev => ({...prev, name: e.target.value}))} 
+                  className="input-field" 
+                  placeholder="Username" 
+                />
+              </div>
+              <div>
+                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Country / Region</label>
+                <select 
+                  value={editProfileData.country || 'India'} 
+                  onChange={e => {
+                    const countryObj = getCountryData(e.target.value);
+                    setEditProfileData(prev => ({
+                      ...prev,
+                      country: countryObj.name,
+                      countryFlag: countryObj.flag,
+                      countryCode: countryObj.code
+                    }));
+                  }} 
+                  className="input-field"
+                  style={{cursor: 'pointer'}}
+                >
+                  {COUNTRIES.map(c => (
+                    <option key={c.code} value={c.name}>
+                      {c.flag} {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Exam Target</label>
-                <select value={editProfileData.prepType} onChange={e => setEditProfileData({...editProfileData, prepType: e.target.value})} className="input-field">
+                <select 
+                  value={editProfileData.prepType || 'JEE'} 
+                  onChange={e => setEditProfileData(prev => ({...prev, prepType: e.target.value}))} 
+                  className="input-field"
+                >
                   <option value="JEE">JEE (Advanced & Main)</option>
                   <option value="NEET">NEET UG</option>
                   <option value="UPSC">UPSC CSE</option>
@@ -5154,80 +5356,83 @@ const App = () => {
               </div>
               <div>
                 <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Target Year</label>
-                <input type="number" value={editProfileData.targetYear} onChange={e => setEditProfileData({...editProfileData, targetYear: e.target.value})} className="input-field" placeholder="Target Year" />
+                <input 
+                  type="number" 
+                  value={editProfileData.targetYear || ''} 
+                  onChange={e => setEditProfileData(prev => ({...prev, targetYear: e.target.value}))} 
+                  className="input-field" 
+                  placeholder="Target Year" 
+                />
               </div>
               <div>
                 <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Dream College / Target</label>
-                <input type="text" value={editProfileData.dreamCollege || ''} onChange={e => setEditProfileData({...editProfileData, dreamCollege: e.target.value})} className="input-field" placeholder="e.g. IIT Bombay / AIIMS Delhi" />
+                <input 
+                  type="text" 
+                  value={editProfileData.dreamCollege || ''} 
+                  onChange={e => setEditProfileData(prev => ({...prev, dreamCollege: e.target.value}))} 
+                  className="input-field" 
+                  placeholder="e.g. IIT Bombay / AIIMS Delhi" 
+                />
               </div>
             </div>
 
             <div>
               <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Bio / Aspirant Statement</label>
-              <textarea rows="2" value={editProfileData.bio || ''} onChange={e => setEditProfileData({...editProfileData, bio: e.target.value})} className="input-field" placeholder="Your study focus & goal..." style={{resize: 'none'}} />
+              <textarea 
+                rows="2" 
+                value={editProfileData.bio || ''} 
+                onChange={e => setEditProfileData(prev => ({...prev, bio: e.target.value}))} 
+                className="input-field" 
+                placeholder="Your study focus & goal..." 
+                style={{resize: 'none'}} 
+              />
             </div>
 
             <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px'}}>
               <div>
                 <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Study Motto</label>
-                <input type="text" value={editProfileData.motto || ''} onChange={e => setEditProfileData({...editProfileData, motto: e.target.value})} className="input-field" placeholder="Your driving quote..." />
+                <input 
+                  type="text" 
+                  value={editProfileData.motto || ''} 
+                  onChange={e => setEditProfileData(prev => ({...prev, motto: e.target.value}))} 
+                  className="input-field" 
+                  placeholder="Your driving quote..." 
+                />
               </div>
               <div>
                 <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Key Strengths</label>
-                <input type="text" value={editProfileData.strengths || ''} onChange={e => setEditProfileData({...editProfileData, strengths: e.target.value})} className="input-field" placeholder="e.g. Mechanics, Calculus" />
+                <input 
+                  type="text" 
+                  value={editProfileData.strengths || ''} 
+                  onChange={e => setEditProfileData(prev => ({...prev, strengths: e.target.value}))} 
+                  className="input-field" 
+                  placeholder="e.g. Mechanics, Calculus" 
+                />
               </div>
               <div>
                 <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Weak Area / Priority</label>
-                <input type="text" value={editProfileData.weakness || ''} onChange={e => setEditProfileData({...editProfileData, weakness: e.target.value})} className="input-field" placeholder="e.g. Mock test time management" />
+                <input 
+                  type="text" 
+                  value={editProfileData.weakness || ''} 
+                  onChange={e => setEditProfileData(prev => ({...prev, weakness: e.target.value}))} 
+                  className="input-field" 
+                  placeholder="e.g. Mock test time management" 
+                />
               </div>
               <div>
                 <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Daily Study Target (Hours)</label>
-                <input type="number" value={editProfileData.targetHours || 8} onChange={e => setEditProfileData({...editProfileData, targetHours: Number(e.target.value)})} className="input-field" placeholder="8" />
+                <input 
+                  type="number" 
+                  value={editProfileData.targetHours || 8} 
+                  onChange={e => setEditProfileData(prev => ({...prev, targetHours: Number(e.target.value)}))} 
+                  className="input-field" 
+                  placeholder="8" 
+                />
               </div>
             </div>
 
             <div style={{display: 'flex', gap: '10px', marginTop: '6px'}}>
-              <button className="btn-primary" style={{flex: 1, padding: '10px'}} onClick={() => {
-                let newName = editProfileData.name.trim();
-                if (!newName) newName = sessionUser;
-                setUsersDb(prev => {
-                  const newDb = { ...prev };
-                  const existingUser = newDb[sessionUser] || { profile: {} };
-                  const updatedProfile = {
-                    ...existingUser.profile,
-                    prepType: editProfileData.prepType,
-                    targetYear: editProfileData.targetYear,
-                    dreamCollege: editProfileData.dreamCollege,
-                    bio: editProfileData.bio,
-                    motto: editProfileData.motto,
-                    strengths: editProfileData.strengths,
-                    weakness: editProfileData.weakness,
-                    targetHours: editProfileData.targetHours
-                  };
-
-                  if (newName !== sessionUser) {
-                    if (newDb[newName]) {
-                      alert("Username already taken!");
-                      return prev;
-                    }
-                    delete newDb[sessionUser];
-                    newDb[newName] = { ...existingUser, profile: updatedProfile };
-                    const keys = ['pm_sub_', 'pm_jour_', 'pm_playlist_', 'pm_planner_', 'pm_syllabus_', 'pm_notes_', 'pm_streak_', 'pm_lastdate_', 'pm_mistakes_'];
-                    keys.forEach(k => {
-                      const val = localStorage.getItem(`${k}${sessionUser}`);
-                      if(val) localStorage.setItem(`${k}${newName}`, val);
-                      localStorage.removeItem(`${k}${sessionUser}`);
-                    });
-                    setSessionUser(newName);
-                    localStorage.setItem('planmaker_session', newName);
-                  } else {
-                    newDb[sessionUser] = { ...existingUser, profile: updatedProfile };
-                  }
-                  return newDb;
-                });
-                awardXP(20, 'Updated Profile Bio & Academic Goals');
-                setIsEditingProfile(false);
-              }}>Save Changes</button>
+              <button className="btn-primary" style={{flex: 1, padding: '10px'}} onClick={handleSaveProfile}>Save Changes</button>
               <button className="btn-secondary" style={{padding: '10px 18px'}} onClick={() => setIsEditingProfile(false)}>Cancel</button>
             </div>
           </div>
@@ -5470,13 +5675,11 @@ return (
       {/* Desktop Sidebar */}
       <nav className="app-sidebar">
         <div className="brand"><Headphones size={24} color="var(--accent-physics)" /> <span>Focus Mode <span style={{background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800}}>Player</span></span></div>
-        {true && (
-           <div style={{background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', textAlign: 'center'}}>
-             <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Lvl {level}: {title}</div>
-             <div style={{fontWeight: 'bold', color: 'var(--accent-success)', fontSize: '1.1rem', marginTop: '4px'}}>{currentXP} XP</div>
-             {studyStreak > 0 && <div style={{fontSize:'0.78rem', color:'#fb923c', marginTop:'4px', fontWeight:700}}>🔥 {studyStreak}-Day Streak</div>}
-           </div>
-        )}
+        <div style={{background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', textAlign: 'center'}}>
+          <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Lvl {level}: {title}</div>
+          <div style={{fontWeight: 'bold', color: 'var(--accent-success)', fontSize: '1.1rem', marginTop: '4px'}}>{currentXP} XP</div>
+          {studyStreak > 0 && <div style={{fontSize:'0.78rem', color:'#fb923c', marginTop:'4px', fontWeight:700}}>🔥 {studyStreak}-Day Streak</div>}
+        </div>
         <div className="nav-links">
           <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}><LayoutDashboard size={18} /> Today's Plan</div>
           <div className={`nav-item ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => handleTabChange('planner')}><Calendar size={18} /> Study Planner</div>
@@ -5504,7 +5707,7 @@ return (
         {activeTab !== 'community' && (
           <div className="mobile-header">
             <div className="mobile-brand"><Headphones size={20} color="var(--accent-physics)" /> <span>Focus Mode <span style={{background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800}}>Player</span></span></div>
-            {true && <div className="mobile-xp-badge">⚡ {currentXP} XP</div>}
+            <div className="mobile-xp-badge">⚡ {currentXP} XP</div>
           </div>
         )}
 

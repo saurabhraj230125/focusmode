@@ -16,10 +16,19 @@ export const syncUserToFirebase = async (username, profile) => {
   if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
   if (!username) return;
   try {
-    await fetch(`${USERS_PATH}/${username}.json`, {
+    const safeUsername = String(username).replace(/[.#$[\]/]/g, '_').trim();
+    if (!safeUsername) return;
+    const safeProfile = {
+      ...(profile || {}),
+      country: profile?.country || 'India',
+      countryFlag: profile?.countryFlag || '🇮🇳',
+      countryCode: profile?.countryCode || 'IN',
+      lastActive: Date.now()
+    };
+    await fetch(`${USERS_PATH}/${safeUsername}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...profile, lastActive: Date.now() }),
+      body: JSON.stringify(safeProfile),
     });
   } catch (e) {
     console.error("Error syncing user to firebase", e);
@@ -68,8 +77,10 @@ export const unbanUserInFirebase = async (username) => {
 export const removeUserFromFirebase = async (username) => {
   if (!FIREBASE_URL || !username) return;
   try {
-    await fetch(`${USERS_PATH}/${username}.json`, { method: 'DELETE' });
-    await purgeUserPostsFromFirebase(username);
+    const safeUsername = String(username).replace(/[.#$[\]/]/g, '_').trim();
+    if (!safeUsername) return;
+    await fetch(`${USERS_PATH}/${safeUsername}.json`, { method: 'DELETE' });
+    await purgeUserPostsFromFirebase(safeUsername);
   } catch (err) {
     console.error("Error removing user from Firebase:", err);
   }

@@ -21,6 +21,7 @@ async function getAllSubscriptions() {
   if (!data) return [];
   const subs = [];
   for (const username of Object.keys(data)) {
+    if (!data[username] || typeof data[username] !== 'object') continue;
     for (const key of Object.keys(data[username])) {
       const entry = data[username][key];
       if (entry && entry.subscription) subs.push({ username, subscription: entry.subscription });
@@ -66,7 +67,7 @@ async function watchMessages() {
     if (!res.ok) return;
     const data = await res.json();
     if (!data) return;
-    const msgs = Object.values(data).filter(m => m.action && !m.action.startsWith('@DM_')).sort((a, b) => b.createdAt - a.createdAt);
+    const msgs = Object.values(data).filter(m => m && m.action && typeof m.action === 'string' && !m.action.startsWith('@DM_')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const latest = msgs[0];
     if (latest && latest.createdAt > lastMsgTime) {
       lastMsgTime = latest.createdAt;
