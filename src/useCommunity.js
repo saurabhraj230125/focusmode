@@ -245,19 +245,38 @@ const parsePostsMap = (data, banned = []) => {
     .sort((a, b) => b.createdAt - a.createdAt);
 };
 
+const POSTS_CACHE_KEY = 'pm_community_posts_cache_v2';
+
 export const useCommunity = (sessionUser, currentXP, prepType) => {
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState(() => {
+    try {
+      const cached = localStorage.getItem(POSTS_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [bannedUsers, setBannedUsers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem(POSTS_CACHE_KEY);
+      return cached ? JSON.parse(cached).length === 0 : true;
+    } catch {
+      return true;
+    }
+  });
   const sseRef = useRef(null);
   const bannedSseRef = useRef(null);
+  const bannedUsersRef = useRef([]);
 
   // Sync Banned Users
   useEffect(() => {
     if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
 
     fetchBannedUsers().then(users => {
-      setBannedUsers(users || []);
+      const list = users || [];
+      bannedUsersRef.current = list;
+      setBannedUsers(list);
     });
 
     let es;
@@ -269,14 +288,24 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
           const payload = JSON.parse(event.data);
           if (payload.data === undefined) return;
           if (payload.path === '/') {
-            setBannedUsers(payload.data && typeof payload.data === 'object' ? Object.keys(payload.data) : []);
+            const list = payload.data && typeof payload.data === 'object' ? Object.keys(payload.data) : [];
+            bannedUsersRef.current = list;
+            setBannedUsers(list);
           } else {
             const user = payload.path.split('/').filter(Boolean)[0];
             if (user) {
               if (payload.data === null) {
-                setBannedUsers(prev => prev.filter(u => u !== user));
+                setBannedUsers(prev => {
+                  const updated = prev.filter(u => u !== user);
+                  bannedUsersRef.current = updated;
+                  return updated;
+                });
               } else {
-                setBannedUsers(prev => prev.includes(user) ? prev : [...prev, user]);
+                setBannedUsers(prev => {
+                  const updated = prev.includes(user) ? prev : [...prev, user];
+                  bannedUsersRef.current = updated;
+                  return updated;
+                });
               }
             }
           }
@@ -291,14 +320,31 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     };
   }, []);
 
+  // When banned users list updates, immediately purge any banned user's posts from active state
+  useEffect(() => {
+    if (bannedUsers.length > 0) {
+      const bannedSet = new Set(bannedUsers.map(u => u.toLowerCase().trim()));
+      setPosts(prev => prev.filter(p => !bannedSet.has(p.user?.toLowerCase()?.trim())));
+    }
+  }, [bannedUsers]);
+
+  // Main Posts Sync & SSE Listener — Stable, does not tear down on bannedUsers change
   useEffect(() => {
     if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') {
       console.warn('useCommunity: FIREBASE_URL not configured — community feed will be empty');
+      setIsLoading(false);
       return;
     }
 
     let isComponentMounted = true;
     let es;
+    let reconnectTimer = null;
+
+    const saveCache = (freshPosts) => {
+      try {
+        localStorage.setItem(POSTS_CACHE_KEY, JSON.stringify(freshPosts.slice(0, 100)));
+      } catch {}
+    };
 
     // Heartbeat sync fallback: guarantees incoming updates even if SSE sleeps or drops on mobile
     const syncPosts = async () => {
@@ -306,21 +352,18 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
       try {
         const data = await fetchPosts();
         if (!isComponentMounted) return;
-        const fresh = parsePostsMap(data, bannedUsers);
-        setPosts(prev => {
-          if (fresh.length !== prev.length || (fresh[0]?.id !== prev[0]?.id) || (fresh[0]?.createdAt !== prev[0]?.createdAt)) {
-            return fresh;
-          }
-          return prev;
-        });
+        const fresh = parsePostsMap(data, bannedUsersRef.current);
+        setPosts(fresh);
+        saveCache(fresh);
         setIsLoading(false);
       } catch (err) {
         console.warn('Community sync fallback error:', err);
       }
     };
 
-    // Initial load
+    // Initial load — fire immediately so new users see messages right away
     syncPosts();
+    // Poll every 3.5s as a reliable fallback when SSE sleeps
     const pollInterval = setInterval(syncPosts, 3500);
 
     // SSE real-time listener — Firebase Realtime Database natively supports SSE
@@ -328,31 +371,38 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
 
     const connectSSE = () => {
       if (!isComponentMounted) return;
-      if (es) es.close();
+      if (es) { try { es.close(); } catch {} }
 
-      es = new EventSource(url);
-      sseRef.current = es;
+      try {
+        es = new EventSource(url);
+        sseRef.current = es;
 
-      const handleEvent = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.data === undefined) return;
-          const path = payload.path;
-
-          setPosts(prev => {
-            const map = {};
-            prev.forEach(p => { map[p.id] = p; });
+        const handleEvent = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload.data === undefined) return;
+            const path = payload.path;
 
             if (path === '/') {
-              if (payload.data && typeof payload.data === 'object') {
-                Object.entries(payload.data).forEach(([key, val]) => {
-                  if (val === null) delete map[key];
-                  else map[key] = { ...map[key], ...val, id: key };
-                });
-              } else if (payload.data === null) {
-                return [];
+              // Full snapshot from Firebase — parse properly with bannedUsers filter
+              if (payload.data === null) {
+                setPosts([]);
+                saveCache([]);
+                setIsLoading(false);
+              } else if (payload.data && typeof payload.data === 'object') {
+                const fresh = parsePostsMap(payload.data, bannedUsersRef.current);
+                setPosts(fresh);
+                saveCache(fresh);
+                setIsLoading(false);
               }
-            } else {
+              return;
+            }
+
+            // Incremental update for a specific post or field
+            setPosts(prev => {
+              const map = {};
+              prev.forEach(p => { map[p.id] = p; });
+
               const segments = path.split('/').filter(Boolean);
               const postId = segments[0];
 
@@ -360,45 +410,54 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
                 if (payload.data === null) {
                   delete map[postId];
                 } else {
-                  map[postId] = { ...map[postId], ...payload.data, id: postId };
+                  map[postId] = { ...(map[postId] || {}), ...payload.data, id: postId };
                 }
-              } else if (segments.length > 1 && map[postId]) {
-                 const field = segments[1];
-                 map[postId][field] = payload.data;
+              } else if (segments.length > 1) {
+                if (!map[postId]) {
+                  syncPosts();
+                  return prev;
+                }
+                const field = segments[1];
+                map[postId] = { ...map[postId], [field]: payload.data };
               }
-            }
 
-            // Format all mapped posts safely
-            return Object.values(map)
-              .map(val => ({
-                id: val.id,
-                user: val.user || 'Anonymous',
-                prep: val.prep || '',
-                xp: val.xp || 0,
-                action: val.action || '',
-                time: val.time || 'just now',
-                createdAt: val.createdAt || 0,
-                likes: val.likes || 0,
-                likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
-                comments: Array.isArray(val.comments) ? val.comments.map(c => ({...c, text: maskAbuse(c.text)})) : [],
-                reactions: val.reactions && typeof val.reactions === 'object' ? val.reactions : {},
-                replyTo: val.replyTo || null,
-              }))
-              .filter(p => p.action && !bannedUsers.includes(p.user))
-              .map(p => ({...p, action: maskAbuse(p.action)}))
-              .sort((a, b) => b.createdAt - a.createdAt);
-          });
-        } catch {}
-      };
+              const bannedSet = new Set((bannedUsersRef.current || []).map(u => u.toLowerCase().trim()));
+              const updated = Object.values(map)
+                .map(val => ({
+                  id: val.id,
+                  user: val.user || 'Anonymous',
+                  prep: val.prep || '',
+                  xp: val.xp || 0,
+                  action: val.action || '',
+                  time: val.time || 'just now',
+                  createdAt: val.createdAt || 0,
+                  likes: val.likes || 0,
+                  likedBy: Array.isArray(val.likedBy) ? val.likedBy : [],
+                  comments: Array.isArray(val.comments) ? val.comments.map(c => ({...c, text: maskAbuse(c.text)})) : [],
+                  reactions: val.reactions && typeof val.reactions === 'object' ? val.reactions : {},
+                  replyTo: val.replyTo || null,
+                }))
+                .filter(p => p.action && !bannedSet.has(p.user?.toLowerCase()?.trim()))
+                .map(p => ({...p, action: maskAbuse(p.action)}))
+                .sort((a, b) => b.createdAt - a.createdAt);
 
-      es.addEventListener('put', handleEvent);
-      es.addEventListener('patch', handleEvent);
+              saveCache(updated);
+              return updated;
+            });
+          } catch {}
+        };
 
-      es.onerror = () => {
-        console.warn('SSE posts connection error, reconnecting...');
-        es.close();
-        setTimeout(connectSSE, 3000);
-      };
+        es.addEventListener('put', handleEvent);
+        es.addEventListener('patch', handleEvent);
+
+        es.onerror = () => {
+          try { es.close(); } catch {}
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(() => {
+            if (isComponentMounted) connectSSE();
+          }, 3000);
+        };
+      } catch {}
     };
 
     connectSSE();
@@ -406,9 +465,10 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     return () => {
       isComponentMounted = false;
       clearInterval(pollInterval);
-      if (es) es.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      try { if (es) es.close(); } catch {}
     };
-  }, [bannedUsers]);
+  }, []);
 
   const postMessage = useCallback(async (text, replyTo = null) => {
     if (!text?.trim() || !FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
@@ -595,14 +655,29 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
   };
 };
 
+const USERS_CACHE_KEY = 'pm_firebase_users_cache';
+
 export const useFirebaseUsers = () => {
-  const [firebaseUsers, setFirebaseUsers] = useState({});
+  const [firebaseUsers, setFirebaseUsers] = useState(() => {
+    try {
+      const cached = localStorage.getItem(USERS_CACHE_KEY);
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  });
   const sseRef = useRef(null);
 
   useEffect(() => {
     if (!FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
 
     let isComponentMounted = true;
+
+    const saveUsersCache = (data) => {
+      try {
+        localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(data));
+      } catch {}
+    };
 
     const fetchUsers = async () => {
       try {
@@ -611,6 +686,7 @@ export const useFirebaseUsers = () => {
         const data = await res.json();
         if (data && typeof data === 'object') {
           setFirebaseUsers(data);
+          saveUsersCache(data);
         }
       } catch (err) {
         console.error("Error fetching users from Firebase:", err);
@@ -618,57 +694,67 @@ export const useFirebaseUsers = () => {
     };
 
     fetchUsers();
-    // 5-second polling fallback keeps the community directory populated on mobile & desktop
-    const pollInterval = setInterval(fetchUsers, 5000);
+    // 3.5-second polling keeps the community directory and online statuses live
+    const pollInterval = setInterval(fetchUsers, 3500);
 
     let es;
+    let reconnectTimer = null;
+
     const connectSSE = () => {
       if (!isComponentMounted) return;
-      if (es) es.close();
+      if (es) { try { es.close(); } catch {} }
 
-      es = new EventSource(`${USERS_PATH}.json`);
-      sseRef.current = es;
+      try {
+        es = new EventSource(`${USERS_PATH}.json`);
+        sseRef.current = es;
 
-      const handleEvent = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.data === undefined) return;
-          const path = payload.path;
+        const handleEvent = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload.data === undefined) return;
+            const path = payload.path;
 
-          setFirebaseUsers(prev => {
-            let updated = { ...prev };
-            if (path === '/') {
-              if (payload.data && typeof payload.data === 'object') {
-                return payload.data;
-              } else if (payload.data === null) {
-                return {};
-              }
-            } else {
-              const segments = path.split('/').filter(Boolean);
-              const userId = segments[0];
+            setFirebaseUsers(prev => {
+              let updated = { ...prev };
+              if (path === '/') {
+                if (payload.data && typeof payload.data === 'object') {
+                  saveUsersCache(payload.data);
+                  return payload.data;
+                } else if (payload.data === null) {
+                  saveUsersCache({});
+                  return {};
+                }
+              } else {
+                const segments = path.split('/').filter(Boolean);
+                const userId = segments[0];
 
-              if (userId) {
-                if (segments.length === 1) {
-                  if (payload.data === null) delete updated[userId];
-                  else updated[userId] = { ...updated[userId], ...payload.data };
-                } else if (segments.length > 1 && updated[userId]) {
-                  const field = segments[1];
-                  updated[userId][field] = payload.data;
+                if (userId) {
+                  if (segments.length === 1) {
+                    if (payload.data === null) delete updated[userId];
+                    else updated[userId] = { ...updated[userId], ...payload.data };
+                  } else if (segments.length > 1) {
+                    const field = segments[1];
+                    updated[userId] = { ...(updated[userId] || {}), [field]: payload.data };
+                  }
                 }
               }
-            }
-            return updated;
-          });
-        } catch {}
-      };
+              saveUsersCache(updated);
+              return updated;
+            });
+          } catch {}
+        };
 
-      es.addEventListener('put', handleEvent);
-      es.addEventListener('patch', handleEvent);
+        es.addEventListener('put', handleEvent);
+        es.addEventListener('patch', handleEvent);
 
-      es.onerror = () => {
-        es.close();
-        setTimeout(connectSSE, 4000);
-      };
+        es.onerror = () => {
+          try { es.close(); } catch {}
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(() => {
+            if (isComponentMounted) connectSSE();
+          }, 4000);
+        };
+      } catch {}
     };
 
     connectSSE();
@@ -676,7 +762,8 @@ export const useFirebaseUsers = () => {
     return () => {
       isComponentMounted = false;
       clearInterval(pollInterval);
-      if (es) es.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      try { if (es) es.close(); } catch {}
     };
   }, []);
 

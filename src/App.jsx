@@ -552,6 +552,7 @@ const App = () => {
   const [replyingTo, setReplyingTo] = useState(null);
   const [heartBurstId, setHeartBurstId] = useState(null);
   const [activeEmojiBarId, setActiveEmojiBarId] = useState(null);
+  const emojiBarHideTimer = useRef(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [userNote, setUserNote] = useState(() => {
     try { return localStorage.getItem('pm_user_note') || 'Deep Work ⚡'; } catch { return 'Deep Work ⚡'; }
@@ -610,10 +611,36 @@ const App = () => {
   const firebaseUsers = useFirebaseUsers();
 
   useEffect(() => {
-    if (sessionUser && usersDb[sessionUser]) {
-      syncUserToFirebase(sessionUser, usersDb[sessionUser].profile);
-    }
-  }, [sessionUser, usersDb]);
+    if (!sessionUser) return;
+    const currentProfile = usersDb[sessionUser]?.profile || {
+      xp: currentXP,
+      prepType: currentUserProfile?.prepType || '',
+      joined: new Date().toLocaleDateString()
+    };
+    // Sync immediately on mount / user change
+    syncUserToFirebase(sessionUser, currentProfile);
+
+    // Heartbeat every 40 seconds ensures the user's online indicator (< 5 min threshold) is always live
+    const heartbeatInterval = setInterval(() => {
+      if (!document.hidden) {
+        const prof = usersDb[sessionUser]?.profile || { xp: currentXP, prepType: currentUserProfile?.prepType || '' };
+        syncUserToFirebase(sessionUser, prof);
+      }
+    }, 40000);
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        const prof = usersDb[sessionUser]?.profile || { xp: currentXP, prepType: currentUserProfile?.prepType || '' };
+        syncUserToFirebase(sessionUser, prof);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [sessionUser, usersDb, currentXP, currentUserProfile]);
 
   // ── Scheduled Events (Firebase) ──────────────────────────────────────────
   const { events: studyEvents, isLoading: isEventsLoading, createEvent, joinEvent, deleteEvent } = useEvents(sessionUser);
@@ -1089,7 +1116,7 @@ const App = () => {
       setUsersDb(db);
       // Sync all existing local users to Firebase so they appear globally
       Object.keys(db).forEach(username => {
-        if (!db[username].profile?.isGuest) {
+        if (db[username]?.profile) {
           syncUserToFirebase(username, db[username].profile);
         }
       });
@@ -1475,6 +1502,8 @@ const App = () => {
         setSessionUser(authUsername);
         localStorage.setItem('planmaker_session', authUsername);
         setShowAuthWall(false);
+        // Immediately sync new user to Firebase so others can see them
+        syncUserToFirebase(authUsername, { isGuest: false, xp: 0, joined: new Date().toLocaleDateString(), prepType: '' });
         setToastMsg({ id: Date.now(), amount: 50, reason: 'Account Created Successfully!' });
         if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
         toastTimeoutRef.current = setTimeout(() => setToastMsg(null), 3000);
@@ -1487,6 +1516,8 @@ const App = () => {
             profile: { isGuest: false, prepType: '', targetYear: '', weakness: '', xp: 0, joined: new Date().toLocaleDateString() } 
           }
         }));
+        // Immediately sync new user to Firebase so others can see them in the community
+        syncUserToFirebase(authUsername, { isGuest: false, xp: 0, joined: new Date().toLocaleDateString(), prepType: '' });
         setSessionUser(authUsername);
         localStorage.setItem('planmaker_session', authUsername);
         localStorage.removeItem('planmaker_explicit_logout');
@@ -1513,6 +1544,9 @@ const App = () => {
         setShowAuthWall(false);
       }
       
+      // Sync user activity to Firebase on every login so they appear online
+      const loginProfile = usersDb[authUsername]?.profile || {};
+      syncUserToFirebase(authUsername, loginProfile);
       setSessionUser(authUsername);
       localStorage.setItem('planmaker_session', authUsername);
       localStorage.removeItem('planmaker_explicit_logout');
@@ -1542,9 +1576,16 @@ const App = () => {
     } else if (!onboardPrep || !onboardYear) return;
     
     trackOnboarding(prep, year);
+    const updatedProfile = { 
+      ...(usersDb[sessionUser]?.profile || {}), 
+      prepType: prep, 
+      targetYear: year, 
+      weakness: weakness 
+    };
     setUsersDb(prev => ({
-      ...prev, [sessionUser]: { ...prev[sessionUser], profile: { ...prev[sessionUser].profile, prepType: prep, targetYear: year, weakness: weakness } }
+      ...prev, [sessionUser]: { ...prev[sessionUser], profile: updatedProfile }
     }));
+    syncUserToFirebase(sessionUser, updatedProfile);
     const initialSubjects = examTemplates[prep] || examTemplates['General'];
     setSubjects(initialSubjects);
     setExpandedSubjects(initialSubjects.map(s => s.id));
@@ -1869,14 +1910,16 @@ const App = () => {
         onQuickSetup={(name) => {
            trackGuestSession();
            const guestId = name.trim() || 'Guest' + Math.floor(Math.random()*10000);
+           const initialProfile = { isGuest: false, xp: 0, joined: new Date().toLocaleDateString(), prepType: '' };
            setUsersDb(prev => ({
              ...prev, [guestId]: {
                password: 'none',
-               profile: { isGuest: true, xp: 0, joined: new Date().toLocaleDateString() }
+               profile: initialProfile
              }
            }));
            setSessionUser(guestId);
            localStorage.setItem('planmaker_session', guestId);
+           syncUserToFirebase(guestId, initialProfile);
         }}
       />
     );
@@ -2837,7 +2880,10 @@ const App = () => {
        };
     });
 
-    allPeers = allPeers.sort((a,b) => b.isOnline - a.isOnline);
+    allPeers = allPeers.sort((a, b) => {
+      if (b.isOnline !== a.isOnline) return b.isOnline ? 1 : -1;
+      return (b.xp || 0) - (a.xp || 0);
+    });
 
     const conversationMap = new Map();
     feed.forEach(message => {
@@ -3694,7 +3740,7 @@ const App = () => {
                   </button>
 
                   <span style={{fontSize: "0.72rem", color: "var(--accent-physics)", background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", padding: "3px 8px", borderRadius: "100px", fontWeight: "bold"}}>
-                    {activeChat === "global" ? `${allPeers.length} online` : 'DM'}
+                    {activeChat === "global" ? `${allPeers.filter(p => p.isOnline).length || 1} online` : 'DM'}
                   </span>
                 </div>
               </div>
@@ -3796,7 +3842,7 @@ const App = () => {
                 </div>
 
                 {/* Peers Notes */}
-                {allPeers.slice(0, 10).map((peer, idx) => {
+                {allPeers.filter(p => p.name.toLowerCase() !== (sessionUser || '').toLowerCase()).slice(0, 20).map((peer, idx) => {
                   const peerNotes = ["Focus ⚡", "PYQs 🔥", "Quiz 💯", "Math 📐", "Mock 🎯", "Notes 🧪", "25m ⏱️", "Target ✨"];
                   const note = peerNotes[idx % peerNotes.length];
                   return (
@@ -3823,7 +3869,12 @@ const App = () => {
                 className="chat-messages custom-scrollbar" 
               >
                 <div ref={chatEndRef} style={{ height: 0, width: "100%" }} />
-                {chatMessages.length === 0 ? (
+                {isCommunityLoading ? (
+                  <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px"}}>
+                    <div style={{width: "36px", height: "36px", borderRadius: "50%", border: "3px solid rgba(139,92,246,0.3)", borderTopColor: "#8b5cf6", animation: "spin 0.8s linear infinite"}} />
+                    <div style={{fontSize: "0.9rem", fontWeight: "600", color: "var(--text-muted)"}}>Loading messages...</div>
+                  </div>
+                ) : chatMessages.length === 0 ? (
                   <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px"}}>
                     <span style={{fontSize: "2.8rem"}}>👋</span>
                     <div style={{fontWeight: "bold", fontSize: "1.05rem", color: "white"}}>It's quiet in the lounge...</div>
@@ -3880,8 +3931,14 @@ const App = () => {
                            <div 
                              style={{position: "relative", display: "flex", alignItems: "center", gap: "6px", flexDirection: isMe ? "row-reverse" : "row", maxWidth: "100%"}} 
                              className="chat-msg-wrapper"
-                             onMouseEnter={() => setActiveEmojiBarId(msg.id)}
-                             onMouseLeave={() => setActiveEmojiBarId(null)}
+                             onMouseEnter={() => {
+                               if (emojiBarHideTimer.current) clearTimeout(emojiBarHideTimer.current);
+                               setActiveEmojiBarId(msg.id);
+                             }}
+                             onMouseLeave={() => {
+                               if (emojiBarHideTimer.current) clearTimeout(emojiBarHideTimer.current);
+                               emojiBarHideTimer.current = setTimeout(() => setActiveEmojiBarId(null), 450);
+                             }}
                            >
                              {/* Double-Click Heart Pop Effect */}
                              {isShowingHeart && (
@@ -3984,6 +4041,11 @@ const App = () => {
                                    borderRadius: "100px", background: "rgba(15, 23, 42, 0.96)", border: "1px solid rgba(255,255,255,0.22)",
                                    boxShadow: "0 8px 25px rgba(0,0,0,0.65)", zIndex: 35, whiteSpace: "nowrap"
                                  }}
+                                 onMouseEnter={() => { if (emojiBarHideTimer.current) clearTimeout(emojiBarHideTimer.current); }}
+                                 onMouseLeave={() => {
+                                   if (emojiBarHideTimer.current) clearTimeout(emojiBarHideTimer.current);
+                                   emojiBarHideTimer.current = setTimeout(() => setActiveEmojiBarId(null), 450);
+                                 }}
                                >
                                  {['❤️', '🔥', '😂', '😮', '👏', '💯'].map(emoji => (
                                    <button 
@@ -4004,7 +4066,10 @@ const App = () => {
 
                                  {/* Reply Button */}
                                  <button 
-                                   onClick={() => setReplyingTo({ id: msg.id, user: msg.user, text: displayText })}
+                                   onClick={() => {
+                                     setReplyingTo({ id: msg.id, user: msg.user, text: displayText });
+                                     setActiveEmojiBarId(null);
+                                   }}
                                    style={{background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px", borderRadius: "50%", display: "flex", alignItems: "center"}}
                                    title="Reply to message"
                                  >
@@ -4016,6 +4081,7 @@ const App = () => {
                                    onClick={() => {
                                      if (window.confirm("Delete this message?")) {
                                        gunDeletePost(msg.id);
+                                       setActiveEmojiBarId(null);
                                      }
                                    }}
                                    style={{background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", borderRadius: "50%", display: "flex", alignItems: "center"}}
