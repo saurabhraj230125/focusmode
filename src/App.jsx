@@ -4938,36 +4938,50 @@ const App = () => {
   };
 
   const renderProfile = () => {
-    const streak = studyStreak || 0;
-    const safeUser = sessionUser || 'Aspirant';
-    let totalTasksCompleted = 0;
-    subjects.forEach(s => s.tasks.forEach(t => t.subtasks.forEach(st => { if(st.completed) totalTasksCompleted++; })));
-    const totalNotes = Object.keys(videoNotes).filter(k => videoNotes[k]?.notes || videoNotes[k]?.mistakes).length;
-    const totalJournals = journalHistory[journalHistory.length-1]?.date === 'Welcome' ? journalHistory.length - 1 : journalHistory.length;
-    const userPosts = feed.filter(f => f.user === sessionUser);
-    
-    const xpForNextLevel = level * 100;
-    const progressPercent = Math.min(100, Math.max(0, ((currentXP % 100) / 100) * 100));
+    try {
+      const streak = studyStreak || 0;
+      const safeUser = sessionUser || 'Aspirant';
+      let totalTasksCompleted = 0;
+      
+      // Defensively count completed tasks (handles tasks with subtasks OR standalone tasks)
+      (subjects || []).forEach(s => {
+        (s?.tasks || []).forEach(t => {
+          if (Array.isArray(t?.subtasks) && t.subtasks.length > 0) {
+            t.subtasks.forEach(st => { if (st?.completed) totalTasksCompleted++; });
+          } else if (t?.completed) {
+            totalTasksCompleted++;
+          }
+        });
+      });
 
-    // Achievement Badges Configuration
-    const ACHIEVEMENT_BADGES = [
-      { id: 'b1', title: 'Velocity Starter', icon: '⚡', desc: 'Completed your first practice task', unlocked: totalTasksCompleted > 0, progress: totalTasksCompleted > 0 ? '1/1 Done' : '0/1 Task' },
-      { id: 'b2', title: 'Active Recall Pro', icon: '🧠', desc: 'Generated lecture quizzes or logged mistakes', unlocked: (mistakesList && mistakesList.length > 0) || totalNotes > 0, progress: (mistakesList && mistakesList.length > 0) ? 'Active Master' : 'Log 1 Mistake' },
-      { id: 'b3', title: 'Focus Titan', icon: '⏱️', desc: 'Completed 25m+ deep Pomodoro sessions', unlocked: streak > 0 || totalTasksCompleted >= 3, progress: streak > 0 ? `${streak}d Streak` : 'Start 1 Sprint' },
-      { id: 'b4', title: 'Study Connector', icon: '🤝', desc: 'Connected on Omegle 1-on-1 study matching', unlocked: true, progress: 'Unlocked' },
-      { id: 'b5', title: 'Streak Warrior', icon: '🔥', desc: 'Maintained consecutive daily study streak', unlocked: streak >= 2, progress: `${streak}/2 Days` },
-      { id: 'b6', title: 'Grand Scholar', icon: '🏆', desc: 'Earned 100+ lifetime XP through practice', unlocked: currentXP >= 100, progress: `${currentXP}/100 XP` }
-    ];
+      const totalNotes = Object.keys(videoNotes || {}).filter(k => videoNotes[k]?.notes || videoNotes[k]?.mistakes).length;
+      const totalJournals = Array.isArray(journalHistory) && journalHistory.length > 0
+        ? (journalHistory[journalHistory.length - 1]?.date === 'Welcome' ? Math.max(0, journalHistory.length - 1) : journalHistory.length)
+        : 0;
+      const userPosts = (feed || []).filter(f => f?.user === sessionUser);
+      
+      const xpForNextLevel = (level || 1) * 100;
+      const progressPercent = Math.min(100, Math.max(0, (((currentXP || 0) % 100) / 100) * 100));
 
-    const currentBio = currentUserProfile?.bio || "Dedicated aspirant relentless on the daily grind. Focus Mode 24/7.";
-    const currentCollege = currentUserProfile?.dreamCollege || "IIT Bombay / AIIMS Delhi";
-    const currentMotto = currentUserProfile?.motto || "Champions do in practice what they expect to perform in the arena.";
-    const currentStrengths = currentUserProfile?.strengths || "Kinematics, Organic Reactions, Rapid Problem Solving";
-    const currentWeakness = currentUserProfile?.weakness || "Time management in full-length mocks";
-    const currentHours = currentUserProfile?.targetHours || 8;
+      // Achievement Badges Configuration
+      const ACHIEVEMENT_BADGES = [
+        { id: 'b1', title: 'Velocity Starter', icon: '⚡', desc: 'Completed your first practice task', unlocked: totalTasksCompleted > 0, progress: totalTasksCompleted > 0 ? '1/1 Done' : '0/1 Task' },
+        { id: 'b2', title: 'Active Recall Pro', icon: '🧠', desc: 'Generated lecture quizzes or logged mistakes', unlocked: (Array.isArray(mistakesList) && mistakesList.length > 0) || totalNotes > 0, progress: (Array.isArray(mistakesList) && mistakesList.length > 0) ? 'Active Master' : 'Log 1 Mistake' },
+        { id: 'b3', title: 'Focus Titan', icon: '⏱️', desc: 'Completed 25m+ deep Pomodoro sessions', unlocked: streak > 0 || totalTasksCompleted >= 3, progress: streak > 0 ? `${streak}d Streak` : 'Start 1 Sprint' },
+        { id: 'b4', title: 'Study Connector', icon: '🤝', desc: 'Connected on Omegle 1-on-1 study matching', unlocked: true, progress: 'Unlocked' },
+        { id: 'b5', title: 'Streak Warrior', icon: '🔥', desc: 'Maintained consecutive daily study streak', unlocked: streak >= 2, progress: `${streak}/2 Days` },
+        { id: 'b6', title: 'Grand Scholar', icon: '🏆', desc: 'Earned 100+ lifetime XP through practice', unlocked: (currentXP || 0) >= 100, progress: `${currentXP || 0}/100 XP` }
+      ];
 
-    return (
-      <div className="animate-fade-in ig-profile-wrapper">
+      const currentBio = currentUserProfile?.bio || "Dedicated aspirant relentless on the daily grind. Focus Mode 24/7.";
+      const currentCollege = currentUserProfile?.dreamCollege || "IIT Bombay / AIIMS Delhi";
+      const currentMotto = currentUserProfile?.motto || "Champions do in practice what they expect to perform in the arena.";
+      const currentStrengths = currentUserProfile?.strengths || "Kinematics, Organic Reactions, Rapid Problem Solving";
+      const currentWeakness = currentUserProfile?.weakness || "Time management in full-length mocks";
+      const currentHours = currentUserProfile?.targetHours || 8;
+
+      return (
+        <div className="animate-fade-in ig-profile-wrapper">
         
         {/* ── TOP HEADER / USERNAME BAR ── */}
         <div className="ig-profile-top-bar">
@@ -5392,7 +5406,18 @@ const App = () => {
 
       </div>
     );
-  };
+  } catch (err) {
+    console.error("renderProfile error caught:", err);
+    return (
+      <div className="glass" style={{padding: '2rem', textAlign: 'center', margin: '2rem auto', maxWidth: '480px', borderRadius: '24px'}}>
+        <div style={{fontSize: '3rem', marginBottom: '1rem'}}>👤</div>
+        <h3 style={{color: '#fff', fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem'}}>{sessionUser || 'Aspirant'}'s Profile</h3>
+        <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem'}}>Your profile is loading. If it takes longer than usual, tap below to refresh.</p>
+        <button className="btn-primary" onClick={() => window.location.reload()} style={{padding: '10px 24px', borderRadius: '100px', fontWeight: 700}}>Refresh Profile</button>
+      </div>
+    );
+  }
+};
 
 
 return (
@@ -5483,8 +5508,8 @@ return (
           </div>
         )}
 
-        {/* Page Header (Hidden in community full-bleed mode for maximum spacious chat height) */}
-        {activeTab !== 'community' && (
+        {/* Page Header (Hidden in community and profile mode for authentic clean mobile layout) */}
+        {activeTab !== 'community' && activeTab !== 'profile' && (
           <header className="page-header" style={{paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem'}}>
             <div>
               <h1 className="greeting">
