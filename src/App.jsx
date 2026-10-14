@@ -15,10 +15,11 @@ import {
   trackTimerStarted, trackTimerCompleted,
   trackVideoAdded, trackVideoPlayed, trackNoteDownloaded,
   trackJournalSaved, trackPostCreated, trackPostLiked, trackCommentPosted,
-  trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned
+  trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned,
+  trackUserCountry
 } from './analytics.js';
 import { useCommunity, containsAbuse, useFirebaseUsers, syncUserToFirebase, removeUserFromFirebase, isDmBetween, getDmOtherUser, extractDmText } from './useCommunity.js';
-import { COUNTRIES, detectUserCountry, getCountryData } from './countries.js';
+import { COUNTRIES, detectUserCountry, getCountryData, fetchUserCountryAsync } from './countries.js';
 import { useEvents } from './useEvents.js';
 import { usePushNotifications } from './usePushNotifications.js';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -506,9 +507,9 @@ const App = () => {
       strengths: '',
       weakness: '',
       targetHours: 8,
-      country: detected?.name || 'India',
-      countryFlag: detected?.flag || '🇮🇳',
-      countryCode: detected?.code || 'IN'
+      country: detected?.name || 'International / Global',
+      countryFlag: detected?.flag || '🌍',
+      countryCode: detected?.code || 'OTHER'
     };
   });
 
@@ -658,6 +659,81 @@ const App = () => {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [sessionUser, usersDb, currentXP, currentUserProfile]);
+
+  // ── Auto IP Country Detection & Google Analytics Geolocation Sync ───────────
+  useEffect(() => {
+    let isMounted = true;
+
+    const applyDetectedCountry = (cData) => {
+      if (!cData || !isMounted || cData.code === 'OTHER') return;
+
+      // Sync with Google Analytics
+      trackUserCountry(cData, 'ip_geolocation');
+
+      // Update form default if not customized yet
+      setEditProfileData(prev => {
+        const isCustomized = localStorage.getItem('pm_user_country_customized') === 'true';
+        if (!isCustomized && (!prev.country || prev.country === 'International / Global' || prev.country === 'India')) {
+          return {
+            ...prev,
+            country: cData.name,
+            countryFlag: cData.flag,
+            countryCode: cData.code
+          };
+        }
+        return prev;
+      });
+
+      // If user is currently logged in, check if their profile was mistakenly assigned India or is unassigned
+      if (sessionUser) {
+        const isCustomized = localStorage.getItem('pm_user_country_customized') === 'true';
+        if (!isCustomized) {
+          setUsersDb(prevDb => {
+            const userObj = prevDb[sessionUser];
+            const currentC = userObj?.profile?.country;
+            // Correct profile if empty or wrongly set to default India when user is from another country
+            if (!currentC || (currentC === 'India' && cData.code !== 'IN') || currentC === 'International / Global') {
+              const updatedProfile = {
+                ...(userObj?.profile || {}),
+                country: cData.name,
+                countryFlag: cData.flag,
+                countryCode: cData.code,
+                lastActive: Date.now()
+              };
+              const newDb = {
+                ...prevDb,
+                [sessionUser]: {
+                  ...(userObj || { password: 'none' }),
+                  profile: updatedProfile
+                }
+              };
+              try {
+                localStorage.setItem('planmaker_users', JSON.stringify(newDb));
+              } catch {}
+              syncUserToFirebase(sessionUser, updatedProfile);
+              return newDb;
+            }
+            return prevDb;
+          });
+        }
+      }
+    };
+
+    // Run async IP geolocation
+    fetchUserCountryAsync().then(cData => {
+      if (cData) applyDetectedCountry(cData);
+    });
+
+    const onCountryDetected = (e) => {
+      if (e?.detail) applyDetectedCountry(e.detail);
+    };
+
+    window.addEventListener('focusmode:country_detected', onCountryDetected);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focusmode:country_detected', onCountryDetected);
+    };
+  }, [sessionUser]);
 
   // ── Scheduled Events (Firebase) ──────────────────────────────────────────
   const { events: studyEvents, isLoading: isEventsLoading, createEvent, joinEvent, deleteEvent } = useEvents(sessionUser);
@@ -1529,22 +1605,44 @@ const App = () => {
         setSessionUser(authUsername);
         localStorage.setItem('planmaker_session', authUsername);
         setShowAuthWall(false);
+        const detectedCountry = detectUserCountry();
+        const upgradedProfile = {
+          isGuest: false,
+          xp: 0,
+          joined: new Date().toLocaleDateString(),
+          prepType: '',
+          country: detectedCountry.name,
+          countryFlag: detectedCountry.flag,
+          countryCode: detectedCountry.code
+        };
         // Immediately sync new user to Firebase so others can see them
-        syncUserToFirebase(authUsername, { isGuest: false, xp: 0, joined: new Date().toLocaleDateString(), prepType: '' });
+        syncUserToFirebase(authUsername, upgradedProfile);
         setToastMsg({ id: Date.now(), amount: 50, reason: 'Account Created Successfully!' });
         if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
         toastTimeoutRef.current = setTimeout(() => setToastMsg(null), 3000);
       } else {
         // Normal register (e.g. they explicitly logged out and are creating a new account)
+        const detectedCountry = detectUserCountry();
+        const newProfile = {
+          isGuest: false,
+          prepType: '',
+          targetYear: '',
+          weakness: '',
+          xp: 0,
+          joined: new Date().toLocaleDateString(),
+          country: detectedCountry.name,
+          countryFlag: detectedCountry.flag,
+          countryCode: detectedCountry.code
+        };
         setUsersDb(prev => ({
           ...prev,
           [authUsername]: { 
             password: authPassword, 
-            profile: { isGuest: false, prepType: '', targetYear: '', weakness: '', xp: 0, joined: new Date().toLocaleDateString() } 
+            profile: newProfile 
           }
         }));
         // Immediately sync new user to Firebase so others can see them in the community
-        syncUserToFirebase(authUsername, { isGuest: false, xp: 0, joined: new Date().toLocaleDateString(), prepType: '' });
+        syncUserToFirebase(authUsername, newProfile);
         setSessionUser(authUsername);
         localStorage.setItem('planmaker_session', authUsername);
         localStorage.removeItem('planmaker_explicit_logout');
@@ -1937,7 +2035,16 @@ const App = () => {
         onQuickSetup={(name) => {
            trackGuestSession();
            const guestId = name.trim() || 'Guest' + Math.floor(Math.random()*10000);
-           const initialProfile = { isGuest: false, xp: 0, joined: new Date().toLocaleDateString(), prepType: '' };
+           const detectedCountry = detectUserCountry();
+           const initialProfile = { 
+             isGuest: false, 
+             xp: 0, 
+             joined: new Date().toLocaleDateString(), 
+             prepType: '',
+             country: detectedCountry.name,
+             countryFlag: detectedCountry.flag,
+             countryCode: detectedCountry.code
+           };
            setUsersDb(prev => ({
              ...prev, [guestId]: {
                password: 'none',
@@ -2830,7 +2937,7 @@ const App = () => {
       const defaultCountry = detectUserCountry();
       if (usersDb && usersDb[username]?.profile) {
         const p = usersDb[username].profile;
-        const cData = getCountryData(p.country || defaultCountry.name);
+        const cData = getCountryData(p.country || (username === sessionUser ? defaultCountry.name : 'OTHER'));
         return {
           ...p,
           country: cData.name,
@@ -2840,7 +2947,7 @@ const App = () => {
       }
       if (firebaseUsers && firebaseUsers[username]) {
         const fu = firebaseUsers[username];
-        const cData = getCountryData(fu.country || defaultCountry.name);
+        const cData = getCountryData(fu.country || (username === sessionUser ? defaultCountry.name : 'OTHER'));
         return {
           prepType: fu.prepType || "JEE",
           xp: fu.xp || 0,
@@ -2858,6 +2965,7 @@ const App = () => {
         };
       }
       const post = (feed || []).find(f => f?.user === username);
+      const cData = getCountryData(post?.country || (username === sessionUser ? defaultCountry.name : 'OTHER'));
       return { 
         prepType: post?.prep || "JEE", 
         xp: post?.xp || 0,
@@ -2865,9 +2973,9 @@ const App = () => {
         dreamCollege: "Top National Institute",
         bio: "Dedicated aspirant relentless on the daily grind.",
         motto: "Hard work beats talent.",
-        country: defaultCountry.name,
-        countryFlag: defaultCountry.flag,
-        countryCode: defaultCountry.code
+        country: cData.name,
+        countryFlag: cData.flag,
+        countryCode: cData.code
       };
     };
 
@@ -2924,9 +3032,9 @@ const App = () => {
          dreamCollege: prof?.dreamCollege || 'Top National Institute',
          bio: prof?.bio || 'Dedicated aspirant relentless on the daily grind.',
          motto: prof?.motto || 'Consistency is the key.',
-         country: prof?.country || 'India',
-         countryFlag: prof?.countryFlag || '🇮🇳',
-         countryCode: prof?.countryCode || 'IN'
+         country: prof?.country || 'International / Global',
+         countryFlag: prof?.countryFlag || '🌍',
+         countryCode: prof?.countryCode || 'OTHER'
        };
     });
 
@@ -5148,6 +5256,10 @@ const App = () => {
           });
 
           awardXP(20, 'Updated Profile & Academic Goals', sanitizedName);
+          try {
+            localStorage.setItem('pm_user_country_customized', 'true');
+            trackUserCountry(countryObj, 'user_profile_edit');
+          } catch {}
           setIsEditingProfile(false);
         } catch (err) {
           console.error("Critical error in handleSaveProfile:", err);
@@ -5319,7 +5431,7 @@ const App = () => {
               <div>
                 <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Country / Region</label>
                 <select 
-                  value={editProfileData.country || 'India'} 
+                  value={editProfileData.country || currentCountry || 'International / Global'} 
                   onChange={e => {
                     const countryObj = getCountryData(e.target.value);
                     setEditProfileData(prev => ({
@@ -5332,6 +5444,11 @@ const App = () => {
                   className="input-field"
                   style={{cursor: 'pointer'}}
                 >
+                  {(!COUNTRIES.some(c => c.name === editProfileData.country) && editProfileData.country) && (
+                    <option value={editProfileData.country}>
+                      {editProfileData.countryFlag || '🌍'} {editProfileData.country}
+                    </option>
+                  )}
                   {COUNTRIES.map(c => (
                     <option key={c.code} value={c.name}>
                       {c.flag} {c.name}

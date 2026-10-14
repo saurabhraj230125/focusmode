@@ -17,6 +17,22 @@ export const trackPageView = (pageName) => {
   });
 };
 
+// ── User Country & Location Tracking ──────────────────────────────────────────
+export const trackUserCountry = (countryData, method = 'ip') => {
+  if (!countryData) return;
+  gtag('set', 'user_properties', {
+    user_country: countryData.name,
+    user_country_code: countryData.code,
+    user_country_flag: countryData.flag,
+  });
+  gtag('event', 'user_country_detected', {
+    country_name: countryData.name,
+    country_code: countryData.code,
+    country_flag: countryData.flag,
+    detection_method: method,
+  });
+};
+
 // ── Auth Events ────────────────────────────────────────────────────────────────
 export const trackSignUp = (method = 'email') => {
   gtag('event', 'sign_up', { method });

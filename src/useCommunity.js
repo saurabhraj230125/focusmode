@@ -4,6 +4,7 @@
 // Replace FIREBASE_URL below with your Firebase Realtime Database URL.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { detectUserCountry, getCountryData } from './countries.js';
 
 // ⚠️ REPLACE THIS with your Firebase Realtime Database URL
 // Example: https://your-project-default-rtdb.firebaseio.com
@@ -18,11 +19,17 @@ export const syncUserToFirebase = async (username, profile) => {
   try {
     const safeUsername = String(username).replace(/[.#$[\]/]/g, '_').trim();
     if (!safeUsername) return;
+    
+    // Accurately determine country
+    const detected = detectUserCountry();
+    const explicitCountry = profile?.country ? getCountryData(profile.country) : null;
+    const countryObj = explicitCountry || (detected && detected.code !== 'OTHER' ? detected : getCountryData('OTHER'));
+
     const safeProfile = {
       ...(profile || {}),
-      country: profile?.country || 'India',
-      countryFlag: profile?.countryFlag || '🇮🇳',
-      countryCode: profile?.countryCode || 'IN',
+      country: countryObj.name,
+      countryFlag: countryObj.flag,
+      countryCode: countryObj.code,
       lastActive: Date.now()
     };
     await fetch(`${USERS_PATH}/${safeUsername}.json`, {
