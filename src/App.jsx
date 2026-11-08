@@ -24,6 +24,13 @@ import { useEvents } from './useEvents.js';
 import { usePushNotifications } from './usePushNotifications.js';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import Blog from './Blog.jsx';
+import { LectureRoom } from './components/LectureRoom.jsx';
+import { ProfileView } from './components/ProfileView.jsx';
+import { AmbientSoundPlayer } from './components/AmbientSoundPlayer.jsx';
+import { DailyFocusQuests } from './components/DailyFocusQuests.jsx';
+import { WelcomeScreen } from './components/WelcomeScreen.jsx';
+import { ZenStudyRoom } from './components/ZenStudyRoom.jsx';
+import { playTaskCompleteChime, playTimerCompleteChime, playLevelUpChime } from './utils/soundEffects.js';
 
 // --- TIME AGO UTILITY ---
 const formatTimeAgo = (timestamp) => {
@@ -142,333 +149,10 @@ const getAvatarColor = (name) => {
   return avatarColors[Math.abs(h)%avatarColors.length]; 
 };
 
-const StudyUniverseBackground = () => {
-  return (
-    <div className="study-universe-bg" style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: -5, pointerEvents: 'none', background: 'radial-gradient(circle at center, #0f0b29 0%, #050212 100%)' }}>
-      <div className="stars-container">
-        <div className="stars" />
-        <div className="stars2" />
-      </div>
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      <div style={{ position: 'absolute', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)', top: '-10%', left: '-10%', width: '500px', height: '500px' }} />
-      <div style={{ position: 'absolute', borderRadius: '50%', background: 'radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%)', bottom: '-20%', right: '-10%', width: '600px', height: '600px' }} />
-    </div>
-  );
-};
-
-const WelcomeScreen = ({ authMode, setAuthMode, authUsername, setAuthUsername, authPassword, setAuthPassword, authError, setAuthError, handleAuth, onQuickSetup }) => {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const [step, setStep] = useState(() => {
-    if (localStorage.getItem('planmaker_explicit_logout')) return 3;
-    if (location.pathname === '/about') return 5;
-    if (location.pathname === '/mission') return 6;
-    if (location.pathname === '/blog') return 4;
-    if (location.pathname === '/login') return 3;
-    return 0;
-  }); 
-
-  useEffect(() => {
-    if (location.pathname === '/') {
-      setStep(0);
-      document.title = "FocusMode | Hyper-Focused Study Universe";
-    }
-    else if (location.pathname === '/about') {
-      setStep(5);
-      document.title = "About Us | FocusMode";
-    }
-    else if (location.pathname === '/mission') {
-      setStep(6);
-      document.title = "Our Mission | FocusMode";
-    }
-    else if (location.pathname === '/blog') {
-      setStep(4);
-      document.title = "Study Tips & Blog | FocusMode";
-    }
-    else if (location.pathname === '/login') {
-      setStep(3);
-      document.title = "Login | FocusMode";
-    }
-  }, [location.pathname]);
-
-  const handleNav = (path) => {
-    navigate(path);
-  };
-
-  const [guestName, setGuestName] = useState('');
-
-  if (step === 3) {
-    return (
-      <div className="auth-wrapper" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050510', zIndex: 1000, overflow: 'hidden' }}>
-        <StudyUniverseBackground />
-        
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9, y: 20 }} 
-          animate={{ opacity: 1, scale: 1, y: 0 }} 
-          transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          className="glass auth-card" 
-          style={{ position: 'relative', zIndex: 10, padding: 'clamp(1.5rem, 5vw, 3rem)', borderRadius: '24px', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', width: '100%', maxWidth: '420px', overflow: 'hidden' }}
-        >
-          {/* Animated border glow */}
-          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 8, ease: "linear" }} style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'conic-gradient(transparent, transparent, transparent, #8b5cf6)', zIndex: -1, opacity: 0.2 }} />
-          <div style={{ position: 'absolute', inset: '1px', background: 'rgba(15, 23, 42, 0.8)', borderRadius: '23px', zIndex: -1 }} />
-
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, textAlign: 'center', marginBottom: '0.5rem', background: 'linear-gradient(to right, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Welcome</h1>
-          <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '2rem' }}>Sign in to continue your journey.</p>
-          
-          <form className="auth-form" onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div className="input-group" style={{ position: 'relative' }}>
-              <User size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="text" placeholder="Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} style={{ width: '100%', padding: '16px 16px 16px 48px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', fontSize: '1rem', outline: 'none', transition: 'all 0.3s' }} onFocus={(e) => e.target.style.borderColor = '#8b5cf6'} onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'} />
-            </div>
-            <div className="input-group" style={{ position: 'relative' }}>
-              <Lock size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} style={{ width: '100%', padding: '16px 16px 16px 48px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', fontSize: '1rem', outline: 'none', transition: 'all 0.3s' }} onFocus={(e) => e.target.style.borderColor = '#ec4899'} onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'} />
-            </div>
-            {authError && <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ color: '#ef4444', fontSize: '0.9rem', textAlign: 'center', margin: 0 }}>{authError}</motion.p>}
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" style={{ width: '100%', padding: '16px', marginTop: '10px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(139,92,246,0.3)' }}>
-              {authMode === 'login' ? 'Login' : 'Create Account'}
-            </motion.button>
-          </form>
-
-          <p style={{ textAlign: 'center', marginTop: '1.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-            <span style={{ color: '#a855f7', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}>
-              {authMode === 'login' ? 'Sign up' : 'Log in'}
-            </span>
-          </p>
-          <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-             <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setStep(0)}>
-               <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} /> Back to Welcome
-             </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="welcome-container" style={{ position: 'fixed', inset: 0, overflowY: 'auto', overflowX: 'hidden', zIndex: 1000, background: '#050510' }}>
-      <StudyUniverseBackground />
-
-      <AnimatePresence mode="wait">
-        
-        {/* Landing Page Header */}
-        {[0, 4, 5, 6].includes(step) && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, display: 'flex', justifyContent: 'center', padding: '10px' }}>
-            <motion.header 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
-              style={{ padding: '8px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '1000px', background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '100px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.6)' }}
-            >
-              <Link to="/" style={{ textDecoration: 'none', fontWeight: 800, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(139,92,246,0.3)' }}>
-                  <Headphones size={16} color="#fff" />
-                </div>
-                <span style={{ background: 'linear-gradient(to right, #fff, #c4b5fd)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>FocusMode</span>
-              </Link>
-              <nav style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                <Link to="/mission" style={{ background: 'transparent', border: 'none', color: step === 6 ? '#c4b5fd' : '#94a3b8', fontSize: '0.9rem', fontWeight: 600, transition: 'all 0.2s', cursor: 'pointer', textDecoration: 'none' }} onMouseOver={e=>e.target.style.color='#fff'} onMouseOut={e=>{if(step!==6)e.target.style.color='#94a3b8'}}>Mission</Link>
-                <Link to="/about" style={{ background: 'transparent', border: 'none', color: step === 5 ? '#c4b5fd' : '#94a3b8', fontSize: '0.9rem', fontWeight: 600, transition: 'all 0.2s', cursor: 'pointer', textDecoration: 'none' }} onMouseOver={e=>e.target.style.color='#fff'} onMouseOut={e=>{if(step!==5)e.target.style.color='#94a3b8'}}>About Us</Link>
-                <Link to="/blog" style={{ background: 'transparent', border: 'none', color: step === 4 ? '#c4b5fd' : '#94a3b8', fontSize: '0.9rem', fontWeight: 600, transition: 'all 0.2s', cursor: 'pointer', textDecoration: 'none' }} onMouseOver={e=>e.target.style.color='#fff'} onMouseOut={e=>{if(step!==4)e.target.style.color='#94a3b8'}}>Blog</Link>
-                <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.1)' }}></div>
-                <Link to="/login" style={{ padding: '6px 16px', borderRadius: '100px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', color: '#fff', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 15px rgba(139,92,246,0.4)', textDecoration: 'none' }} onMouseOver={e=>{e.target.style.transform='scale(1.05)'}} onMouseOut={e=>{e.target.style.transform='scale(1)'}}>Login</Link>
-              </nav>
-            </motion.header>
-          </div>
-        )}
-
-        {step === 0 && (
-          <motion.main key="landing-page" initial="hidden" animate="visible" exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }} transition={{ duration: 0.8 }} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-            
-            {/* Hero Section */}
-            <div className="welcome-step" style={{ margin: '0 auto', paddingTop: '80px', minHeight: '100vh', paddingBottom: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', zIndex: 10, paddingLeft: 'clamp(1rem, 5vw, 2rem)', paddingRight: 'clamp(1rem, 5vw, 2rem)' }}>
-            
-            <motion.h1 
-              variants={{ hidden: { opacity: 0, y: 30, filter: 'blur(12px)' }, visible: { opacity: 1, y: 0, filter: 'blur(0px)' } }}
-              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-              style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)', fontWeight: '800', lineHeight: 1.2, marginBottom: '2rem', letterSpacing: '-2px', textShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
-            >
-              <span style={{ background: 'linear-gradient(to right, #fff, #c084fc, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', whiteSpace: 'nowrap' }}>Focus Mode Player</span>
-            </motion.h1>
-            
-            <motion.p 
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-              style={{ fontSize: 'clamp(1.1rem, 3vw, 1.4rem)', color: '#94a3b8', maxWidth: '700px', marginBottom: '3.5rem', lineHeight: 1.6 }}
-            >
-              Your hyper-focused study universe. Step into deep work, destroy distractions, and conquer your goals.
-            </motion.p>
-            
-            <motion.div variants={{ hidden: { opacity: 0, y: 20, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1 } }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.5 }} style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <motion.button 
-                whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(139,92,246,0.6)' }} whileTap={{ scale: 0.95 }} 
-                style={{ padding: '18px 40px', fontSize: '1.2rem', fontWeight: '700', borderRadius: '50px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
-                onClick={() => setStep(2)}
-              >
-                Start Journey <ArrowRight size={24} />
-              </motion.button>
-              <motion.button 
-                whileHover={{ scale: 1.05, background: 'rgba(255,255,255,0.1)' }} whileTap={{ scale: 0.95 }} 
-                style={{ padding: '18px 40px', fontSize: '1.2rem', fontWeight: '700', borderRadius: '50px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', backdropFilter: 'blur(10px)' }}
-                onClick={() => setStep(3)}
-              >
-                Login
-              </motion.button>
-            </motion.div>
-            </div>
-          </motion.main>
-        )}
-
-        {step === 4 && (
-          <motion.main key="blog-page" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }} style={{ width: '100%', minHeight: '100vh', paddingTop: '120px', paddingBottom: '4rem', zIndex: 10 }}>
-            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
-              <button onClick={() => handleNav('/')} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 20px', borderRadius: '100px', cursor: 'pointer', marginBottom: '2rem', transition: 'all 0.2s' }} onMouseOver={e=>{e.currentTarget.style.background='rgba(255,255,255,0.1)'}} onMouseOut={e=>{e.currentTarget.style.background='rgba(255,255,255,0.05)'}}>
-                <ArrowRight size={16} style={{ transform: 'rotate(180deg)' }} /> Back to Home
-              </button>
-              <article>
-                <Blog />
-              </article>
-            </div>
-          </motion.main>
-        )}
-
-        {step === 6 && (
-          <motion.main key="mission-page" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }} style={{ width: '100%', minHeight: '100vh', paddingTop: '120px', paddingBottom: '4rem', zIndex: 10 }}>
-            <article style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem', textAlign: 'center' }}>
-              
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2))', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '2rem' }}>
-                 <BrainCircuit size={40} color="#c4b5fd" />
-              </div>
-              
-              <h2 style={{ fontSize: '3.5rem', fontWeight: 800, color: '#fff', marginBottom: '1.5rem', letterSpacing: '-1px' }}>The Mission</h2>
-              
-              <p style={{ color: '#e2e8f0', fontSize: '1.4rem', lineHeight: 1.6, maxWidth: '800px', margin: '0 auto 4rem auto' }}>
-                We built Focus Mode Player to revolutionize how you study by eliminating distractions and fighting student isolation.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '4rem' }}>
-                <div style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '2rem', textAlign: 'left' }}>
-                  <Shield size={32} color="#a78bfa" style={{ marginBottom: '1rem' }} />
-                  <h3 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Ad-Free Lectures</h3>
-                  <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1.6 }}>Reclaim your time from algorithmic feeds. Watch your educational content with zero interruptions and unyielding clarity.</p>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '2rem', textAlign: 'left' }}>
-                  <Trophy size={32} color="#f472b6" style={{ marginBottom: '1rem' }} />
-                  <h3 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Gamified Learning</h3>
-                  <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1.6 }}>Step into a hyper-focused study universe. We turn heavy study sessions into an engaging experience where conquering your goals feels like leveling up.</p>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '2rem', textAlign: 'left' }}>
-                  <Globe size={32} color="#60a5fa" style={{ marginBottom: '1rem' }} />
-                  <h3 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Fight Isolation</h3>
-                  <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1.6 }}>Deep work shouldn't mean feeling completely alone. Connect with a focused community and build accountability without the noise.</p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <button onClick={() => handleNav('/')} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '16px 32px', borderRadius: '100px', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e=>{e.currentTarget.style.background='rgba(255,255,255,0.1)'}} onMouseOut={e=>{e.currentTarget.style.background='rgba(255,255,255,0.05)'}}>
-                  <ArrowRight size={18} style={{ transform: 'rotate(180deg)' }} /> Back to Home
-                </button>
-                <motion.button 
-                  whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} 
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '16px 32px', fontSize: '1.1rem', fontWeight: '700', borderRadius: '100px', background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', color: 'white', cursor: 'pointer', boxShadow: '0 8px 20px rgba(139,92,246,0.4)' }}
-                  onClick={() => handleNav('/setup')}
-                >
-                  Start Your Journey <ArrowRight size={18} />
-                </motion.button>
-              </div>
-            </article>
-          </motion.main>
-        )}
-
-        {step === 5 && (
-          <motion.main key="about-page" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5 }} style={{ width: '100%', minHeight: '100vh', paddingTop: '120px', paddingBottom: '4rem', zIndex: 10 }}>
-            <article style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem', textAlign: 'center', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(20px)', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
-              
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2))', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '2rem' }}>
-                 <Users size={40} color="#c4b5fd" />
-              </div>
-              
-              <h2 style={{ fontSize: '3rem', fontWeight: 800, color: '#fff', marginBottom: '1.5rem', letterSpacing: '-1px' }}>About Us</h2>
-              
-              <p style={{ color: '#e2e8f0', fontSize: '1.3rem', lineHeight: 1.8, marginBottom: '2rem', textAlign: 'left' }}>
-                Focus Mode Player is a community-driven open source project designed to help students, developers, and creatives maximize their output without the noise of modern social platforms.
-              </p>
-              
-              <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1.7, marginBottom: '3rem', textAlign: 'left' }}>
-                By integrating scientifically proven deep work timers (like the Pomodoro technique) directly alongside ad-free, minimal content delivery, we guarantee an environment where true focus is not just possible, but inevitable.
-              </p>
-
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <button onClick={() => handleNav('/')} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '16px 32px', borderRadius: '100px', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e=>{e.currentTarget.style.background='rgba(255,255,255,0.1)'}} onMouseOut={e=>{e.currentTarget.style.background='rgba(255,255,255,0.05)'}}>
-                  <ArrowRight size={18} style={{ transform: 'rotate(180deg)' }} /> Back to Home
-                </button>
-              </div>
-            </article>
-          </motion.main>
-        )}
-
-
-
-        {step === 2 && (
-          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <motion.div key="setup" initial={{ opacity: 0, scale: 0.9, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="welcome-step" style={{ zIndex: 10 }}>
-            <div style={{ background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(25px)', border: '1px solid rgba(255,255,255,0.1)', padding: 'clamp(2rem, 5vw, 4rem) clamp(1.5rem, 5vw, 3rem)', borderRadius: '32px', boxShadow: '0 30px 60px rgba(0,0,0,0.5)', width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
-              
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: 'linear' }} style={{ position: 'absolute', top: -150, left: -150, right: -150, bottom: -150, background: 'conic-gradient(from 0deg, transparent, transparent, transparent, rgba(139,92,246,0.1), transparent)', zIndex: -1, borderRadius: '50%', pointerEvents: 'none' }} />
-
-              <div style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', padding: '20px', borderRadius: '50%', marginBottom: '2rem', boxShadow: '0 10px 25px rgba(139,92,246,0.5)' }}>
-                <User size={40} color="#fff" />
-              </div>
-              
-              <h2 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>Welcome, Aspirant!</h2>
-              <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '3rem', textAlign: 'center' }}>What should we call you?</p>
-              
-              <div style={{ width: '100%', position: 'relative' }}>
-                <input 
-                  type="text" 
-                  placeholder="Enter your hero name..." 
-                  value={guestName} 
-                  onChange={e => setGuestName(e.target.value)} 
-                  style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '20px 24px', fontSize: '1.2rem', color: '#fff', outline: 'none', transition: 'all 0.3s', textAlign: 'center' }}
-                  onFocus={(e) => { e.target.style.borderColor = '#8b5cf6'; e.target.style.background = 'rgba(0,0,0,0.5)'; e.target.style.boxShadow = '0 0 20px rgba(139,92,246,0.3)'; }}
-                  onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.background = 'rgba(0,0,0,0.3)'; e.target.style.boxShadow = 'none'; }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '3rem', width: '100%' }}>
-                <button 
-                  onClick={() => setStep(0)} 
-                  style={{ padding: '16px', flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-                  onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                  onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                >
-                  Back
-                </button>
-                <motion.button 
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} 
-                  disabled={!guestName.trim()} 
-                  onClick={() => onQuickSetup(guestName)}
-                  style={{ padding: '16px', flex: 2, background: 'linear-gradient(45deg, #8b5cf6, #ec4899)', border: 'none', borderRadius: '16px', color: '#fff', fontSize: '1.1rem', fontWeight: 700, cursor: guestName.trim() ? 'pointer' : 'not-allowed', opacity: guestName.trim() ? 1 : 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: guestName.trim() ? '0 10px 25px rgba(139,92,246,0.4)' : 'none' }}
-                >
-                  Dive In <ArrowRight size={20} />
-                </motion.button>
-              </div>
-            </div>
-          </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
 const App = () => {
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isZenStudyOpen, setIsZenStudyOpen] = useState(false);
   const [bgTheme, setBgTheme] = useState(() => localStorage.getItem('pm_bgTheme') || 'solid-dark-bg');
 
   useEffect(() => {
@@ -492,8 +176,17 @@ const App = () => {
   const [joinedCommunities, setJoinedCommunities] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pm_communities') || '[]'); } catch { return []; }
   });
-  const [usersDb, setUsersDb] = useState({});
-  const [sessionUser, setSessionUser] = useState(null); 
+  const [usersDb, setUsersDb] = useState(() => {
+    try {
+      const saved = localStorage.getItem('planmaker_users');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [sessionUser, setSessionUser] = useState(() => {
+    return localStorage.getItem('planmaker_session') || null;
+  }); 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editProfileData, setEditProfileData] = useState(() => {
     const detected = detectUserCountry();
@@ -619,12 +312,8 @@ const App = () => {
   const [newMistakeProblem, setNewMistakeProblem] = useState('');
   const [newMistakeFix, setNewMistakeFix] = useState('');
 
-  // Study Connect - Omegle Educational Matchmaker States
-  const [isMatchingBuddy, setIsMatchingBuddy] = useState(false);
-  const [matchedBuddy, setMatchedBuddy] = useState(null);
-  const [buddyFilterTopic, setBuddyFilterTopic] = useState('All');
-  const [peerMessages, setPeerMessages] = useState([]);
-  const [peerChatInput, setPeerChatInput] = useState('');
+  // Daily Focus Sessions State
+  const [pomodoroSessionsToday, setPomodoroSessionsToday] = useState(0);
   
   const firebaseUsers = useFirebaseUsers();
 
@@ -788,12 +477,6 @@ const App = () => {
   const [commentingOn, setCommentingOn] = useState(null);
   const [commentText, setCommentText] = useState('');
 
-  // Study Connect State
-  const [connectRoom, setConnectRoom] = useState(null);
-  const [customRoomName, setCustomRoomName] = useState('');
-  const [inCall, setInCall] = useState(false);
-  const jitsiContainerRef = useRef(null);
-  const jitsiApiRef = useRef(null);
 
   // Video Notes State
   const [videoNotes, setVideoNotes] = useState({}); // { videoId: noteText }
@@ -870,23 +553,9 @@ const App = () => {
     prevFeedLengthRef.current = globalMsgs.length;
   }, [feed, sessionUser, showLocalNotification]);
 
-  // Deep Linking for Study Rooms
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('room');
-    if (roomParam) {
-      setConnectRoom(roomParam);
-      setInCall(true);
-      setActiveTab('connect');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
-
-  const shareToWhatsApp = (roomId, eventTitle = null) => {
-    const url = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomId)}`;
-    const text = eventTitle 
-      ? `Join my live study event "${eventTitle}" on Student Mesh! 🚀\n\nClick here to join the live video call: ${url}`
-      : `Join my private Study Connect room on Student Mesh! 🚀\n\nClick here to join the live video call: ${url}`;
+  const shareAppToFriends = () => {
+    const url = window.location.origin;
+    const text = `Check out Focus Mode Player — the best study universe for lectures, planning, and deep work! 🚀\n\n${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -978,7 +647,7 @@ const App = () => {
 
     // ── ABOUT APP / FOCUSMODE ─────────────────────────────────────────────────
     if (t.match(/what is this (app|website)|about (planmaker|focusmodeplayer|focusmode)|who created (you|this)|how to use this|what can i do here/)) {
-      return `Welcome to **Focus Mode Player**! 🚀 This is the ultimate study dashboard for JEE, NEET & UPSC aspirants. Here's what you can do:\n\n1. **Plan:** Track daily tasks, study modules, and track your syllabus progress.\n2. **Journal:** Write daily reflections and download your notes.\n3. **Lectures:** Add YouTube links to watch ad-free without distractions.\n4. **Connect:** Join P2P video study rooms with other students.\n5. **Community:** Share updates and ask questions in real-time!\n\nI'm FocusBot, your AI guide. Let me know if you need help!`;
+      return `Welcome to **Focus Mode Player**! 🚀 This is the ultimate study universe for serious aspirants. Here's what you can do:\n\n1. **Plan:** Track daily tasks, study modules, and syllabus progress.\n2. **Lectures:** Watch educational lectures in cinema mode with timestamped notes.\n3. **Soundscapes:** Immerse in 100% offline rain, waves, and 40Hz focus frequencies.\n4. **Journal & Mistakes:** Log daily reflections and formula mistakes for active recall.\n5. **Quests & Gamification:** Earn XP, level up scholar ranks, and unlock badges!\n6. **Community:** Share updates and stay accountable with peers worldwide.\n\nI'm FocusBot, your AI study advisor. Ask me anything!`;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1122,15 +791,15 @@ const App = () => {
     }
 
     if (t.match(/how to use|what is this website|what is focusmodeplayer|what is focusmode|guide|tutorial|how does this work|features/)) {
-      return `**Welcome to Focus Mode Player!** 🚀\n\nI am designed to be your ultimate study ecosystem. Here is how to use me for maximum productivity:\n\n**1. Dashboard (The Core):** Break your giant syllabus into Subjects → Modules → Subtasks. Check them off to earn XP.\n**2. Pomodoro Timer:** Use the 25-minute timer for intense focus sessions. Earning 50 XP per session builds a habit loop.\n**3. Community (Live):** Click the globe icon! It's a real-time feed of all aspirants worldwide. Share wins and tips.\n**4. Live Study Connect:** Join a virtual room to study silently with others (body doubling). It kills procrastination.\n**5. Journal & Mistakes:** At the end of the day, log what you learned and the mistakes you made. Active recall!\n**6. Lectures:** Paste any YouTube video URL. It blocks comments/recommendations and lets you take timestamped notes.\n\nStart by adding your first task on the Dashboard!`;
+      return `**Welcome to Focus Mode Player!** 🚀\n\nI am designed to be your ultimate study ecosystem. Here is how to use me for maximum productivity:\n\n**1. Today's Plan (The Core):** Break your syllabus into Subjects → Modules → Tasks. Check them off to earn XP.\n**2. Deep Focus Timer:** Use the 25m/50m timer with procedural soundscapes (Rain, Waves, 40Hz Gamma beats).\n**3. Video Lecture Theater:** Paste any YouTube lecture or play curated study streams. Take timestamped notes with zero ad distractions!\n**4. Daily Quests:** Complete your 3 daily focus missions for a massive +50 XP bonus.\n**5. Journal & Mistake Vault:** Log daily reflections and formula slips to supercharge active recall.\n**6. Community Feed:** Share study tips and stay accountable with other aspirants worldwide.\n\nStart by checking your Daily Focus Quests on Today's Plan!`;
     }
 
     if (t.match(/community|chat|feed|other students|talk to|social/)) {
       return `**The Global Community Feed** 🌍\n\nStudying for competitive exams can feel lonely. That's why we built the real-time Community!\n\n• **Real-Time Sync:** Every post, like, and comment is instantly synced globally without refreshing.\n• **Accountability:** Post your daily targets: *"I will complete 50 Physics MCQs today."* When you declare it publicly, you are 3x more likely to do it.\n• **Help:** Stuck on a concept? Ask the community! Someone preparing for the same exam might have a great shortcut.\n\nHead over to the Community tab and drop a "Hello" right now!`;
     }
 
-    if (t.match(/study connect|live room|jitsi|video call|body doubling|study together/)) {
-      return `**Live Study Connect (Body Doubling)** 🎥\n\nProcrastinating? Join a Live Study Room!\n\n**The Psychology of Body Doubling:**\nWhen you see others working focused on camera, mirror neurons in your brain trigger your own focus state. It creates a subtle, powerful social pressure to not scroll Instagram.\n\n**How to use it:**\n1. Go to the Study Connect tab\n2. Click "Join Public Focus Room"\n3. Keep your camera on (audio is muted by default) angled at your desk/books\n4. Study for 1 hour straight\n\nYou earn 10 XP just for joining a room!`;
+    if (t.match(/soundscape|ambient|rain|waves|music|lofi|binaural/)) {
+      return `**Built-In Study Soundscapes** 🎧\n\nScience shows that pink/brown noise and 40Hz gamma waves enhance concentration and block distracting background noise.\n\n**How to use:**\n1. Find the **Study Soundscapes** card on Today's Plan or in the Lecture Hall.\n2. Tap **Rainfall**, **Ocean Waves**, **Campfire**, or **40Hz Gamma**.\n3. Adjust the volume slider to your preference.\n\nIt works 100% offline using your browser's audio synthesizer — zero downloads or streaming lag!`;
     }
     
     if (t.match(/journal|mistakes|log|diary/)) {
@@ -1138,11 +807,11 @@ const App = () => {
     }
     
     if (t.match(/xp|level|score|points|gamification|gamify/)) {
-      return `**XP & Leveling System** 🏆\n\nYour brain is wired to crave immediate rewards (like social media). We hijacked that system for studying!\n\n**How to earn XP:**\n• Complete a Pomodoro Session: **+50 XP**\n• Complete a full Subject Module: **+20 XP**\n• Log your Daily Journal: **+15 XP**\n• Join a Live Study Room: **+10 XP**\n• Complete a Subtask: **+5 XP**\n• Post in Community: **+2 XP**\n\nYour XP determines your Title (from Novice to Grandmaster). Treat this like an RPG game where *you* are the main character leveling up your real-life stats!`;
+      return `**XP & Leveling System** 🏆\n\nYour brain is wired to crave immediate rewards. We turned deep study into a rewarding RPG experience!\n\n**How to earn XP:**\n• Complete a Pomodoro Session: **+50 XP**\n• Complete a 50m Deep Sprint: **+100 XP**\n• Complete Daily Focus Quests: **+50 XP Bonus**\n• Watch a Video Lecture & Note: **+35 XP**\n• Check off a Study Task: **+15 XP**\n• Log in Journal & Mistake Vault: **+15 XP**\n\nLevel up through the Scholar Ranks and unlock prestigious badges!`;
     }
 
     if (t.match(/video|lecture|youtube|notes|player/)) {
-      return `**The Distraction-Free Video Player** 📺\n\nYouTube is great for learning, but terrible for focus (the algorithm wants you to watch memes).\n\n**The Solution:**\nPaste any YouTube URL into the Lectures tab. We strip away the comments, recommended videos, and shorts.\n\n**Smart Notes:** While watching, use the text area below the video. Your notes are saved automatically and tied directly to that specific video. You can export them to text later!`;
+      return `**The Video Lecture Theater** 📺\n\nYouTube has world-class teachers, but algorithmic feeds and recommendations ruin your focus.\n\n**The Solution:**\nOpen the **Video Lectures** tab. We strip away recommendations, comments, and distractions.\n\n**Smart Notes & Timestamps:** While watching, click **Bookmark [mm:ss]** to grab current timestamps and jot down formulas. You can even click 'Ask FocusBot AI' if a concept trips you up!`;
     }
 
     // ── GENERAL KNOWLEDGE CATCH-ALL + WIKIPEDIA ──────────────────────────────
@@ -1393,14 +1062,18 @@ const App = () => {
     } else if (timeLeft === 0) {
       setIsActive(false);
       trackTimerCompleted(sessionType);
+      playTimerCompleteChime();
+      if (sessionType.includes('pomodoro')) {
+        setPomodoroSessionsToday(prev => prev + 1);
+      }
       if (sessionUser) {
-        let xpGained = sessionType === 'pomodoro' ? 50 : 10;
-        awardXP(xpGained, `Completed ${sessionType === 'pomodoro' ? 'Pomodoro Session' : 'Break'}`);
-        gunPostMessage(`completed a ${sessionType === 'pomodoro' ? '25-minute Pomodoro' : 'short break'}.`);
+        let xpGained = sessionType === 'pomodoro' ? 50 : (sessionType === 'pomodoro50' ? 100 : 10);
+        awardXP(xpGained, `Completed ${sessionType.includes('pomodoro') ? 'Deep Pomodoro Session' : 'Rest Break'}`);
+        gunPostMessage(`completed a ${sessionType.includes('pomodoro') ? 'deep focus sprint' : 'short break'}.`);
       }
     }
     return () => clearInterval(interval);
-  }, [isActive, timeLeft]);
+  }, [isActive, timeLeft, sessionType, sessionUser]);
 
   // Helper Functions
   const loadUserData = (username) => {
@@ -1445,7 +1118,13 @@ const App = () => {
     setUsersDb(prev => {
       const userObj = prev[userToAward] || {};
       const userProfile = userObj.profile || {};
-      const newXP = (userProfile.xp || 0) + (amount || 0);
+      const oldXP = userProfile.xp || 0;
+      const newXP = oldXP + (amount || 0);
+      const oldLevel = Math.floor(oldXP / 100) + 1;
+      const newLevel = Math.floor(newXP / 100) + 1;
+      if (newLevel > oldLevel) {
+        playLevelUpChime();
+      }
       const updatedUser = {
         ...userObj,
         profile: {
@@ -1565,119 +1244,98 @@ const App = () => {
   const handleAuth = (e) => {
     e.preventDefault();
     setAuthError('');
-    if (!authUsername.trim() || !authPassword.trim()) {
-      setAuthError('Please fill all fields');
+    const cleanUsername = (authUsername || '').trim();
+    const cleanPassword = (authPassword || '').trim();
+
+    if (!cleanUsername || !cleanPassword) {
+      setAuthError('Please enter both username and password.');
       return;
     }
 
+    const matchedKey = Object.keys(usersDb).find(k => k.toLowerCase() === cleanUsername.toLowerCase());
+    const existingUser = matchedKey ? usersDb[matchedKey] : null;
+
     if (authMode === 'register') {
       trackSignUp();
-      if (usersDb[authUsername] && authUsername !== sessionUser) {
-        setAuthError('Username already exists'); return;
-      }
 
-      if (showAuthWall && usersDb[sessionUser]?.profile?.isGuest) {
-        // Upgrade Guest to Real User
-        setUsersDb(prev => {
-          const newDb = { ...prev };
-          const guestData = newDb[sessionUser];
-          delete newDb[sessionUser];
-          newDb[authUsername] = {
-            password: authPassword,
-            profile: { ...guestData.profile, isGuest: false }
-          };
-          return newDb;
-        });
-
-        // Migrate local storage keys
-        const pSub = localStorage.getItem(`pm_sub_${sessionUser}`);
-        const pJour = localStorage.getItem(`pm_jour_${sessionUser}`);
-        const pPlay = localStorage.getItem(`pm_playlist_${sessionUser}`);
-        
-        if(pSub) localStorage.setItem(`pm_sub_${authUsername}`, pSub);
-        if(pJour) localStorage.setItem(`pm_jour_${authUsername}`, pJour);
-        if(pPlay) localStorage.setItem(`pm_playlist_${authUsername}`, pPlay);
-        
-        localStorage.removeItem(`pm_sub_${sessionUser}`);
-        localStorage.removeItem(`pm_jour_${sessionUser}`);
-        localStorage.removeItem(`pm_playlist_${sessionUser}`);
-
-        setSessionUser(authUsername);
-        localStorage.setItem('planmaker_session', authUsername);
-        setShowAuthWall(false);
-        const detectedCountry = detectUserCountry();
+      // If user exists but had password 'none' (from quick setup), auto-claim it!
+      if (existingUser && (existingUser.password === 'none' || !existingUser.password)) {
         const upgradedProfile = {
-          isGuest: false,
-          xp: 0,
-          joined: new Date().toLocaleDateString(),
-          prepType: '',
-          country: detectedCountry.name,
-          countryFlag: detectedCountry.flag,
-          countryCode: detectedCountry.code
+          ...(existingUser.profile || {}),
+          isGuest: false
         };
-        // Immediately sync new user to Firebase so others can see them
-        syncUserToFirebase(authUsername, upgradedProfile);
-        setToastMsg({ id: Date.now(), amount: 50, reason: 'Account Created Successfully!' });
-        if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-        toastTimeoutRef.current = setTimeout(() => setToastMsg(null), 3000);
-      } else {
-        // Normal register (e.g. they explicitly logged out and are creating a new account)
-        const detectedCountry = detectUserCountry();
-        const newProfile = {
-          isGuest: false,
-          prepType: '',
-          targetYear: '',
-          weakness: '',
-          xp: 0,
-          joined: new Date().toLocaleDateString(),
-          country: detectedCountry.name,
-          countryFlag: detectedCountry.flag,
-          countryCode: detectedCountry.code
-        };
-        setUsersDb(prev => ({
-          ...prev,
-          [authUsername]: { 
-            password: authPassword, 
-            profile: newProfile 
-          }
-        }));
-        // Immediately sync new user to Firebase so others can see them in the community
-        syncUserToFirebase(authUsername, newProfile);
-        setSessionUser(authUsername);
-        localStorage.setItem('planmaker_session', authUsername);
+        const updatedEntry = { password: cleanPassword, profile: upgradedProfile };
+        setUsersDb(prev => ({ ...prev, [matchedKey]: updatedEntry }));
+        setSessionUser(matchedKey);
+        localStorage.setItem('planmaker_session', matchedKey);
         localStorage.removeItem('planmaker_explicit_logout');
+        syncUserToFirebase(matchedKey, upgradedProfile);
+        loadUserData(matchedKey);
+        setAuthUsername(''); setAuthPassword('');
+        setToastMsg({ id: Date.now(), amount: 50, reason: 'Account Created Successfully!' });
+        return;
       }
+
+      if (existingUser && matchedKey !== sessionUser) {
+        setAuthError('Username already taken. Please choose another username or log in.');
+        return;
+      }
+
+      const detectedCountry = detectUserCountry();
+      const newProfile = {
+        isGuest: false,
+        name: cleanUsername,
+        aim: 'JEE Advanced',
+        prepType: 'JEE',
+        targetYear: new Date().getFullYear() + 1,
+        targetHours: 6,
+        xp: 25,
+        joined: new Date().toLocaleDateString(),
+        country: detectedCountry.name,
+        countryFlag: detectedCountry.flag,
+        countryCode: detectedCountry.code
+      };
+
+      setUsersDb(prev => ({
+        ...prev,
+        [cleanUsername]: {
+          password: cleanPassword,
+          profile: newProfile
+        }
+      }));
+
+      syncUserToFirebase(cleanUsername, newProfile);
+      setSessionUser(cleanUsername);
+      localStorage.setItem('planmaker_session', cleanUsername);
+      localStorage.removeItem('planmaker_explicit_logout');
+      loadUserData(cleanUsername);
+      setToastMsg({ id: Date.now(), amount: 50, reason: 'Account Created Successfully!' });
+      setAuthUsername(''); setAuthPassword('');
     } else {
       // Login flow
-      const user = usersDb[authUsername];
-      if (!user || user.password !== authPassword) {
-        setAuthError('Invalid username or password'); return;
+      if (!existingUser) {
+        setAuthError('Account not found. Please check spelling or click "Create Account".');
+        return;
       }
+
+      // Auto-heal accounts that had password 'none' from quick setup
+      if (existingUser.password === 'none' || !existingUser.password) {
+        existingUser.password = cleanPassword;
+        setUsersDb(prev => ({ ...prev, [matchedKey]: existingUser }));
+      } else if (existingUser.password !== cleanPassword) {
+        setAuthError('Incorrect password. If this was a test user, click "Clear Test Data" below.');
+        return;
+      }
+
       trackLogin();
-      
-      // If logging in as an existing user from the Guest Auth Wall
-      if (showAuthWall && usersDb[sessionUser]?.profile?.isGuest) {
-        // Discard guest session and clean up
-        localStorage.removeItem(`pm_sub_${sessionUser}`);
-        localStorage.removeItem(`pm_jour_${sessionUser}`);
-        localStorage.removeItem(`pm_playlist_${sessionUser}`);
-        setUsersDb(prev => {
-          const newDb = { ...prev };
-          delete newDb[sessionUser];
-          return newDb;
-        });
-        setShowAuthWall(false);
-      }
-      
-      // Sync user activity to Firebase on every login so they appear online
-      const loginProfile = usersDb[authUsername]?.profile || {};
-      syncUserToFirebase(authUsername, loginProfile);
-      setSessionUser(authUsername);
-      localStorage.setItem('planmaker_session', authUsername);
+      const loginProfile = existingUser.profile || {};
+      syncUserToFirebase(matchedKey, loginProfile);
+      setSessionUser(matchedKey);
+      localStorage.setItem('planmaker_session', matchedKey);
       localStorage.removeItem('planmaker_explicit_logout');
-      loadUserData(authUsername);
+      loadUserData(matchedKey);
+      setAuthUsername(''); setAuthPassword('');
     }
-    setAuthUsername(''); setAuthPassword('');
   };
 
   const handleLogout = () => {
@@ -1780,6 +1438,7 @@ const App = () => {
     });
 
     if (taskCompletedJustNow) { 
+      playTaskCompleteChime();
       trackSubtaskCompleted(subjectId); 
       awardXP(isSingleTask ? 15 : 5, isSingleTask ? 'Completed Task!' : 'Completed Subtask'); 
       updateStreak(); 
@@ -1848,86 +1507,6 @@ const App = () => {
     if (activeVideo === id) setActiveVideo(null);
   };
 
-  // Jitsi Study Connect
-  const startJitsiCall = useCallback((roomId) => {
-    trackRoomJoined(roomId);
-    setConnectRoom(roomId);
-    setInCall(true);
-    awardXP(10, 'Joined Study Connect Room');
-  }, []);
-
-  const leaveJitsiCall = useCallback(() => {
-    if (jitsiApiRef.current) {
-      try { jitsiApiRef.current.dispose(); } catch(e) {}
-      jitsiApiRef.current = null;
-    }
-    setInCall(false);
-    setConnectRoom(null);
-  }, []);
-
-  useEffect(() => {
-    if (!inCall || !connectRoom || !jitsiContainerRef.current) return;
-    if (jitsiApiRef.current) return; // already initialized
-
-    const roomName = `FocusMode-${connectRoom}-Study`.replace(/[^a-zA-Z0-9-]/g, '');
-
-    const loadJitsi = () => {
-      if (!window.JitsiMeetExternalAPI) {
-        const script = document.createElement('script');
-        script.src = 'https://meet.jit.si/external_api.js';
-        script.async = true;
-        script.onload = () => initJitsi(roomName);
-        document.body.appendChild(script);
-      } else {
-        initJitsi(roomName);
-      }
-    };
-
-    const initJitsi = (room) => {
-      if (!jitsiContainerRef.current) return;
-      const api = new window.JitsiMeetExternalAPI('meet.jit.si', {
-        roomName: room,
-        parentNode: jitsiContainerRef.current,
-        width: '100%',
-        height: '100%',
-        configOverwrite: {
-          startWithVideoMuted: false,
-          startWithAudioMuted: false,
-          disableDeepLinking: true,
-          prejoinPageEnabled: false,
-          enableWelcomePage: false,
-          disableModeratorIndicator: true,
-        },
-        interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK: false,
-          SHOW_WATERMARK_FOR_GUESTS: false,
-          DEFAULT_REMOTE_DISPLAY_NAME: 'Aspirant',
-          TOOLBAR_BUTTONS: ['microphone', 'camera', 'chat', 'desktop', 'tileview', 'hangup'],
-          DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
-          filmStripOnly: false,
-        },
-        userInfo: {
-          displayName: sessionUser,
-        },
-      });
-
-      api.addEventListeners({
-        readyToClose: leaveJitsiCall,
-        videoConferenceLeft: leaveJitsiCall,
-      });
-
-      jitsiApiRef.current = api;
-    };
-
-    loadJitsi();
-
-    return () => {
-      if (jitsiApiRef.current) {
-        try { jitsiApiRef.current.dispose(); } catch(e) {}
-        jitsiApiRef.current = null;
-      }
-    };
-  }, [inCall, connectRoom]);
 
   // Video Notes
   // Video Notes
@@ -2032,28 +1611,38 @@ const App = () => {
         authPassword={authPassword} setAuthPassword={setAuthPassword}
         authError={authError} setAuthError={setAuthError}
         handleAuth={handleAuth}
-        onQuickSetup={(name) => {
+        usersDb={usersDb}
+        setUsersDb={setUsersDb}
+        onQuickSetup={(name, aim, password) => {
            trackGuestSession();
-           const guestId = name.trim() || 'Guest' + Math.floor(Math.random()*10000);
+           const cleanName = (name || '').trim() || 'Aspirant' + Math.floor(Math.random() * 1000);
            const detectedCountry = detectUserCountry();
            const initialProfile = { 
-             isGuest: false, 
-             xp: 0, 
+             isGuest: !password, 
+             name: cleanName,
+             aim: aim || 'JEE Advanced',
+             prepType: aim?.includes('NEET') ? 'NEET' : (aim?.includes('UPSC') ? 'UPSC' : (aim?.includes('SAT') ? 'SAT' : 'JEE')),
+             targetYear: new Date().getFullYear() + 1,
+             targetHours: 6,
+             xp: 25, 
              joined: new Date().toLocaleDateString(), 
-             prepType: '',
              country: detectedCountry.name,
              countryFlag: detectedCountry.flag,
              countryCode: detectedCountry.code
            };
+           const userEntry = {
+             password: password ? password.trim() : 'none',
+             profile: initialProfile
+           };
            setUsersDb(prev => ({
-             ...prev, [guestId]: {
-               password: 'none',
-               profile: initialProfile
-             }
+             ...prev, 
+             [cleanName]: userEntry
            }));
-           setSessionUser(guestId);
-           localStorage.setItem('planmaker_session', guestId);
-           syncUserToFirebase(guestId, initialProfile);
+           setSessionUser(cleanName);
+           localStorage.setItem('planmaker_session', cleanName);
+           localStorage.removeItem('planmaker_explicit_logout');
+           syncUserToFirebase(cleanName, initialProfile);
+           loadUserData(cleanName);
         }}
       />
     );
@@ -2121,7 +1710,7 @@ const App = () => {
   })).sort((a,b) => b.score - a.score);
   combinedLeaderboard.forEach((lb, i) => lb.rank = i + 1);
 
-    const renderDashboard = () => {
+  const renderDashboard = () => {
     const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     const todayStr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()];
 
@@ -2239,9 +1828,41 @@ const App = () => {
               <button onClick={() => setTimer(sessionType)} style={{padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} title="Reset Timer">
                 <RotateCcw size={17}/>
               </button>
+              <button 
+                onClick={() => setIsZenStudyOpen(true)} 
+                style={{
+                  padding: '10px 14px', 
+                  background: 'rgba(139,92,246,0.15)', 
+                  border: '1px solid rgba(139,92,246,0.3)', 
+                  borderRadius: '100px', 
+                  color: '#c4b5fd', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  fontSize: '0.8rem', 
+                  fontWeight: 700
+                }} 
+                title="Full-Screen Distraction-Free Zen Study Chamber"
+              >
+                <Maximize2 size={15}/>
+                <span>Zen Mode</span>
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Daily Focus Quests (Gamification) */}
+        <DailyFocusQuests
+          completedTasksCount={completedTasks}
+          pomodoroSessionsToday={pomodoroSessionsToday}
+          notesOrJournalCount={(playlist?.filter(v => v.watched)?.length || 0) + (journalHistory?.length || 0)}
+          awardXP={awardXP}
+          sessionUser={sessionUser}
+        />
+
+        {/* Ambient Study Soundscape Player (100% Offline Procedural Audio) */}
+        <AmbientSoundPlayer />
 
         {/* Dashboard Workspace View Tabs */}
         <div className="dashboard-tabs-bar">
@@ -4449,1302 +4070,26 @@ const App = () => {
     );
   };
 
-  const renderStudyConnect = () => {
-    const examRooms = [
-      { id: 'JEE', label: 'JEE Aspirants', color: 'var(--accent-physics)', desc: 'Physics · Chemistry · Maths', icon: <Calculator size={28}/> },
-      { id: 'NEET', label: 'NEET Aspirants', color: 'var(--accent-chem)', desc: 'Physics · Chemistry · Biology', icon: <Stethoscope size={28}/> },
-      { id: 'UPSC', label: 'UPSC Aspirants', color: 'var(--accent-math)', desc: 'History · Polity · Geography', icon: <Landmark size={28}/> },
-      { id: 'NDA', label: 'NDA Aspirants', color: '#14b8a6', desc: 'Maths · General Ability', icon: <Shield size={28}/> },
-      { id: 'SAT', label: 'SAT / ACT', color: '#3b82f6', desc: 'Global College Admissions', icon: <BookOpen size={28}/> },
-      { id: 'MCAT', label: 'MCAT Prep', color: '#10b981', desc: 'Medical College Admissions', icon: <Stethoscope size={28}/> },
-      { id: 'GRE', label: 'GRE / GMAT', color: '#f59e0b', desc: 'Grad School Admissions', icon: <BrainCircuit size={28}/> },
-      { id: 'IB', label: 'IB / AP', color: '#ec4899', desc: 'Global High School Curriculum', icon: <Globe size={28}/> },
-    ];
-    const buildJitsiRoom = (roomId) => `FocusMode-${roomId}-Study`;
-
-    const TOPIC_FILTERS = [
-      { id: 'All', label: '🌐 All Exams' },
-      { id: 'JEE', label: '⚡ JEE Advanced' },
-      { id: 'NEET', label: '🩺 NEET UG' },
-      { id: 'UPSC', label: '🏛️ UPSC IAS' },
-      { id: 'Silent', label: '🤫 Silent Pomodoro' },
-      { id: 'LateNight', label: '🌙 Late Night Shift' }
-    ];
-
-    const BUDDY_POOL = [
-      { id: 'p1', name: 'Aarav Sharma', target: 'JEE Advanced 2026', college: 'IIT Bombay CSE', streak: 18, focus: 'Rotational Motion & Advanced Calculus', motto: 'Hard work beats talent when talent fails to work hard.' },
-      { id: 'p2', name: 'Diya Patel', target: 'NEET UG 2025', college: 'AIIMS New Delhi', streak: 24, focus: 'Human Physiology & Organic Reactions', motto: 'Every NCERT line counts toward the white coat.' },
-      { id: 'p3', name: 'Vikramaditya Roy', target: 'UPSC CSE 2026', college: 'LBSNAA Mussoorie', streak: 31, focus: 'Modern History & Laxmikanth Polity', motto: 'Consistency is the only superpower in UPSC.' },
-      { id: 'p4', name: 'Sneha Kulkarni', target: 'JEE Main & Adv', college: 'IIT Delhi', streak: 12, focus: 'Electrostatics & Thermodynamics PYQs', motto: 'Daily 50 quality problems minimum.' },
-      { id: 'p5', name: 'Rohan Deshmukh', target: 'NEET UG 2025', college: 'JIPMER Puducherry', streak: 15, focus: 'Genetics & Molecular Basis of Inheritance', motto: 'Precision over speed in Biology.' },
-      { id: 'p6', name: 'Ananya Sengupta', target: 'SAT / Global', college: 'MIT / Stanford', streak: 28, focus: 'Advanced Math & Critical Reading', motto: 'Aim for the moon, land among the stars.' },
-      { id: 'p7', name: 'Devansh Verma', target: 'Silent Library 🤫', college: 'BITS Pilani CS', streak: 42, focus: 'Silent Pomodoro Sprint (Zero Distractions)', motto: 'Silence in study, noise in results.' },
-      { id: 'p8', name: 'Pooja Iyer', target: 'Late Night Grind 🌙', college: 'IIT Madras', streak: 19, focus: 'Night Shift Problem Solving', motto: 'The quiet hours belong to those who want it most.' },
-    ];
-
-    const handleStartMatching = (topic = buddyFilterTopic) => {
-      setIsMatchingBuddy(true);
-      setMatchedBuddy(null);
-      setTimeout(() => {
-        let candidates = BUDDY_POOL;
-        if (topic !== 'All') {
-          const matchSub = BUDDY_POOL.filter(b => 
-            b.target.toLowerCase().includes(topic.toLowerCase()) || 
-            b.focus.toLowerCase().includes(topic.toLowerCase())
-          );
-          if (matchSub.length > 0) candidates = matchSub;
-        }
-        const buddy = candidates[Math.floor(Math.random() * candidates.length)];
-        const roomUnique = `FocusMode-Omegle-${buddy.id}-${Math.floor(Date.now() / 60000)}`;
-        setMatchedBuddy({
-          ...buddy,
-          roomName: roomUnique,
-          matchedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-        setIsMatchingBuddy(false);
-        setPeerMessages([
-          { id: Date.now(), sender: buddy.name, text: `Hey ${sessionUser}! 👋 Ready for a 25-minute deep focus sprint? What problem or topic are you working on right now?`, time: 'Just now' }
-        ]);
-        awardXP(15, 'Matched with Study Partner on Omegle Connect');
-      }, 1800);
-    };
-
-    const handleSkipPartner = () => {
-      setIsMatchingBuddy(true);
-      setMatchedBuddy(null);
-      setTimeout(() => {
-        const remaining = BUDDY_POOL.filter(b => b.id !== matchedBuddy?.id);
-        const buddy = remaining[Math.floor(Math.random() * remaining.length)] || BUDDY_POOL[0];
-        const roomUnique = `FocusMode-Omegle-${buddy.id}-${Math.floor(Date.now() / 60000)}`;
-        setMatchedBuddy({
-          ...buddy,
-          roomName: roomUnique,
-          matchedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-        setIsMatchingBuddy(false);
-        setPeerMessages([
-          { id: Date.now(), sender: buddy.name, text: `Hey! Connected with you. Let's hit mute or discuss when needed and crush this session! 📚`, time: 'Just now' }
-        ]);
-        awardXP(5, 'Connected with Next Study Partner');
-      }, 1200);
-    };
-
-    const handleLeaveBuddy = () => {
-      setMatchedBuddy(null);
-      setIsMatchingBuddy(false);
-    };
-
-    const handleSendPeerChat = (text) => {
-      const msgText = (text || peerChatInput).trim();
-      if (!msgText) return;
-      const newMsg = { id: Date.now(), sender: sessionUser, text: msgText, time: 'Just now' };
-      setPeerMessages(prev => [...prev, newMsg]);
-      setPeerChatInput('');
-      
-      setTimeout(() => {
-        const buddyName = matchedBuddy?.name || 'Partner';
-        const dynamicReplies = [
-          `Solid! Let's lock in for 25 minutes of silent problem-solving. Ping me if stuck!`,
-          `Awesome plan! Keep up the momentum. Let's finish this block strong! 🚀`,
-          `Great question! I'm reviewing that topic too. Let's solve 5 problems and compare answers!`,
-          `Got it! Let's stay on camera for accountability and grind out this topic!`
-        ];
-        const rep = dynamicReplies[Math.floor(Math.random() * dynamicReplies.length)];
-        setPeerMessages(prev => [...prev, { id: Date.now() + 1, sender: buddyName, text: rep, time: 'Just now' }]);
-      }, 1400);
-    };
-
-    if (inCall && connectRoom) {
-      const jitsiRoom = buildJitsiRoom(connectRoom);
-      return (
-        <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
-            <div style={{width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981', animation: 'pulse 1.5s infinite'}}></div>
-            <span style={{color: '#10b981', fontWeight: 'bold'}}>Live Room — ${connectRoom}</span>
-            <button onClick={() => { setInCall(false); setConnectRoom(null); }} className="btn-primary" style={{marginLeft: 'auto', background: 'rgba(239,68,68,0.2)', borderColor: 'rgba(239,68,68,0.3)', color: '#f87171', padding: '8px 20px'}}>
-              <VideoOff size={16}/> Leave Room
-            </button>
-          </div>
-          <div className="glass" style={{padding: '0', overflow: 'hidden', borderRadius: '20px', height: '75vh'}}>
-            <iframe
-              src={`https://meet.jit.si/${jitsiRoom}#userInfo.displayName=${encodeURIComponent(sessionUser)}`}
-              style={{width: '100%', height: '100%', border: 'none'}}
-              allow="camera; microphone; fullscreen; display-capture; autoplay"
-              title="Study Connect Room"
-            />
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1000px', margin: '0 auto', width: '100%'}}>
-        
-        {/* Live Aspirant Ticker Header */}
-        <div className="glass" style={{padding: '1.25rem 1.75rem', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', background: 'linear-gradient(90deg, rgba(16,185,129,0.1), rgba(139,92,246,0.1))', border: '1px solid rgba(16,185,129,0.2)'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-            <div style={{width: '12px', height: '12px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 12px #10b981', animation: 'pulse 1.5s infinite'}}></div>
-            <div>
-              <div style={{fontWeight: 800, fontSize: '1rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                <Radio size={16} /> 164 Aspirants Studying Live Right Now
-              </div>
-              <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Turn passive solo study into high-intensity active practice.</div>
-            </div>
-          </div>
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-            <span style={{fontSize: '0.8rem', padding: '6px 12px', borderRadius: '100px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', fontWeight: 600}}>
-              ⚡ Instant 1-on-1 Matching
-            </span>
-          </div>
-        </div>
-
-        {/* Topic Filters Bar */}
-        <div style={{display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none'}}>
-          {TOPIC_FILTERS.map(tf => {
-            const isActive = buddyFilterTopic === tf.id;
-            return (
-              <button
-                key={tf.id}
-                onClick={() => setBuddyFilterTopic(tf.id)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '100px',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                  cursor: 'pointer',
-                  border: isActive ? '1px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.08)',
-                  background: isActive ? 'linear-gradient(90deg, rgba(139,92,246,0.3), rgba(236,72,153,0.3))' : 'rgba(255,255,255,0.04)',
-                  color: isActive ? '#fff' : 'var(--text-muted)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {tf.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── OMEGLE EDUCATION MATCHMAKER SECTION ── */}
-        {isMatchingBuddy ? (
-          /* Radar Scanning View */
-          <div className="omegle-match-hero" style={{minHeight: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative'}}>
-            <div style={{position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem'}}>
-              <div className="omegle-radar-circle" style={{width: '120px', height: '120px'}}></div>
-              <div className="omegle-radar-circle" style={{width: '80px', height: '80px', animationDelay: '0.6s'}}></div>
-              <div className="omegle-radar-circle" style={{width: '40px', height: '40px', animationDelay: '1.2s'}}></div>
-              <div style={{width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, boxShadow: '0 0 20px rgba(139,92,246,0.6)'}}>
-                <Radio size={28} color="#fff" style={{animation: 'spin 4s linear infinite'}} />
-              </div>
-            </div>
-            <h3 style={{fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.5rem', color: '#fff'}}>Scanning For Study Partners...</h3>
-            <p style={{color: '#cbd5e1', fontSize: '0.95rem', maxWidth: '450px', marginBottom: '1.5rem'}}>
-              Searching active aspirants reviewing <strong>{buddyFilterTopic === 'All' ? 'All Subjects' : buddyFilterTopic}</strong>. Encrypting 1-on-1 peer room...
-            </p>
-            <button onClick={() => setIsMatchingBuddy(false)} className="btn-secondary" style={{padding: '8px 24px', fontSize: '0.85rem', borderRadius: '100px'}}>
-              Cancel Search
-            </button>
-          </div>
-        ) : matchedBuddy ? (
-          /* Active 1-on-1 Omegle Matched Studio */
-          <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
-            {/* Top Match Action Bar */}
-            <div className="glass" style={{padding: '1.25rem 1.5rem', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', background: 'linear-gradient(135deg, rgba(88,28,135,0.25), rgba(15,23,42,0.8))', border: '1px solid rgba(168,85,247,0.3)'}}>
-              <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                <div style={{width: '44px', height: '44px', borderRadius: '50%', background: getAvatarColor(matchedBuddy.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', color: '#fff', border: '2px solid rgba(255,255,255,0.2)'}}>
-                  {matchedBuddy.name.charAt(0)}
-                </div>
-                <div>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                    <span style={{fontWeight: 800, fontSize: '1.1rem', color: '#fff'}}>{matchedBuddy.name}</span>
-                    <span style={{fontSize: '0.75rem', padding: '2px 8px', borderRadius: '100px', background: 'rgba(16,185,129,0.2)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', fontWeight: 700}}>🟢 Active Match</span>
-                  </div>
-                  <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
-                    🎯 {matchedBuddy.target} · Aiming for {matchedBuddy.college} · 🔥 {matchedBuddy.streak}d streak
-                  </div>
-                </div>
-              </div>
-
-              {/* Omegle Action Controls */}
-              <div style={{display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'}}>
-                <button
-                  onClick={handleSkipPartner}
-                  className="btn-primary"
-                  style={{
-                    background: 'linear-gradient(90deg, #ec4899, #8b5cf6)',
-                    border: 'none',
-                    padding: '8px 18px',
-                    borderRadius: '100px',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 4px 15px rgba(236,72,153,0.3)'
-                  }}
-                  title="Skip to another study partner"
-                >
-                  <RefreshCw size={15} /> Next Partner (Skip ⏭️)
-                </button>
-                <button
-                  onClick={handleLeaveBuddy}
-                  style={{
-                    background: 'rgba(239,68,68,0.15)',
-                    border: '1px solid rgba(239,68,68,0.3)',
-                    color: '#f87171',
-                    padding: '8px 16px',
-                    borderRadius: '100px',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <VideoOff size={15} /> End Session
-                </button>
-              </div>
-            </div>
-
-            {/* Dual Studio Layout: Jitsi Video Call + Shared Pod Chat */}
-            <div className="omegle-dual-studio">
-              {/* Left Column: Jitsi Live Video Call */}
-              <div className="glass" style={{padding: '0', borderRadius: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.1)', background: '#0b0f19'}}>
-                <div style={{padding: '10px 16px', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)'}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 600}}>
-                    <Video size={16} color="var(--accent-physics)" /> Peer Video & Audio Sync
-                  </div>
-                  <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Encrypted Room</span>
-                </div>
-                <div style={{flex: 1, minHeight: '380px'}}>
-                  <iframe
-                    src={`https://meet.jit.si/${matchedBuddy.roomName}#userInfo.displayName=${encodeURIComponent(sessionUser)}`}
-                    style={{width: '100%', height: '100%', border: 'none'}}
-                    allow="camera; microphone; fullscreen; display-capture; autoplay"
-                    title="Omegle Study Partner Call"
-                  />
-                </div>
-              </div>
-
-              {/* Right Column: Shared Accountability Pod & Instant Chat */}
-              <div className="glass" style={{padding: '1.25rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(255,255,255,0.1)', background: 'linear-gradient(180deg, rgba(30,27,75,0.3) 0%, rgba(15,23,42,0.6) 100%)'}}>
-                
-                {/* Partner Academic Goals Card */}
-                <div style={{padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)'}}>
-                  <div style={{fontSize: '0.8rem', color: 'var(--accent-math)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px'}}>
-                    Partner's Current Focus
-                  </div>
-                  <div style={{fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', marginBottom: '4px'}}>
-                    {matchedBuddy.focus}
-                  </div>
-                  <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic'}}>
-                    "{matchedBuddy.motto}"
-                  </div>
-                </div>
-
-                {/* Quick Prompts Bar */}
-                <div style={{display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none'}}>
-                  <button onClick={() => handleSendPeerChat("🔥 Let's lock in for a 25m silent sprint!")} style={{padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', cursor: 'pointer', whiteSpace: 'nowrap'}}>
-                    🔥 25m Silent Sprint
-                  </button>
-                  <button onClick={() => handleSendPeerChat("❓ Can you quiz me on quick formulas?")} style={{padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', cursor: 'pointer', whiteSpace: 'nowrap'}}>
-                    ❓ Quiz Me
-                  </button>
-                  <button onClick={() => handleSendPeerChat("✅ Solved 5 practice questions!")} style={{padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', cursor: 'pointer', whiteSpace: 'nowrap'}}>
-                    ✅ Solved 5 Qs
-                  </button>
-                  <button onClick={() => handleSendPeerChat("☕ Quick 3m water break!")} style={{padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', cursor: 'pointer', whiteSpace: 'nowrap'}}>
-                    ☕ 3m Break
-                  </button>
-                </div>
-
-                {/* Chat Messages Stream */}
-                <div style={{flex: 1, minHeight: '160px', maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '14px'}}>
-                  {peerMessages.map(msg => {
-                    const isMe = msg.sender === sessionUser;
-                    return (
-                      <div key={msg.id} style={{alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%'}}>
-                        <div style={{fontSize: '0.7rem', color: isMe ? 'var(--accent-physics)' : 'var(--accent-chem)', marginBottom: '2px', textAlign: isMe ? 'right' : 'left', fontWeight: 600}}>
-                          {isMe ? 'You' : msg.sender} · {msg.time}
-                        </div>
-                        <div style={{padding: '8px 12px', borderRadius: '12px', fontSize: '0.85rem', lineHeight: 1.35, background: isMe ? 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(99,102,241,0.3))' : 'rgba(255,255,255,0.06)', border: isMe ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.08)', color: '#f8fafc'}}>
-                          {msg.text}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Chat Input Bar */}
-                <div style={{display: 'flex', gap: '8px'}}>
-                  <input
-                    type="text"
-                    value={peerChatInput}
-                    onChange={e => setPeerChatInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleSendPeerChat(); }}
-                    placeholder="Message study buddy..."
-                    className="input-field"
-                    style={{fontSize: '0.85rem', padding: '10px 14px'}}
-                  />
-                  <button onClick={() => handleSendPeerChat()} className="btn-primary" style={{padding: '0 16px', borderRadius: '12px'}}>
-                    <Send size={15} />
-                  </button>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Idle Matchmaker Hero Card */
-          <div className="omegle-match-hero">
-            <div style={{display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '100px', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', color: '#c084fc', fontSize: '0.85rem', fontWeight: 700, marginBottom: '1.25rem'}}>
-              <Sparkles size={16} /> Omegle For Serious Education · 1-on-1 Instant Match
-            </div>
-            
-            <h2 style={{fontSize: 'clamp(1.6rem, 3.5vw, 2.4rem)', fontWeight: 900, marginBottom: '0.75rem', lineHeight: 1.2, color: '#fff'}}>
-              Find a Random Serious Study Partner
-            </h2>
-            
-            <p style={{color: '#cbd5e1', fontSize: 'clamp(0.95rem, 2vw, 1.1rem)', maxWidth: '620px', margin: '0 auto 2rem', lineHeight: 1.5}}>
-              Skip the isolation. Get instantly connected on video + synchronized chat with an aspirant studying your exact target. Keep each other accountable for 25-minute deep work blocks.
-            </p>
-
-            <div style={{display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem'}}>
-              <button
-                onClick={() => handleStartMatching()}
-                className="btn-primary"
-                style={{
-                  padding: '14px 32px',
-                  borderRadius: '100px',
-                  fontSize: '1.05rem',
-                  fontWeight: 800,
-                  background: 'linear-gradient(90deg, #8b5cf6, #ec4899)',
-                  border: 'none',
-                  boxShadow: '0 8px 30px rgba(139,92,246,0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  cursor: 'pointer'
-                }}
-              >
-                <Radio size={20} /> Start 1-on-1 Matching Now
-              </button>
-            </div>
-
-            <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'clamp(1rem, 3vw, 2.5rem)', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem'}}>
-              <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                <Shield size={16} color="var(--accent-success)" /> 100% Academic & Safe
-              </div>
-              <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                <RefreshCw size={16} color="var(--accent-physics)" /> Skip / Next Partner Anytime
-              </div>
-              <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                <Clock size={16} color="var(--accent-math)" /> Shared 25m Pomodoro Accountability
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── SCHEDULED LIVE STUDY EVENTS ── */}
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)'}}>
-           <h3 style={{fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px'}}><Calendar size={22} color="var(--accent-math)"/> Scheduled Group Sprints</h3>
-           <button className="btn-primary" onClick={() => setShowEventModal(true)} style={{borderRadius: '100px', background: 'linear-gradient(90deg, var(--accent-math), var(--accent-physics))', border: 'none', padding: '8px 18px', fontSize: '0.85rem'}}>+ Schedule Sprint</button>
-        </div>
-        
-        {showEventModal && (
-          <div className="animate-fade-in" style={{background: 'rgba(0,0,0,0.8)', position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', padding: '1rem'}}>
-            <div style={{background: '#0f172a', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid #334155', width: '100%', maxWidth: '440px', borderRadius: '24px', position: 'relative', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'}}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <h3 style={{fontSize: '1.25rem', fontWeight: 800}}>Schedule Study Sprint</h3>
-                <button onClick={() => setShowEventModal(false)} style={{background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer'}}><X size={20}/></button>
-              </div>
-              <input type="text" placeholder="Session Title (e.g. HC Verma Mechanics Sprint)" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} className="input-field" />
-              <input type="text" placeholder="Time (e.g. Today 8:00 PM IST)" value={newEventTime} onChange={e => setNewEventTime(e.target.value)} className="input-field" />
-              <select value={newEventDuration} onChange={e => setNewEventDuration(e.target.value)} className="input-field">
-                <option value="25 mins (1 Pomodoro)">25 mins (1 Pomodoro)</option>
-                <option value="50 mins (2 Pomodoros)">50 mins (2 Pomodoros)</option>
-                <option value="90 mins (Deep Grind)">90 mins (Deep Grind)</option>
-                <option value="2 Hours (Mock Review)">2 Hours (Mock Review)</option>
-              </select>
-              <button className="btn-primary" onClick={() => {
-                if (newEventTitle.trim()) {
-                  createEvent(newEventTitle, currentUserProfile?.prepType, newEventTime, newEventDuration);
-                  setShowEventModal(false);
-                  setNewEventTitle('');
-                  awardXP(20, 'Scheduled a Live Study Sprint');
-                }
-              }}>Publish Sprint</button>
-            </div>
-          </div>
-        )}
-
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem'}}>
-          {studyEvents.length === 0 ? (
-            <div className="glass" style={{padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', gridColumn: '1 / -1', borderRadius: '18px'}}>
-              No scheduled sprints yet. Click '+ Schedule Sprint' above to host one for fellow aspirants!
-            </div>
-          ) : (
-            studyEvents.map(e => (
-              <div key={e.id} className="glass" style={{padding: '1.25rem', borderRadius: '18px', background: 'linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.06)'}}>
-                 <h4 style={{fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.4rem', lineHeight: 1.3}}>{e.title}</h4>
-                 <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.8rem'}}>
-                   <div style={{width: '20px', height: '20px', borderRadius: '50%', background: getAvatarColor(e.host || 'Guest'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 'bold'}}>{(e.host || 'G').charAt(0).toUpperCase()}</div>
-                   <p style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>{e.host || 'Host'}</p>
-                 </div>
-                 <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1rem', flexWrap: 'wrap'}}>
-                   <span style={{fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '4px 10px', borderRadius: '6px', color: 'var(--accent-math)', fontWeight: 700}}>⏰ {e.scheduledTime}</span>
-                   {e.duration && <span style={{fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '4px 10px', borderRadius: '6px', color: '#cbd5e1'}}>⏳ {e.duration}</span>}
-                 </div>
-                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem'}}>
-                   <span style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>👥 {e.participants?.length || 1} joined</span>
-                   <div style={{display: 'flex', gap: '6px'}}>
-                     <button onClick={() => deleteEvent(e.id)} style={{background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px'}} title="Delete"><Trash2 size={15} /></button>
-                     <button onClick={() => shareToWhatsApp(e.id, e.title)} style={{background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: '4px'}} title="Share on WhatsApp"><Send size={15} /></button>
-                     <button className="btn-primary" onClick={() => { joinEvent(e.id); setConnectRoom(e.id); setInCall(true); awardXP(10, 'Joined a Scheduled Event'); }} style={{padding: '6px 14px', fontSize: '0.8rem', borderRadius: '100px'}}>Join</button>
-                   </div>
-                 </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* ── EXAM STUDY POD LOUNGES ── */}
-        <h3 style={{fontSize: '1.3rem', fontWeight: 800, marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-          <Globe size={22} color="var(--accent-physics)" /> 24/7 Dedicated Exam Lounges
-        </h3>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.25rem'}}>
-          {examRooms.map(room => (
-            <div
-              key={room.id}
-              className="glass subject-card"
-              style={{
-                padding: '1.75rem 1.25rem',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.75rem',
-                cursor: 'pointer',
-                borderColor: room.id === currentUserProfile?.prepType ? room.color : '',
-                transition: 'all 0.25s'
-              }}
-              onClick={() => { setConnectRoom(room.id); setInCall(true); awardXP(10, 'Joined Study Connect Room'); }}
-            >
-              <div style={{color: room.color, background: `${room.color}22`, border: `1px solid ${room.color}44`, borderRadius: '14px', padding: '12px'}}>
-                {room.icon}
-              </div>
-              <h4 style={{fontSize: '1.1rem', fontWeight: 700}}>{room.label}</h4>
-              <p style={{color: 'var(--text-muted)', fontSize: '0.8rem'}}>{room.desc}</p>
-              {room.id === currentUserProfile?.prepType && (
-                <span style={{background: `${room.color}33`, color: room.color, border: `1px solid ${room.color}55`, padding: '2px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700}}>Your Exam ⭐</span>
-              )}
-              <button className="btn-primary" style={{width: '100%', background: `${room.color}22`, borderColor: `${room.color}55`, color: room.color, marginTop: '4px', fontSize: '0.85rem', padding: '8px'}}>
-                <PhoneCall size={14}/> Enter Lounge
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* ── PRIVATE STUDY ROOM ── */}
-        <div className="glass" style={{padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderRadius: '20px'}}>
-          <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700}}>
-            <Wifi size={18} color="var(--accent-success)"/> Create Private 1-on-1 Study Room
-          </h4>
-          <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Create an instant custom link and send to a study partner to practice together privately.</p>
-          <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap'}}>
-            <input type="text" className="input-field" placeholder="Enter custom room name (e.g. JEE-Crack-Batch-2025)" value={customRoomName} onChange={e => setCustomRoomName(e.target.value)} style={{flex: '1 1 200px'}} />
-            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { shareToWhatsApp(customRoomName.trim()); } }} style={{background: '#10b981', color: 'white'}} disabled={!customRoomName.trim()}><Send size={15}/> Share Invite</button>
-            <button className="btn-primary" onClick={() => { if (customRoomName.trim()) { setConnectRoom(customRoomName.trim()); setInCall(true); awardXP(10, 'Joined Private Study Room'); } }} disabled={!customRoomName.trim()}><PhoneCall size={15}/> Start Private Call</button>
-          </div>
-        </div>
-
-      </div>
-    );
-  };
-
-
-  const renderLectures = () => {
-    const activeVideoObj = playlist.find(v => v.id === activeVideo);
-    const activeData = videoNotes[activeVideo] || { notes: '', mistakes: '' };
-    
-    const isHorizontal = false;
-
-    return (
-      <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '2rem'}} ref={videoTopRef}>
-        {activeVideo ? (
-          <div style={{display: 'grid', gap: '1.5rem', alignItems: 'start', gridTemplateColumns: `repeat(auto-fit, minmax(${isHorizontal ? '400px' : '100%'}, 1fr))`}}>
-            <div className="glass lecture-video-container" style={{padding: '1rem', background: '#000', borderRadius: '20px', overflow: 'hidden', position: 'relative'}}>
-              <button className="pip-close-btn" onClick={() => setActiveVideo(null)}><X size={14}/></button>
-              <div style={{position: 'relative', paddingBottom: '56.25%', height: 0, background: '#111', borderRadius: '12px', overflow: 'hidden'}}>
-                {isVideoLoading && (
-                  <div className="premium-loader-overlay">
-                    <div className="premium-loader-container">
-                      <div className="premium-loader-orb">
-                         <BrainCircuit size={28} className="premium-loader-icon" />
-                      </div>
-                      <div className="premium-loader-text">Loading Lecture</div>
-                      <div className="premium-loader-progress-container">
-                        <div className="premium-loader-progress-bar"></div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%'}} dangerouslySetInnerHTML={{ __html: '<div id="youtube-player" style="width:100%;height:100%"></div>' }} />
-                <div className="pip-expand-overlay" onClick={() => handleTabChange('lectures')}>
-                   <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
-                     <Columns size={32} />
-                     <span style={{fontWeight: 'bold'}}>Return to Lectures</span>
-                   </div>
-                </div>
-              </div>
-              <div className="video-header-controls" style={{display: 'flex', justifyContent: 'space-between', padding: '10px 10px 0', color: '#fff', flexWrap: 'wrap', gap: '10px'}}>
-                <span style={{fontWeight: 'bold', fontSize: '1.1rem'}}>{activeVideoObj?.title}</span>
-              </div>
-            </div>
-            
-            <div className="glass lecture-notes-section" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', maxHeight: isHorizontal ? '600px' : 'auto'}}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <h3 style={{fontSize: '1.1rem', fontWeight: 'bold'}}>Lecture Notes</h3>
-                <button className="btn-primary" onClick={() => downloadNote(activeVideoObj)} style={{padding: '6px 12px', fontSize: '0.8rem'}}><Download size={14}/> Export</button>
-              </div>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, overflowY: 'auto', paddingRight: '5px'}}>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1}}>
-                  <label style={{fontSize: '0.85rem', color: 'var(--accent-physics)', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between'}}>
-                    <span>📝 Key Notes</span>
-                    {activeData.lastUpdated && <span style={{color: 'var(--text-muted)', fontWeight: 'normal'}}>{activeData.lastUpdated}</span>}
-                  </label>
-                  <textarea 
-                    className="input-field" 
-                    style={{flex: 1, minHeight: '120px', resize: 'vertical', fontSize: '0.9rem', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)'}} 
-                    placeholder="Jot down important formulas, concepts..."
-                    value={activeData.notes}
-                    onChange={(e) => saveVideoNote(activeVideo, 'notes', e.target.value)}
-                  />
-                </div>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1}}>
-                  <label style={{fontSize: '0.85rem', color: '#f87171', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                    <span>⚠️ Mistakes & Doubts</span>
-                    <button className="btn-icon" onClick={() => askAIDoubt(activeData.mistakes)} title="Solve doubt with AI" style={{color: '#f87171', padding: '4px 8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}><HelpCircle size={14} /> Ask AI</button>
-                  </label>
-                  <textarea 
-                    className="input-field" 
-                    style={{flex: 1, minHeight: '100px', resize: 'vertical', fontSize: '0.9rem', lineHeight: 1.5, background: 'rgba(239, 68, 68, 0.05)', borderColor: 'rgba(239, 68, 68, 0.2)'}} 
-                    placeholder="Log mistakes or paste a doubt here, then click 'Ask AI'..."
-                    value={activeData.mistakes}
-                    onChange={(e) => saveVideoNote(activeVideo, 'mistakes', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="glass lecture-empty-state" style={{padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', color: 'var(--text-muted)'}}>
-            <MonitorPlay size={64} style={{opacity: 0.5}} />
-            <p>Select a video from your playlist or add a new one to start watching ad-free.</p>
-          </div>
-        )}
-        
-        <form className="glass lecture-add-form" style={{padding: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center'}} onSubmit={handleAddVideo}>
-          <div className="input-group" style={{flex: '1 1 250px'}}>
-            <Video size={18} className="input-icon" />
-            <input type="text" className="input-field with-icon" placeholder="Paste YouTube Link (Normal or Live)..." value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} style={{width: '100%'}} />
-          </div>
-          <input type="text" className="input-field" placeholder="Video Title (e.g. Thermodynamics Part 1)" value={newVideoTitle} onChange={e => setNewVideoTitle(e.target.value)} style={{flex: '1 1 200px'}} />
-          <button type="submit" className="btn-primary" style={{flex: '0 0 auto', whiteSpace: 'nowrap'}}><Plus size={18} /> Add to Playlist (+5 XP)</button>
-        </form>
-        
-        <div className="lecture-playlist-section" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem'}}>
-          {playlist.map(video => {
-            const prog = videoProgress[video.id];
-            const percent = prog ? Math.min(100, (prog.time / prog.duration) * 100) : 0;
-            return (
-            <div key={video.id} className="glass subject-card" style={{display: 'flex', flexDirection: 'column', gap: '1rem', cursor: 'pointer', border: activeVideo === video.id ? '2px solid var(--accent-physics)' : ''}} onClick={() => { setActiveVideo(video.id); awardXP(10, 'Started a Lecture'); setTimeout(() => videoTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>
-              <div style={{position: 'relative', paddingBottom: '56.25%', borderRadius: '10px', overflow: 'hidden', background: '#111'}}>
-                <img src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`} alt="thumbnail" style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8}} />
-                <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                  <div style={{background: 'rgba(0,0,0,0.6)', padding: '12px', borderRadius: '50%', color: 'white', backdropFilter: 'blur(4px)'}}><Play size={24} fill="white" /></div>
-                </div>
-                {/* Premium Paid Batch Progress Bar */}
-                {percent > 0 && (
-                  <div style={{position: 'absolute', bottom: 0, left: 0, width: '100%', height: '4px', background: 'rgba(255,255,255,0.3)'}}>
-                    <div style={{height: '100%', width: `${percent}%`, background: 'var(--accent-physics)', boxShadow: '0 0 10px var(--accent-physics)'}}></div>
-                  </div>
-                )}
-              </div>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-
-                <div>
-                  <h4 style={{fontWeight: 600, fontSize: '1.05rem', marginBottom: '6px', lineHeight: 1.3, textDecoration: video.watched || prog?.completed ? 'line-through' : 'none', color: video.watched || prog?.completed ? 'var(--text-muted)' : 'white'}}>{video.title}</h4>
-                  <div style={{display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap'}}>
-                    <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>{video.addedAt}</span>
-                    {(videoNotes[video.id]?.notes || videoNotes[video.id]?.mistakes) && (
-                      <span style={{fontSize: '0.7rem', padding: '2px 6px', background: 'rgba(139,92,246,0.15)', color: 'var(--accent-physics)', borderRadius: '100px', fontWeight: 'bold'}}>Has Notes</span>
-                    )}
-                    {prog && !prog.completed && percent > 0 && percent < 95 && (
-                      <span style={{fontSize: '0.7rem', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent-physics)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>
-                        {Math.round(percent)}% Watched
-                      </span>
-                    )}
-                    {(video.watched || prog?.completed) && (
-                      <span style={{fontSize: '0.7rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>
-                        Completed
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end'}}>
-                   <button onClick={(e) => { e.stopPropagation(); removeVideo(video.id, e); }} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex'}}><Trash2 size={16}/></button>
-                   <label style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: video.watched || prog?.completed ? 'var(--accent-success)' : 'var(--text-muted)', cursor: 'pointer'}} onClick={e => e.stopPropagation()}>
-                     <input type="checkbox" checked={!!(video.watched || prog?.completed)} onChange={(e) => toggleVideoWatched(e, video.id)} />
-                     {video.watched || prog?.completed ? 'Watched' : 'Mark'}
-                   </label>
-                </div>
-              </div>
-            </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderProfile = () => {
-    try {
-      const streak = studyStreak || 0;
-      const safeUser = sessionUser || 'Aspirant';
-      let totalTasksCompleted = 0;
-      
-      // Defensively count completed tasks (handles tasks with subtasks OR standalone tasks)
-      (subjects || []).forEach(s => {
-        (s?.tasks || []).forEach(t => {
-          if (Array.isArray(t?.subtasks) && t.subtasks.length > 0) {
-            t.subtasks.forEach(st => { if (st?.completed) totalTasksCompleted++; });
-          } else if (t?.completed) {
-            totalTasksCompleted++;
-          }
-        });
-      });
-
-      const totalNotes = Object.keys(videoNotes || {}).filter(k => videoNotes[k]?.notes || videoNotes[k]?.mistakes).length;
-      const totalJournals = Array.isArray(journalHistory) && journalHistory.length > 0
-        ? (journalHistory[journalHistory.length - 1]?.date === 'Welcome' ? Math.max(0, journalHistory.length - 1) : journalHistory.length)
-        : 0;
-      const userPosts = (feed || []).filter(f => f?.user === sessionUser);
-      
-      const xpForNextLevel = (level || 1) * 100;
-      const progressPercent = Math.min(100, Math.max(0, (((currentXP || 0) % 100) / 100) * 100));
-
-      // Achievement Badges Configuration
-      const ACHIEVEMENT_BADGES = [
-        { id: 'b1', title: 'Velocity Starter', icon: '⚡', desc: 'Completed your first practice task', unlocked: totalTasksCompleted > 0, progress: totalTasksCompleted > 0 ? '1/1 Done' : '0/1 Task' },
-        { id: 'b2', title: 'Active Recall Pro', icon: '🧠', desc: 'Generated lecture quizzes or logged mistakes', unlocked: (Array.isArray(mistakesList) && mistakesList.length > 0) || totalNotes > 0, progress: (Array.isArray(mistakesList) && mistakesList.length > 0) ? 'Active Master' : 'Log 1 Mistake' },
-        { id: 'b3', title: 'Focus Titan', icon: '⏱️', desc: 'Completed 25m+ deep Pomodoro sessions', unlocked: streak > 0 || totalTasksCompleted >= 3, progress: streak > 0 ? `${streak}d Streak` : 'Start 1 Sprint' },
-        { id: 'b4', title: 'Study Connector', icon: '🤝', desc: 'Connected on Omegle 1-on-1 study matching', unlocked: true, progress: 'Unlocked' },
-        { id: 'b5', title: 'Streak Warrior', icon: '🔥', desc: 'Maintained consecutive daily study streak', unlocked: streak >= 2, progress: `${streak}/2 Days` },
-        { id: 'b6', title: 'Grand Scholar', icon: '🏆', desc: 'Earned 100+ lifetime XP through practice', unlocked: (currentXP || 0) >= 100, progress: `${currentXP || 0}/100 XP` }
-      ];
-
-      const detectedCountry = detectUserCountry();
-      const currentCountry = currentUserProfile?.country || detectedCountry.name;
-      const currentCountryFlag = currentUserProfile?.countryFlag || detectedCountry.flag;
-      const currentCountryCode = currentUserProfile?.countryCode || detectedCountry.code;
-
-      const currentBio = currentUserProfile?.bio || "Dedicated aspirant relentless on the daily grind. Focus Mode 24/7.";
-      const currentCollege = currentUserProfile?.dreamCollege || "IIT Bombay / AIIMS Delhi";
-      const currentMotto = currentUserProfile?.motto || "Champions do in practice what they expect to perform in the arena.";
-      const currentStrengths = currentUserProfile?.strengths || "Kinematics, Organic Reactions, Rapid Problem Solving";
-      const currentWeakness = currentUserProfile?.weakness || "Time management in full-length mocks";
-      const currentHours = currentUserProfile?.targetHours || 8;
-
-      const openEditProfile = () => {
-        setEditProfileData({
-          name: sessionUser || '',
-          prepType: currentUserProfile?.prepType || 'JEE',
-          targetYear: currentUserProfile?.targetYear || new Date().getFullYear(),
-          dreamCollege: currentCollege,
-          bio: currentBio,
-          motto: currentMotto,
-          strengths: currentStrengths,
-          weakness: currentWeakness,
-          targetHours: currentHours,
-          country: currentCountry,
-          countryFlag: currentCountryFlag,
-          countryCode: currentCountryCode,
-        });
-        setIsEditingProfile(true);
-      };
-
-      const handleSaveProfile = () => {
-        try {
-          const rawName = (editProfileData.name || '').trim();
-          const newName = rawName || sessionUser || 'Aspirant';
-          const sanitizedName = newName.replace(/[.#$[\]/]/g, '_').trim() || 'Aspirant';
-
-          if (sanitizedName !== sessionUser && usersDb[sanitizedName]) {
-            alert("Username already taken! Please choose a different username.");
-            return;
-          }
-
-          const countryObj = getCountryData(editProfileData.country);
-          const oldUsername = sessionUser;
-
-          setUsersDb(prev => {
-            const newDb = { ...prev };
-            const existingUser = (oldUsername && newDb[oldUsername]) ? newDb[oldUsername] : { profile: {} };
-            const updatedProfile = {
-              ...(existingUser.profile || {}),
-              name: sanitizedName,
-              prepType: editProfileData.prepType || 'JEE',
-              targetYear: editProfileData.targetYear || new Date().getFullYear(),
-              dreamCollege: (editProfileData.dreamCollege || '').trim(),
-              bio: (editProfileData.bio || '').trim(),
-              motto: (editProfileData.motto || '').trim(),
-              strengths: (editProfileData.strengths || '').trim(),
-              weakness: (editProfileData.weakness || '').trim(),
-              targetHours: Math.max(1, Math.min(24, Number(editProfileData.targetHours) || 8)),
-              country: countryObj.name,
-              countryFlag: countryObj.flag,
-              countryCode: countryObj.code,
-              lastActive: Date.now()
-            };
-
-            if (sanitizedName !== oldUsername) {
-              if (oldUsername && newDb[oldUsername]) {
-                delete newDb[oldUsername];
-              }
-              newDb[sanitizedName] = {
-                ...existingUser,
-                profile: updatedProfile
-              };
-
-              const keys = [
-                'pm_sub_', 'pm_jour_', 'pm_playlist_', 'pm_planner_',
-                'pm_syllabus_', 'pm_notes_', 'pm_streak_', 'pm_lastdate_', 'pm_mistakes_'
-              ];
-              if (oldUsername) {
-                keys.forEach(k => {
-                  try {
-                    const val = localStorage.getItem(`${k}${oldUsername}`);
-                    if (val !== null) {
-                      localStorage.setItem(`${k}${sanitizedName}`, val);
-                      localStorage.removeItem(`${k}${oldUsername}`);
-                    }
-                  } catch (e) {
-                    console.warn("Storage migration error for key:", k, e);
-                  }
-                });
-              }
-
-              setSessionUser(sanitizedName);
-              localStorage.setItem('planmaker_session', sanitizedName);
-
-              if (oldUsername) {
-                removeUserFromFirebase(oldUsername).catch(e => console.warn("Firebase removal error:", e));
-              }
-            } else {
-              newDb[sanitizedName] = {
-                ...existingUser,
-                profile: updatedProfile
-              };
-            }
-
-            // Sync updated profile to Firebase backend immediately
-            syncUserToFirebase(sanitizedName, updatedProfile).catch(e => console.warn("Firebase sync error:", e));
-
-            return newDb;
-          });
-
-          awardXP(20, 'Updated Profile & Academic Goals', sanitizedName);
-          try {
-            localStorage.setItem('pm_user_country_customized', 'true');
-            trackUserCountry(countryObj, 'user_profile_edit');
-          } catch {}
-          setIsEditingProfile(false);
-        } catch (err) {
-          console.error("Critical error in handleSaveProfile:", err);
-          alert("Could not update profile. Please try again.");
-        }
-      };
-
-      return (
-        <div className="animate-fade-in ig-profile-wrapper">
-        
-        {/* ── TOP HEADER / USERNAME BAR ── */}
-        <div className="ig-profile-top-bar">
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
-            <span style={{fontWeight: 800, fontSize: '1.2rem', color: '#fff', letterSpacing: '-0.3px'}}>
-              {safeUser}
-            </span>
-            <span className="ig-verified-badge" title="Verified FocusMode Aspirant">✓</span>
-            <span 
-              className="ig-country-badge" 
-              title={`Aspirant from ${currentCountry}`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '3px 10px',
-                borderRadius: '100px',
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                color: '#e2e8f0'
-              }}
-            >
-              <span>{currentCountryFlag}</span> {currentCountry}
-            </span>
-          </div>
-
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-            <button 
-              className="btn-secondary" 
-              onClick={() => setProfileActiveTab('theme')} 
-              style={{padding: '6px 12px', fontSize: '0.78rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px'}}
-              title="Appearance & Themes"
-            >
-              <Sparkles size={14} color="var(--accent-math)"/> Theme
-            </button>
-            {isGuest ? (
-              <button 
-                onClick={() => { setAuthWallMsg('Create an account to save your progress permanently.'); setShowAuthWall(true); }}
-                style={{padding: '6px 12px', fontSize: '0.78rem', borderRadius: '8px', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer'}}
-              >
-                Sign Up
-              </button>
-            ) : (
-              <button 
-                onClick={handleLogout}
-                style={{padding: '6px 10px', fontSize: '0.78rem', borderRadius: '8px', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'}}
-                title="Logout"
-              >
-                <LogOut size={14}/>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ── PROFILE HEADER: AVATAR & 3 STATS (INSTAGRAM STYLE) ── */}
-        <div className="ig-header-layout">
-          {/* Circular Story Avatar */}
-          <div className="ig-avatar-ring" onClick={openEditProfile} title="Click to edit profile">
-            <div className="ig-avatar-inner" style={{background: getAvatarColor(safeUser)}}>
-              {safeUser.charAt(0).toUpperCase()}
-            </div>
-            <div style={{position: 'absolute', bottom: '3px', right: '5px', width: '16px', height: '16px', borderRadius: '50%', background: '#10b981', border: '2.5px solid #0b0f19'}} title="Active Studying"/>
-          </div>
-
-          {/* 3 Horizontal Instagram Stats */}
-          <div className="ig-stats-row">
-            <div className="ig-stat-col" onClick={() => setProfileActiveTab('stats')}>
-              <div className="ig-stat-num">{totalTasksCompleted}</div>
-              <div className="ig-stat-label">Tasks Done</div>
-            </div>
-            <div className="ig-stat-col" onClick={() => setProfileActiveTab('stats')}>
-              <div className="ig-stat-num">Lvl {level}</div>
-              <div className="ig-stat-label">{currentXP} XP</div>
-            </div>
-            <div className="ig-stat-col" onClick={() => setProfileActiveTab('stats')}>
-              <div className="ig-stat-num" style={{color: '#f97316'}}>{streak}d 🔥</div>
-              <div className="ig-stat-label">Streak</div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── BIO & ASPIRANT STATEMENT ── */}
-        <div className="ig-bio-section">
-          <div className="ig-username-title">
-            <span>{isGuest ? 'Guest Aspirant' : safeUser}</span>
-            <span style={{fontSize: '0.75rem', color: '#10b981', fontWeight: 700}}>• Online</span>
-          </div>
-
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8', margin: '2px 0 6px 0', flexWrap: 'wrap'}}>
-            <span style={{color: '#f8fafc', fontWeight: 600}}>📍 {currentCountryFlag} {currentCountry}</span>
-            <span>•</span>
-            <span>🎓 {currentUserProfile?.prepType || 'JEE'} Aspirant</span>
-            <span>• Class of {currentUserProfile?.targetYear || '2026'}</span>
-          </div>
-
-          <div className="ig-target-college">
-            🎯 Target: <strong>{currentCollege}</strong>
-          </div>
-
-          <div className="ig-bio-description">
-            {currentBio}
-          </div>
-
-          {currentMotto && (
-            <div className="ig-bio-quote">
-              💡 "{currentMotto}"
-            </div>
-          )}
-
-          {currentStrengths && (
-            <div className="ig-bio-meta">
-              ⚡ Strengths: {currentStrengths}
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="ig-action-bar">
-            <button 
-              className="ig-btn ig-btn-primary"
-              onClick={openEditProfile}
-            >
-              Edit profile
-            </button>
-            <button 
-              className="ig-btn ig-btn-secondary"
-              onClick={() => setProfileActiveTab(profileActiveTab === 'stats' ? 'badges' : 'stats')}
-            >
-              {profileActiveTab === 'stats' ? 'Badges' : 'Stats & Goals'}
-            </button>
-            <button 
-              className="ig-btn ig-btn-secondary"
-              onClick={() => setProfileActiveTab('theme')}
-            >
-              Themes
-            </button>
-          </div>
-        </div>
-
-        {/* ── EDIT PROFILE INLINE CARD (WHEN ACTIVE) ── */}
-        {isEditingProfile && (
-          <div className="ig-edit-card animate-fade-in">
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px'}}>
-              <h3 style={{fontSize: '1.05rem', fontWeight: 800, color: '#fff', margin: 0}}>✏️ Edit Profile</h3>
-              <button onClick={() => setIsEditingProfile(false)} style={{background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer'}}><X size={18}/></button>
-            </div>
-
-            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginTop: '6px'}}>
-              <div>
-                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Username</label>
-                <input 
-                  type="text" 
-                  value={editProfileData.name || ''} 
-                  onChange={e => setEditProfileData(prev => ({...prev, name: e.target.value}))} 
-                  className="input-field" 
-                  placeholder="Username" 
-                />
-              </div>
-              <div>
-                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Country / Region</label>
-                <select 
-                  value={editProfileData.country || currentCountry || 'International / Global'} 
-                  onChange={e => {
-                    const countryObj = getCountryData(e.target.value);
-                    setEditProfileData(prev => ({
-                      ...prev,
-                      country: countryObj.name,
-                      countryFlag: countryObj.flag,
-                      countryCode: countryObj.code
-                    }));
-                  }} 
-                  className="input-field"
-                  style={{cursor: 'pointer'}}
-                >
-                  {(!COUNTRIES.some(c => c.name === editProfileData.country) && editProfileData.country) && (
-                    <option value={editProfileData.country}>
-                      {editProfileData.countryFlag || '🌍'} {editProfileData.country}
-                    </option>
-                  )}
-                  {COUNTRIES.map(c => (
-                    <option key={c.code} value={c.name}>
-                      {c.flag} {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Exam Target</label>
-                <select 
-                  value={editProfileData.prepType || 'JEE'} 
-                  onChange={e => setEditProfileData(prev => ({...prev, prepType: e.target.value}))} 
-                  className="input-field"
-                >
-                  <option value="JEE">JEE (Advanced & Main)</option>
-                  <option value="NEET">NEET UG</option>
-                  <option value="UPSC">UPSC CSE</option>
-                  <option value="NDA">NDA</option>
-                  <option value="SAT">SAT / Global</option>
-                  <option value="General">General / Board Exams</option>
-                </select>
-              </div>
-              <div>
-                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Target Year</label>
-                <input 
-                  type="number" 
-                  value={editProfileData.targetYear || ''} 
-                  onChange={e => setEditProfileData(prev => ({...prev, targetYear: e.target.value}))} 
-                  className="input-field" 
-                  placeholder="Target Year" 
-                />
-              </div>
-              <div>
-                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Dream College / Target</label>
-                <input 
-                  type="text" 
-                  value={editProfileData.dreamCollege || ''} 
-                  onChange={e => setEditProfileData(prev => ({...prev, dreamCollege: e.target.value}))} 
-                  className="input-field" 
-                  placeholder="e.g. IIT Bombay / AIIMS Delhi" 
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Bio / Aspirant Statement</label>
-              <textarea 
-                rows="2" 
-                value={editProfileData.bio || ''} 
-                onChange={e => setEditProfileData(prev => ({...prev, bio: e.target.value}))} 
-                className="input-field" 
-                placeholder="Your study focus & goal..." 
-                style={{resize: 'none'}} 
-              />
-            </div>
-
-            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px'}}>
-              <div>
-                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Study Motto</label>
-                <input 
-                  type="text" 
-                  value={editProfileData.motto || ''} 
-                  onChange={e => setEditProfileData(prev => ({...prev, motto: e.target.value}))} 
-                  className="input-field" 
-                  placeholder="Your driving quote..." 
-                />
-              </div>
-              <div>
-                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Key Strengths</label>
-                <input 
-                  type="text" 
-                  value={editProfileData.strengths || ''} 
-                  onChange={e => setEditProfileData(prev => ({...prev, strengths: e.target.value}))} 
-                  className="input-field" 
-                  placeholder="e.g. Mechanics, Calculus" 
-                />
-              </div>
-              <div>
-                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Weak Area / Priority</label>
-                <input 
-                  type="text" 
-                  value={editProfileData.weakness || ''} 
-                  onChange={e => setEditProfileData(prev => ({...prev, weakness: e.target.value}))} 
-                  className="input-field" 
-                  placeholder="e.g. Mock test time management" 
-                />
-              </div>
-              <div>
-                <label style={{fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600}}>Daily Study Target (Hours)</label>
-                <input 
-                  type="number" 
-                  value={editProfileData.targetHours || 8} 
-                  onChange={e => setEditProfileData(prev => ({...prev, targetHours: Number(e.target.value)}))} 
-                  className="input-field" 
-                  placeholder="8" 
-                />
-              </div>
-            </div>
-
-            <div style={{display: 'flex', gap: '10px', marginTop: '6px'}}>
-              <button className="btn-primary" style={{flex: 1, padding: '10px'}} onClick={handleSaveProfile}>Save Changes</button>
-              <button className="btn-secondary" style={{padding: '10px 18px'}} onClick={() => setIsEditingProfile(false)}>Cancel</button>
-            </div>
-          </div>
-        )}
-
-        {/* ── INSTAGRAM STORY HIGHLIGHTS ── */}
-        <div className="ig-highlights-scroll">
-          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('stats')}>
-            <div className="ig-highlight-circle">
-              <div className="ig-highlight-inner">🎯</div>
-            </div>
-            <span className="ig-highlight-label">{currentHours}h / day</span>
-          </div>
-
-          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('stats')}>
-            <div className="ig-highlight-circle">
-              <div className="ig-highlight-inner">🔥</div>
-            </div>
-            <span className="ig-highlight-label">{streak}d Streak</span>
-          </div>
-
-          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('stats')}>
-            <div className="ig-highlight-circle">
-              <div className="ig-highlight-inner">⚡</div>
-            </div>
-            <span className="ig-highlight-label">{currentXP} XP</span>
-          </div>
-
-          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('badges')}>
-            <div className="ig-highlight-circle">
-              <div className="ig-highlight-inner">🏆</div>
-            </div>
-            <span className="ig-highlight-label">{ACHIEVEMENT_BADGES.filter(b => b.unlocked).length}/6 Badges</span>
-          </div>
-
-          <div className="ig-highlight-item" onClick={() => setProfileActiveTab('stats')}>
-            <div className="ig-highlight-circle">
-              <div className="ig-highlight-inner">📝</div>
-            </div>
-            <span className="ig-highlight-label">{totalNotes} Notes</span>
-          </div>
-        </div>
-
-        {/* ── INSTAGRAM PROFILE TABS ── */}
-        <div className="ig-tabs-nav">
-          <button 
-            className={`ig-tab-btn ${profileActiveTab === 'badges' ? 'active' : ''}`}
-            onClick={() => setProfileActiveTab('badges')}
-          >
-            <Trophy size={15} /> Badges
-          </button>
-          <button 
-            className={`ig-tab-btn ${profileActiveTab === 'stats' ? 'active' : ''}`}
-            onClick={() => setProfileActiveTab('stats')}
-          >
-            <Award size={15} /> Study Stats
-          </button>
-          <button 
-            className={`ig-tab-btn ${profileActiveTab === 'theme' ? 'active' : ''}`}
-            onClick={() => setProfileActiveTab('theme')}
-          >
-            <Sparkles size={15} /> Appearance
-          </button>
-        </div>
-
-        {/* ── TAB CONTENT ── */}
-        {profileActiveTab === 'badges' && (
-          <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-            <div className="profile-badges-grid">
-              {ACHIEVEMENT_BADGES.map(badge => (
-                <div
-                  key={badge.id}
-                  className="achievement-badge-card"
-                  style={{
-                    border: badge.unlocked ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(255,255,255,0.06)',
-                    background: badge.unlocked ? 'linear-gradient(145deg, rgba(16,185,129,0.09) 0%, rgba(255,255,255,0.02) 100%)' : 'rgba(255,255,255,0.02)'
-                  }}
-                >
-                  <div style={{fontSize: '1.75rem', padding: '9px', background: badge.unlocked ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)', borderRadius: '12px', flexShrink: 0}}>
-                    {badge.icon}
-                  </div>
-                  <div style={{flex: 1, minWidth: 0}}>
-                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '2px'}}>
-                      <div style={{fontWeight: 800, fontSize: '0.88rem', color: badge.unlocked ? '#fff' : 'var(--text-muted)'}}>{badge.title}</div>
-                      <span style={{fontSize: '0.62rem', padding: '2px 7px', borderRadius: '100px', fontWeight: 700, background: badge.unlocked ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)', color: badge.unlocked ? '#10b981' : 'var(--text-muted)'}}>
-                        {badge.unlocked ? '✓ UNLOCKED' : 'LOCKED'}
-                      </span>
-                    </div>
-                    <div style={{fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.3}}>{badge.desc}</div>
-                    <div style={{fontSize: '0.72rem', color: badge.unlocked ? 'var(--accent-physics)' : 'var(--text-muted)', fontWeight: 600, marginTop: '3px'}}>
-                      {badge.progress}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {profileActiveTab === 'stats' && (
-          <div className="animate-fade-in" style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
-            {/* 4 Metric Cards */}
-            <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px'}}>
-              <div className="glass" style={{padding: '1.15rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px', borderRadius: '16px'}}>
-                <div style={{padding: '8px', background: 'rgba(16,185,129,0.1)', borderRadius: '50%', color: 'var(--accent-success)'}}><Check size={20}/></div>
-                <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff'}}>{totalTasksCompleted}</div>
-                <div style={{color: 'var(--text-muted)', fontSize: '0.78rem'}}>Tasks Completed</div>
-              </div>
-              <div className="glass" style={{padding: '1.15rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px', borderRadius: '16px'}}>
-                <div style={{padding: '8px', background: 'rgba(139,92,246,0.1)', borderRadius: '50%', color: 'var(--accent-physics)'}}><Video size={20}/></div>
-                <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff'}}>{playlist.length}</div>
-                <div style={{color: 'var(--text-muted)', fontSize: '0.78rem'}}>Active Lectures</div>
-              </div>
-              <div className="glass" style={{padding: '1.15rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px', borderRadius: '16px'}}>
-                <div style={{padding: '8px', background: 'rgba(236,72,153,0.1)', borderRadius: '50%', color: 'var(--accent-chem)'}}><FileText size={20}/></div>
-                <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff'}}>{mistakesList ? mistakesList.length : 0}</div>
-                <div style={{color: 'var(--text-muted)', fontSize: '0.78rem'}}>Mistakes Tracked</div>
-              </div>
-              <div className="glass" style={{padding: '1.15rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px', borderRadius: '16px'}}>
-                <div style={{padding: '8px', background: 'rgba(245,158,11,0.1)', borderRadius: '50%', color: '#f59e0b'}}><BookOpen size={20}/></div>
-                <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff'}}>{totalJournals}</div>
-                <div style={{color: 'var(--text-muted)', fontSize: '0.78rem'}}>Daily Study Journals</div>
-              </div>
-            </div>
-
-            {/* Daily Commitment & Level Progress */}
-            <div className="glass" style={{padding: '1.25rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <span style={{fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600}}>Level {level} Progress</span>
-                <span style={{fontSize: '0.85rem', fontWeight: 700, color: '#10b981'}}>{currentXP % 100} / 100 XP</span>
-              </div>
-              <div className="progress-bar-bg" style={{height: '8px', background: 'rgba(255,255,255,0.06)'}}>
-                <div className="progress-bar-fill" style={{width: `${progressPercent}%`, background: 'linear-gradient(90deg, #10b981, #3b82f6)'}}/>
-              </div>
-
-              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', marginTop: '4px'}}>
-                <div>
-                  <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Daily Grind Target</div>
-                  <div style={{fontSize: '1.1rem', fontWeight: 800, color: '#10b981'}}>{currentHours} Hours / Day</div>
-                </div>
-                {currentWeakness && (
-                  <div style={{textAlign: 'right', maxWidth: '55%'}}>
-                    <div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Priority Improvement</div>
-                    <div style={{fontSize: '0.82rem', color: '#f59e0b', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentWeakness}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {profileActiveTab === 'theme' && (
-          <div className="animate-fade-in glass" style={{padding: '1.5rem', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-            <h4 style={{fontSize: '1rem', fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px'}}>
-              <Sparkles size={16} color="var(--accent-math)"/> Workspace Theme & Appearance
-            </h4>
-            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px'}}>
-              <button 
-                onClick={() => setBgTheme('universe-bg')} 
-                style={{padding: '12px', background: bgTheme === 'universe-bg' ? 'rgba(139,92,246,0.25)' : 'rgba(0,0,0,0.3)', border: bgTheme === 'universe-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}}>
-                🌌 Deep Universe
-              </button>
-              <button 
-                onClick={() => setBgTheme('solid-dark-bg')} 
-                style={{padding: '12px', background: bgTheme === 'solid-dark-bg' ? 'rgba(139,92,246,0.25)' : 'rgba(0,0,0,0.3)', border: bgTheme === 'solid-dark-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}}>
-                🌑 Solid Dark
-              </button>
-              <button 
-                onClick={() => setBgTheme('mesh-bg')} 
-                style={{padding: '12px', background: bgTheme === 'mesh-bg' ? 'rgba(139,92,246,0.25)' : 'rgba(0,0,0,0.3)', border: bgTheme === 'mesh-bg' ? '2px solid var(--accent-physics)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: 'white', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontSize: '0.85rem'}}>
-                🕸️ Grid Mesh
-              </button>
-            </div>
-          </div>
-        )}
-
-      </div>
-    );
-  } catch (err) {
-    console.error("renderProfile error caught:", err);
-    return (
-      <div className="glass" style={{padding: '2rem', textAlign: 'center', margin: '2rem auto', maxWidth: '480px', borderRadius: '24px'}}>
-        <div style={{fontSize: '3rem', marginBottom: '1rem'}}>👤</div>
-        <h3 style={{color: '#fff', fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem'}}>{sessionUser || 'Aspirant'}'s Profile</h3>
-        <p style={{color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem'}}>Your profile is loading. If it takes longer than usual, tap below to refresh.</p>
-        <button className="btn-primary" onClick={() => window.location.reload()} style={{padding: '10px 24px', borderRadius: '100px', fontWeight: 700}}>Refresh Profile</button>
-      </div>
-    );
-  }
-};
-
-
 return (
     <div className="app-layout">
 
+      {/* Distraction-Free Fullscreen Zen Study Chamber */}
+      {isZenStudyOpen && (
+        <ZenStudyRoom
+          timeLeft={timeLeft}
+          isActive={isActive}
+          startTimer={startTimer}
+          setTimer={setTimer}
+          sessionType={sessionType}
+          formatTime={formatTime}
+          activeTaskTitle={
+            subjects?.flatMap(s => s.tasks || []).find(t => !t.completed)?.title || "Deep Focus Session"
+          }
+          onExit={() => setIsZenStudyOpen(false)}
+          currentXP={currentXP}
+          level={level}
+        />
+      )}
 
       {/* XP Toast */}
       {toastMsg && (
@@ -5799,10 +4144,9 @@ return (
         </div>
         <div className="nav-links">
           <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}><LayoutDashboard size={18} /> Today's Plan</div>
+          <div className={`nav-item ${activeTab === 'lectures' ? 'active' : ''}`} onClick={() => handleTabChange('lectures')}><MonitorPlay size={18} /> Video Lectures</div>
           <div className={`nav-item ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => handleTabChange('planner')}><Calendar size={18} /> Study Planner</div>
           <div className={`nav-item ${activeTab === 'journal' ? 'active' : ''}`} onClick={() => handleTabChange('journal')}><BookOpen size={18} /> Journal & Mistakes</div>
-          <div className={`nav-item ${activeTab === 'lectures' ? 'active' : ''}`} onClick={() => handleTabChange('lectures')}><MonitorPlay size={18} /> Video Lectures</div>
-          <div className={`nav-item ${activeTab === 'connect' ? 'active' : ''}`} onClick={() => handleTabChange('connect')}><PhoneCall size={18} /> Study Connect</div>
           <div className={`nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => handleTabChange('community')}>
             <div style={{display: 'flex', alignItems: 'center', gap: '8px', width: '100%'}}>
               <Users size={18} />
@@ -5834,19 +4178,17 @@ return (
             <div>
               <h1 className="greeting">
                 {activeTab === 'dashboard' && `Welcome, ${sessionUser}!` }
+                {activeTab === 'lectures' && 'Video Lecture Theater'}
                 {activeTab === 'planner' && 'Study Planner'}
-                {activeTab === 'journal' && 'Learning Journal'}
-                {activeTab === 'lectures' && 'Ad-Free Lectures'}
-                {activeTab === 'connect' && 'Study Connect'}
-                {activeTab === 'profile' && 'My Profile'}
+                {activeTab === 'journal' && 'Learning Journal & Mistakes'}
+                {activeTab === 'profile' && 'Scholar Profile & Aim'}
               </h1>
               <p className="subtitle">
-                {activeTab === 'dashboard' && "Crush your tasks for today."}
+                {activeTab === 'dashboard' && "Crush your daily goals with deep focus."}
+                {activeTab === 'lectures' && "Distraction-free lectures, timestamped notes & doubts."}
                 {activeTab === 'planner' && "Plan your weekly study schedule."}
-                {activeTab === 'journal' && "Log your learnings and mistakes."}
-                {activeTab === 'lectures' && "Watch lectures ad-free."}
-                {activeTab === 'connect' && "Video rooms with fellow aspirants."}
-                {activeTab === 'profile' && "Your stats and progress."}
+                {activeTab === 'journal' && "Log your daily learnings and mistake vault."}
+                {activeTab === 'profile' && "Your academic aim, stats, and achievements."}
               </p>
             </div>
             
@@ -5895,15 +4237,48 @@ return (
           </header>
         )}
         {activeTab === 'dashboard' && renderDashboard()}
+        {activeTab === 'lectures' && (
+          <LectureRoom
+            playlist={playlist}
+            setPlaylist={setPlaylist}
+            activeVideo={activeVideo}
+            setActiveVideo={setActiveVideo}
+            videoNotes={videoNotes}
+            saveVideoNote={saveVideoNote}
+            downloadNote={downloadNote}
+            awardXP={awardXP}
+            askAIDoubt={askAIDoubt}
+            videoProgress={videoProgress}
+            setVideoProgress={setVideoProgress}
+            sessionUser={sessionUser}
+          />
+        )}
         {activeTab === 'planner' && renderPlanner()}
         {activeTab === 'journal' && renderJournal()}
-        {activeTab === 'connect' && renderStudyConnect()}
         {activeTab === 'community' && renderCommunity()}
-        {activeTab === 'profile' && renderProfile()}
-        
-        <div className={`lectures-wrapper ${activeTab !== 'lectures' ? (activeVideo ? 'pip-mode' : 'hidden-tab') : ''}`}>
-           {renderLectures()}
-        </div>
+        {activeTab === 'profile' && (
+          <ProfileView
+            sessionUser={sessionUser}
+            setSessionUser={setSessionUser}
+            usersDb={usersDb}
+            setUsersDb={setUsersDb}
+            currentXP={currentXP}
+            level={level}
+            title={title}
+            studyStreak={studyStreak}
+            subjects={subjects}
+            videoNotes={videoNotes}
+            journalHistory={journalHistory}
+            playlist={playlist}
+            awardXP={awardXP}
+            handleLogout={handleLogout}
+            isGuest={isGuest}
+            setShowAuthWall={setShowAuthWall}
+            setAuthWallMsg={setAuthWallMsg}
+            setBgTheme={setBgTheme}
+            bgTheme={bgTheme}
+          />
+        )}
       </main>
 
       {/* Floating AI Assistant - Premium UI */}
@@ -6074,14 +4449,14 @@ return (
         <div className={`bottom-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}>
           <LayoutDashboard size={20} /><span>Plan</span>
         </div>
-        <div className={`bottom-nav-item ${activeTab === 'journal' ? 'active' : ''}`} onClick={() => handleTabChange('journal')}>
-          <BookOpen size={20} /><span>Journal</span>
-        </div>
         <div className={`bottom-nav-item ${activeTab === 'lectures' ? 'active' : ''}`} onClick={() => handleTabChange('lectures')}>
           <MonitorPlay size={20} /><span>Lectures</span>
         </div>
-        <div className={`bottom-nav-item ${activeTab === 'connect' ? 'active' : ''}`} onClick={() => handleTabChange('connect')}>
-          <PhoneCall size={20} /><span>Connect</span>
+        <div className={`bottom-nav-item ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => handleTabChange('planner')}>
+          <Calendar size={20} /><span>Schedule</span>
+        </div>
+        <div className={`bottom-nav-item ${activeTab === 'journal' ? 'active' : ''}`} onClick={() => handleTabChange('journal')}>
+          <BookOpen size={20} /><span>Journal</span>
         </div>
         <div className={`bottom-nav-item ${activeTab === 'community' ? 'active' : ''}`} onClick={() => handleTabChange('community')}>
           <div style={{position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}>
