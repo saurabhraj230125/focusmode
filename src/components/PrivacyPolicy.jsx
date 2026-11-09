@@ -202,7 +202,7 @@ export const PrivacyPolicy = ({ onBack }) => {
             marginBottom: '1.25rem'
           }}>
             <p style={{ margin: 0, fontWeight: 700, color: '#fff', fontSize: '0.95rem' }}>
-              Standard Publisher Disclosure Required by Google:
+              Standard Publisher Disclosure Required by Google (Publisher ID: ca-pub-7031826557252909):
             </p>
             <ul style={{ margin: '8px 0 0', paddingLeft: '1.25rem', color: '#e2e8f0', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <li>
@@ -375,6 +375,7 @@ export const PrivacyPolicy = ({ onBack }) => {
           }}>
             <div><strong style={{ color: '#fff' }}>Platform:</strong> FocusMode Player</div>
             <div><strong style={{ color: '#fff' }}>Publisher & Developer:</strong> Saurabh Raj</div>
+            <div><strong style={{ color: '#fff' }}>AdSense Publisher ID:</strong> <code style={{ color: '#fbbf24', background: 'rgba(245,158,11,0.15)', padding: '2px 6px', borderRadius: '4px' }}>ca-pub-7031826557252909</code></div>
             <div><strong style={{ color: '#fff' }}>Jurisdiction:</strong> India</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
               <strong style={{ color: '#fff' }}>Official Privacy Email:</strong>

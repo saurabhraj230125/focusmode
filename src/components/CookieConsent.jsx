@@ -185,3 +185,4 @@ export const CookieConsent = ({ onNavigate }) => {
     </aside>
   );
 };
+
