@@ -151,10 +151,77 @@ const getAvatarColor = (name) => {
 };
 
 const App = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isZenStudyOpen, setIsZenStudyOpen] = useState(false);
-  const [bgTheme, setBgTheme] = useState(() => localStorage.getItem('pm_bgTheme') || 'solid-dark-bg');
+  const [bgTheme, setBgTheme] = useState(() => localStorage.getItem('pm_bgTheme') || 'universe-bg');
+  const [gamifyWarpState, setGamifyWarpState] = useState(null);
+
+  const triggerGamifyWarp = () => {
+    setBgTheme('universe-bg');
+    setGamifyWarpState({
+      stage: 'universe',
+      title: '🌌 Universe Space Initialized',
+      detail: 'Focus gravity engaged...'
+    });
+
+    const t1 = setTimeout(() => {
+      setBgTheme('solid-dark-bg');
+      setGamifyWarpState({
+        stage: 'dark',
+        title: '🌑 Void Mode Active',
+        detail: 'Zeroing out distractions...'
+      });
+    }, 600);
+
+    const t2 = setTimeout(() => {
+      setBgTheme('mesh-bg');
+      setGamifyWarpState({
+        stage: 'mesh',
+        title: '🕸️ Quantum Matrix Sync',
+        detail: 'Calibrating neural syllabus grid...'
+      });
+    }, 1200);
+
+    const t3 = setTimeout(() => {
+      setBgTheme('universe-bg');
+      setGamifyWarpState({
+        stage: 'ready',
+        title: '✨ Universe Locked & Ready! 🚀',
+        detail: 'Hyper-focused dashboard active'
+      });
+      try { playLevelUpChime(); } catch {}
+    }, 1800);
+
+    const t4 = setTimeout(() => {
+      setGamifyWarpState(null);
+    }, 3100);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  };
+
+  // ── 1-TIME GAMIFY WARP CYCLE ON DASHBOARD START ──
+  // Cycles: Universe -> Dark -> Mesh -> Universe
+  useEffect(() => {
+    if (sessionUser) {
+      const isLegal = ['/privacy-policy', '/terms-of-service', '/about', '/contact', '/mission'].includes(location.pathname);
+      if (!isLegal) {
+        const alreadyDone = sessionStorage.getItem('pm_entry_gamify_warp_done');
+        if (!alreadyDone) {
+          sessionStorage.setItem('pm_entry_gamify_warp_done', 'true');
+          return triggerGamifyWarp();
+        }
+      }
+    }
+  }, [sessionUser, location.pathname]);
 
   useEffect(() => {
     const bgElement = document.getElementById('app-background');
@@ -4201,7 +4268,7 @@ return (
               </h1>
               <p className="subtitle">
                 {activeTab === 'dashboard' && "Crush your daily goals with deep focus."}
-                {activeTab === 'lectures' && "Distraction-free lectures, timestamped notes & doubts."}
+                {activeTab === 'lectures' && "Distraction-free educational cinema · Ambient focus audio · Sprint timer."}
                 {activeTab === 'planner' && "Plan your weekly study schedule."}
                 {activeTab === 'journal' && "Log your daily learnings and mistake vault."}
                 {activeTab === 'profile' && "Your academic aim, stats, and achievements."}
@@ -4249,6 +4316,19 @@ return (
                   cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               >🕸️ Mesh</button>
+              <button 
+                onClick={triggerGamifyWarp}
+                title="Trigger Gamified Universe Warp"
+                style={{
+                  padding: '8px 14px', fontSize: '0.82rem', borderRadius: '100px', fontWeight: '700', border: 'none',
+                  background: 'rgba(255,255,255,0.06)', 
+                  color: '#c4b5fd', 
+                  cursor: 'pointer', transition: 'all 0.2s ease',
+                  display: 'flex', alignItems: 'center', gap: '4px'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+              >⚡ Warp</button>
             </div>
           </header>
         )}
@@ -4504,6 +4584,54 @@ return (
             {studyStreak} DAY STREAK!
           </h1>
           <p style={{ fontSize: '1.2rem', color: '#fca5a5', marginTop: '10px', textAlign: 'center' }}>You are on fire! Keep it up! 🚀</p>
+        </div>
+      )}
+
+      {/* ── 1-TIME GAMIFY WARP HUD ON DASHBOARD START ── */}
+      {gamifyWarpState && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10000,
+          pointerEvents: 'none',
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{
+            background: 'rgba(15, 23, 42, 0.92)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: gamifyWarpState.stage === 'ready' 
+              ? '1px solid rgba(16, 185, 129, 0.5)' 
+              : '1px solid rgba(139, 92, 246, 0.5)',
+            borderRadius: '100px',
+            padding: '10px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: gamifyWarpState.stage === 'ready'
+              ? '0 10px 30px rgba(0,0,0,0.7), 0 0 25px rgba(16, 185, 129, 0.35)'
+              : '0 10px 30px rgba(0,0,0,0.7), 0 0 25px rgba(139, 92, 246, 0.35)',
+            transition: 'all 0.3s ease'
+          }}>
+            <div style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              background: gamifyWarpState.stage === 'ready' ? '#10b981' : '#8b5cf6',
+              boxShadow: gamifyWarpState.stage === 'ready' ? '0 0 10px #10b981' : '0 0 10px #8b5cf6',
+              animation: 'pulse 1s infinite'
+            }} />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>
+                {gamifyWarpState.title}
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                {gamifyWarpState.detail}
+              </span>
+            </div>
+          </div>
         </div>
       )}
 

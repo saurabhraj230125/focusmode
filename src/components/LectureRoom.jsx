@@ -40,6 +40,20 @@ export const LectureRoom = ({
   const [activeNoteTab, setActiveNoteTab] = useState('notes'); // 'notes' | 'doubts' | 'timestamps'
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [playlistFilter, setPlaylistFilter] = useState('All');
+  
+  // Responsive layout state: mobile automatically removes congested notes & doubts
+  const [isMobile, setIsMobile] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
+  });
+  const [showDesktopNotes, setShowDesktopNotes] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Mini Focus Sprint inside Lecture Room (25m / 50m)
   const [lectureTimerSecs, setLectureTimerSecs] = useState(25 * 60);
@@ -314,45 +328,55 @@ export const LectureRoom = ({
     : playlist.filter(v => (v.subject || 'Physics').toLowerCase() === playlistFilter.toLowerCase());
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1.25rem' : '1.75rem', width: '100%', boxSizing: 'border-box' }}>
       
       {/* ── TOP ROOM COMMAND BAR (Ambient Sound + Mini Sprint Timer) ── */}
       <div style={{
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '12px',
-        padding: '12px 18px',
-        borderRadius: '20px',
-        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(15, 23, 42, 0.7))',
-        border: '1px solid rgba(139, 92, 246, 0.25)'
+        alignItems: isMobile ? 'stretch' : 'center',
+        gap: isMobile ? '14px' : '16px',
+        padding: isMobile ? '14px 16px' : '16px 22px',
+        borderRadius: '22px',
+        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(15, 23, 42, 0.8))',
+        border: '1px solid rgba(139, 92, 246, 0.25)',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+        boxSizing: 'border-box'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '10px',
+            width: '38px',
+            height: '38px',
+            borderRadius: '12px',
             background: 'linear-gradient(135deg, var(--accent-physics), var(--accent-chem))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)'
+            boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)',
+            flexShrink: 0
           }}>
             <MonitorPlay size={20} color="#fff" />
           </div>
           <div>
-            <div style={{ fontSize: '1rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.3px' }}>
+            <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.3px' }}>
               Study Lecture Hall
             </div>
             <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              Distraction-free educational theater · Timestamped notes · Ambient focus
+              Distraction-free educational cinema · Ambient focus · Pomodoro sprints
             </div>
           </div>
         </div>
 
         {/* Right side: Mini Pomodoro & Ambient Player */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isMobile ? 'space-between' : 'flex-end',
+          gap: '10px',
+          flexWrap: 'wrap',
+          width: isMobile ? '100%' : 'auto'
+        }}>
           <AmbientSoundPlayer compact={true} />
 
           {/* Mini Sprint Timer Bar */}
@@ -406,25 +430,34 @@ export const LectureRoom = ({
         </div>
       </div>
 
-      {/* ── THEATER VIEW: DUAL SPLIT WORKSPACE ── */}
+      {/* ── THEATER VIEW: SPACIOUS CINEMA WORKSPACE ── */}
       {activeVideo ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.35fr) minmax(320px, 1fr)',
-          gap: '1.25rem',
-          alignItems: 'start'
-        }} className="lecture-theater-grid">
+        <div 
+          className="lecture-theater-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: (!isMobile && showDesktopNotes) ? 'minmax(0, 1.4fr) minmax(340px, 1fr)' : '1fr',
+            gap: isMobile ? '1.25rem' : '1.75rem',
+            alignItems: 'start',
+            width: '100%',
+            maxWidth: (!isMobile && showDesktopNotes) ? '100%' : '1080px',
+            margin: '0 auto',
+            boxSizing: 'border-box'
+          }}
+        >
           
-          {/* LEFT: VIDEO PLAYER & CONTROLS */}
+          {/* VIDEO PLAYER & SPACIOUS CONTROLS */}
           <div className="glass" style={{
-            borderRadius: '24px',
+            borderRadius: isMobile ? '20px' : '26px',
             overflow: 'hidden',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.12)',
             background: '#090a10',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+            boxShadow: '0 20px 45px rgba(0,0,0,0.65)',
+            boxSizing: 'border-box',
+            width: '100%'
           }}>
-            {/* 16:9 Video Embed */}
-            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, background: '#000' }}>
+            {/* 16:9 Cinema Video Embed */}
+            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, background: '#000', width: '100%' }}>
               <div
                 id="lecture-youtube-iframe-target"
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
@@ -448,17 +481,25 @@ export const LectureRoom = ({
             </div>
 
             {/* Video Controls & Header */}
-            <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', margin: '0 0 4px' }}>
+            <div style={{ padding: isMobile ? '14px 16px' : '18px 24px', display: 'flex', flexDirection: 'column', gap: '14px', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{
+                    fontSize: isMobile ? '1.05rem' : '1.3rem',
+                    fontWeight: 800,
+                    color: '#fff',
+                    margin: '0 0 6px',
+                    lineHeight: 1.35,
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word'
+                  }}>
                     {activeVideoObj?.title || 'Lecture Stream'}
                   </h3>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.72rem', background: 'rgba(139, 92, 246, 0.2)', color: 'var(--accent-physics)', padding: '2px 8px', borderRadius: '100px', fontWeight: 700 }}>
+                    <span style={{ fontSize: '0.74rem', background: 'rgba(139, 92, 246, 0.2)', color: 'var(--accent-physics)', padding: '2px 10px', borderRadius: '100px', fontWeight: 700 }}>
                       {activeVideoObj?.subject || 'Education'}
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                       ⏱️ {formatSeconds(currentPlayTime)} / {formatSeconds(videoDuration)}
                     </span>
                   </div>
@@ -468,51 +509,45 @@ export const LectureRoom = ({
                   onClick={() => setActiveVideo(null)}
                   style={{
                     background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'var(--text-muted)',
-                    borderRadius: '8px',
-                    padding: '4px 10px',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer'
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    color: '#cbd5e1',
+                    borderRadius: '100px',
+                    padding: '6px 14px',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    transition: 'all 0.2s'
                   }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
                 >
-                  Close Theater
+                  ✕ Close Theater
                 </button>
               </div>
 
-              {/* Action Toolbar: Timestamp Bookmark, Speed, Mark Completed */}
+              {/* Action Toolbar: Spacious & Touch-Friendly */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '8px',
-                paddingTop: '8px',
-                borderTop: '1px solid rgba(255,255,255,0.06)'
+                gap: '12px',
+                paddingTop: '12px',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                boxSizing: 'border-box'
               }}>
-                <button
-                  onClick={handleAddTimestampBookmark}
-                  style={{
-                    background: 'linear-gradient(135deg, var(--accent-physics), #9333ea)',
-                    border: 'none',
-                    color: '#fff',
-                    padding: '7px 14px',
-                    borderRadius: '100px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 4px 12px rgba(139,92,246,0.3)'
-                  }}
-                >
-                  <Bookmark size={14} /> Bookmark [{formatSeconds(currentPlayTime)}]
-                </button>
-
                 {/* Playback speed buttons */}
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginRight: '2px' }}>Speed:</span>
+                <div style={{
+                  display: 'flex',
+                  gap: '4px',
+                  alignItems: 'center',
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '4px 8px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.06)'
+                }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginRight: '2px', fontWeight: 600 }}>Speed:</span>
                   {[1, 1.25, 1.5, 2].map(speed => (
                     <button
                       key={speed}
@@ -521,11 +556,12 @@ export const LectureRoom = ({
                         padding: '4px 8px',
                         borderRadius: '6px',
                         border: 'none',
-                        fontSize: '0.72rem',
+                        fontSize: '0.74rem',
                         fontWeight: 700,
                         cursor: 'pointer',
-                        background: playbackSpeed === speed ? 'var(--accent-physics)' : 'rgba(255,255,255,0.06)',
-                        color: playbackSpeed === speed ? '#fff' : 'var(--text-muted)'
+                        background: playbackSpeed === speed ? 'var(--accent-physics)' : 'transparent',
+                        color: playbackSpeed === speed ? '#fff' : 'var(--text-muted)',
+                        transition: 'all 0.15s'
                       }}
                     >
                       {speed}x
@@ -533,175 +569,220 @@ export const LectureRoom = ({
                   ))}
                 </div>
 
-                <button
-                  onClick={(e) => toggleVideoWatched(activeVideo, e)}
-                  style={{
-                    background: activeVideoObj?.watched ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.06)',
-                    color: activeVideoObj?.watched ? '#10b981' : 'var(--text-muted)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    padding: '6px 12px',
-                    borderRadius: '100px',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}
-                >
-                  <CheckCircle2 size={14} /> {activeVideoObj?.watched ? 'Completed (+30 XP)' : 'Mark Finished'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT: SMART STUDY NOTEBOOK & DOUBTS */}
-          <div className="glass" style={{
-            borderRadius: '24px',
-            border: '1px solid rgba(255,255,255,0.1)',
-            background: 'rgba(15, 23, 42, 0.75)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            minHeight: '480px'
-          }}>
-            {/* Note Tabs & Export Header */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '12px 16px',
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
-              background: 'rgba(0,0,0,0.2)'
-            }}>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  onClick={() => setActiveNoteTab('notes')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: activeNoteTab === 'notes' ? 'rgba(139,92,246,0.2)' : 'transparent',
-                    color: activeNoteTab === 'notes' ? 'var(--accent-physics)' : 'var(--text-muted)'
-                  }}
-                >
-                  📝 Notes
-                </button>
-                <button
-                  onClick={() => setActiveNoteTab('doubts')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: activeNoteTab === 'doubts' ? 'rgba(239,68,68,0.2)' : 'transparent',
-                    color: activeNoteTab === 'doubts' ? '#f87171' : 'var(--text-muted)'
-                  }}
-                >
-                  ⚠️ Doubts & AI
-                </button>
-              </div>
-
-              <button
-                className="btn-primary"
-                onClick={() => downloadNote(activeVideoObj)}
-                style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}
-                title="Export this note to .txt"
-              >
-                <Download size={13} /> Export
-              </button>
-            </div>
-
-            {/* Note Tab Content */}
-            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1, gap: '10px' }}>
-              {activeNoteTab === 'notes' ? (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      💡 Tip: Click "[00:00]" timestamps to jump directly in the lecture.
-                    </span>
-                    {activeData.lastUpdated && (
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        Saved {activeData.lastUpdated}
-                      </span>
-                    )}
-                  </div>
-                  <textarea
-                    value={activeData.notes || ''}
-                    onChange={(e) => saveVideoNote(activeVideo, 'notes', e.target.value)}
-                    placeholder="Write key equations, derivations, theory takeaways here...&#10;&#10;Use the Bookmark button to save timestamps!"
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleAddTimestampBookmark}
                     style={{
-                      width: '100%',
-                      flex: 1,
-                      minHeight: '340px',
-                      background: 'rgba(0,0,0,0.25)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: '14px',
-                      padding: '14px',
-                      color: '#f8fafc',
-                      fontSize: '0.92rem',
-                      lineHeight: 1.6,
-                      resize: 'none',
-                      outline: 'none',
-                      fontFamily: 'inherit'
+                      background: 'rgba(139,92,246,0.15)',
+                      border: '1px solid rgba(139,92,246,0.35)',
+                      color: '#c4b5fd',
+                      padding: '7px 14px',
+                      borderRadius: '100px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
                     }}
-                  />
-                </>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#f87171', fontWeight: 700 }}>
-                      Mistakes & Unclear Topics
-                    </span>
+                  >
+                    <Bookmark size={13} /> Stamp [{formatSeconds(currentPlayTime)}]
+                  </button>
+
+                  {/* Desktop Only: Toggle notes and doubts */}
+                  {!isMobile && (
                     <button
-                      onClick={() => askAIDoubt(activeData.mistakes)}
-                      disabled={!activeData.mistakes?.trim()}
+                      onClick={() => setShowDesktopNotes(!showDesktopNotes)}
                       style={{
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        color: '#f87171',
-                        padding: '4px 10px',
-                        borderRadius: '8px',
-                        fontSize: '0.75rem',
+                        background: showDesktopNotes ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        color: showDesktopNotes ? '#c4b5fd' : '#cbd5e1',
+                        padding: '7px 14px',
+                        borderRadius: '100px',
+                        fontSize: '0.8rem',
                         fontWeight: 700,
-                        cursor: activeData.mistakes?.trim() ? 'pointer' : 'not-allowed',
+                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        gap: '6px'
                       }}
                     >
-                      <HelpCircle size={14} /> Ask FocusBot AI
+                      📝 {showDesktopNotes ? 'Hide Notebook' : 'Open Notebook'}
                     </button>
-                  </div>
-                  <textarea
-                    value={activeData.mistakes || ''}
-                    onChange={(e) => saveVideoNote(activeVideo, 'mistakes', e.target.value)}
-                    placeholder="Did something confuse you? Write the formula or timestamp here.&#10;&#10;Then click 'Ask FocusBot AI' to get an instant breakdown!"
+                  )}
+
+                  <button
+                    onClick={(e) => toggleVideoWatched(activeVideo, e)}
                     style={{
-                      width: '100%',
-                      flex: 1,
-                      minHeight: '340px',
-                      background: 'rgba(239, 68, 68, 0.03)',
-                      border: '1px solid rgba(239, 68, 68, 0.2)',
-                      borderRadius: '14px',
-                      padding: '14px',
-                      color: '#f8fafc',
-                      fontSize: '0.92rem',
-                      lineHeight: 1.6,
-                      resize: 'none',
-                      outline: 'none',
-                      fontFamily: 'inherit'
+                      background: activeVideoObj?.watched ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.06)',
+                      color: activeVideoObj?.watched ? '#10b981' : 'var(--text-muted)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '7px 14px',
+                      borderRadius: '100px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
                     }}
-                  />
-                </>
-              )}
+                  >
+                    <CheckCircle2 size={14} /> {activeVideoObj?.watched ? 'Completed (+30 XP)' : 'Mark Finished'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* DESKTOP-ONLY NOTEBOOK & DOUBTS (REMOVED ON MOBILE) */}
+          {!isMobile && showDesktopNotes && (
+            <div className="glass lecture-notebook-column" style={{
+              borderRadius: '24px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(15, 23, 42, 0.75)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              minHeight: '480px'
+            }}>
+              {/* Note Tabs & Export Header */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 16px',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(0,0,0,0.2)'
+              }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => setActiveNoteTab('notes')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      background: activeNoteTab === 'notes' ? 'rgba(139,92,246,0.2)' : 'transparent',
+                      color: activeNoteTab === 'notes' ? 'var(--accent-physics)' : 'var(--text-muted)'
+                    }}
+                  >
+                    📝 Notes
+                  </button>
+                  <button
+                    onClick={() => setActiveNoteTab('doubts')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      background: activeNoteTab === 'doubts' ? 'rgba(239,68,68,0.2)' : 'transparent',
+                      color: activeNoteTab === 'doubts' ? '#f87171' : 'var(--text-muted)'
+                    }}
+                  >
+                    ⚠️ Doubts & AI
+                  </button>
+                </div>
+
+                <button
+                  className="btn-primary"
+                  onClick={() => downloadNote(activeVideoObj)}
+                  style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  title="Export this note to .txt"
+                >
+                  <Download size={13} /> Export
+                </button>
+              </div>
+
+              {/* Note Tab Content */}
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1, gap: '10px' }}>
+                {activeNoteTab === 'notes' ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        💡 Tip: Click "[00:00]" timestamps to jump directly in the lecture.
+                      </span>
+                      {activeData.lastUpdated && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          Saved {activeData.lastUpdated}
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      value={activeData.notes || ''}
+                      onChange={(e) => saveVideoNote(activeVideo, 'notes', e.target.value)}
+                      placeholder="Write key equations, derivations, theory takeaways here...&#10;&#10;Use the Bookmark button to save timestamps!"
+                      style={{
+                        width: '100%',
+                        flex: 1,
+                        minHeight: '340px',
+                        background: 'rgba(0,0,0,0.25)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '14px',
+                        padding: '14px',
+                        color: '#f8fafc',
+                        fontSize: '0.92rem',
+                        lineHeight: 1.6,
+                        resize: 'none',
+                        outline: 'none',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#f87171', fontWeight: 700 }}>
+                        Mistakes & Unclear Topics
+                      </span>
+                      <button
+                        onClick={() => askAIDoubt(activeData.mistakes)}
+                        disabled={!activeData.mistakes?.trim()}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          color: '#f87171',
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: activeData.mistakes?.trim() ? 'pointer' : 'not-allowed',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <HelpCircle size={14} /> Ask FocusBot AI
+                      </button>
+                    </div>
+                    <textarea
+                      value={activeData.mistakes || ''}
+                      onChange={(e) => saveVideoNote(activeVideo, 'mistakes', e.target.value)}
+                      placeholder="Did something confuse you? Write the formula or timestamp here.&#10;&#10;Then click 'Ask FocusBot AI' to get an instant breakdown!"
+                      style={{
+                        width: '100%',
+                        flex: 1,
+                        minHeight: '340px',
+                        background: 'rgba(239, 68, 68, 0.03)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '14px',
+                        padding: '14px',
+                        color: '#f8fafc',
+                        fontSize: '0.92rem',
+                        lineHeight: 1.6,
+                        resize: 'none',
+                        outline: 'none',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Empty State / Theater Welcome */
@@ -738,49 +819,56 @@ export const LectureRoom = ({
         </div>
       )}
 
-      {/* ── ADD NEW LECTURE FORM ── */}
+      {/* ── ADD NEW LECTURE FORM (SPACIOUS & RESPONSIVE) ── */}
       <form
         onSubmit={handleAddVideo}
         className="glass"
         style={{
-          padding: '1.25rem',
-          borderRadius: '20px',
+          padding: isMobile ? '16px' : '20px',
+          borderRadius: '22px',
           border: '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
-          gap: '10px',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          background: 'rgba(15, 23, 42, 0.6)'
+          flexDirection: 'column',
+          gap: '14px',
+          background: 'rgba(15, 23, 42, 0.65)',
+          boxSizing: 'border-box'
         }}
       >
-        <div style={{ flex: '2 1 240px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Plus size={16} color="var(--accent-physics)" /> Add Custom Video Lecture
+          </div>
+          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Paste any educational YouTube URL</span>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+          gap: '10px'
+        }}>
           <input
             type="text"
             className="input-field"
-            placeholder="Paste YouTube Link (e.g., https://youtu.be/...)"
+            placeholder="Paste YouTube Link (e.g. https://youtu.be/...)"
             value={newVideoUrl}
             onChange={(e) => setNewVideoUrl(e.target.value)}
-            style={{ width: '100%', borderRadius: '12px', padding: '12px 14px' }}
+            style={{ width: '100%', borderRadius: '12px', padding: '12px 14px', boxSizing: 'border-box' }}
           />
-        </div>
 
-        <div style={{ flex: '1.5 1 180px' }}>
           <input
             type="text"
             className="input-field"
             placeholder="Lecture Title (e.g. Thermodynamics Part 1)"
             value={newVideoTitle}
             onChange={(e) => setNewVideoTitle(e.target.value)}
-            style={{ width: '100%', borderRadius: '12px', padding: '12px 14px' }}
+            style={{ width: '100%', borderRadius: '12px', padding: '12px 14px', boxSizing: 'border-box' }}
           />
-        </div>
 
-        <div style={{ flex: '0 0 auto', minWidth: '130px' }}>
           <select
             className="input-field"
             value={newVideoSubject}
             onChange={(e) => setNewVideoSubject(e.target.value)}
-            style={{ width: '100%', borderRadius: '12px', padding: '12px 14px', cursor: 'pointer' }}
+            style={{ width: '100%', borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', background: '#0f172a', boxSizing: 'border-box' }}
           >
             <option value="Physics">⚡ Physics</option>
             <option value="Chemistry">🧪 Chemistry</option>
@@ -790,49 +878,61 @@ export const LectureRoom = ({
           </select>
         </div>
 
-        <button
-          type="submit"
-          className="btn-primary"
-          style={{
-            padding: '12px 20px',
-            borderRadius: '12px',
-            fontSize: '0.9rem',
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            flex: '0 0 auto'
-          }}
-          disabled={!newVideoUrl.trim()}
-        >
-          <Plus size={16} /> Add to Study Hall (+15 XP)
-        </button>
+        <div style={{ display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end' }}>
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{
+              padding: '11px 24px',
+              borderRadius: '12px',
+              fontSize: '0.88rem',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              width: isMobile ? '100%' : 'auto'
+            }}
+            disabled={!newVideoUrl.trim()}
+          >
+            <Plus size={16} /> Add to Study Hall (+15 XP)
+          </button>
+        </div>
       </form>
 
       {/* ── PLAYLIST & CURATED STREAMS ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', margin: 0 }}>
+            <h3 style={{ fontSize: isMobile ? '1.05rem' : '1.2rem', fontWeight: 800, color: '#fff', margin: 0 }}>
               Your Lecture Library ({playlist.length})
             </h3>
           </div>
 
           {/* Subject Filter Pills */}
-          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            paddingBottom: '4px',
+            maxWidth: '100%'
+          }}>
             {['All', 'Physics', 'Chemistry', 'Mathematics', 'Study Beats'].map(filter => (
               <button
                 key={filter}
                 onClick={() => setPlaylistFilter(filter)}
                 style={{
-                  padding: '5px 12px',
+                  padding: '6px 14px',
                   borderRadius: '100px',
-                  fontSize: '0.78rem',
+                  fontSize: '0.8rem',
                   fontWeight: 700,
                   border: 'none',
                   cursor: 'pointer',
+                  flexShrink: 0,
                   background: playlistFilter === filter ? 'var(--accent-physics)' : 'rgba(255,255,255,0.06)',
-                  color: playlistFilter === filter ? '#fff' : 'var(--text-muted)'
+                  color: playlistFilter === filter ? '#fff' : 'var(--text-muted)',
+                  transition: 'all 0.2s'
                 }}
               >
                 {filter}

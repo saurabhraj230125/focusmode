@@ -33,6 +33,10 @@ body {
 }
 
 /* ===================== UNIVERSE BACKGROUND ===================== */
+#app-background {
+  transition: background 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .universe-bg {
   position: fixed;
   top: 0;
@@ -43,7 +47,7 @@ body {
   background: radial-gradient(circle at center, #13082b 0%, #050510 100%);
   overflow: hidden;
   pointer-events: none;
-  transition: background 0.5s ease;
+  transition: background 0.65s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .solid-dark-bg {
@@ -56,7 +60,7 @@ body {
   background: #0f1015;
   overflow: hidden;
   pointer-events: none;
-  transition: background 0.5s ease;
+  transition: background 0.65s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mesh-bg {
@@ -69,7 +73,7 @@ body {
   background: radial-gradient(circle at center, #111827 0%, #030712 100%);
   overflow: hidden;
   pointer-events: none;
-  transition: background 0.5s ease;
+  transition: background 0.65s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .mesh-bg::before {
   content: "";
@@ -2802,14 +2806,18 @@ textarea { max-width: 100%; box-sizing: border-box; }
 /* Lecture Theater Responsive Grid */
 .lecture-theater-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
-  gap: 1.25rem;
+  gap: 1.5rem;
   align-items: start;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 768px) {
   .lecture-theater-grid {
-    grid-template-columns: 1fr !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.25rem !important;
+  }
+  .lecture-notebook-column {
+    display: none !important;
   }
 }
 
