@@ -18,7 +18,7 @@ import {
   trackRoomJoined, trackAIOpened, trackAIQuestion, trackXPEarned,
   trackUserCountry
 } from './analytics.js';
-import { useCommunity, containsAbuse, useFirebaseUsers, syncUserToFirebase, removeUserFromFirebase, isDmBetween, getDmOtherUser, extractDmText } from './useCommunity.js';
+import { useCommunity, containsAbuse, useFirebaseUsers, syncUserToFirebase, removeUserFromFirebase, isDmBetween, getDmOtherUser, extractDmText, isCommunityPostDm } from './useCommunity.js';
 import { COUNTRIES, detectUserCountry, getCountryData, fetchUserCountryAsync } from './countries.js';
 import { useEvents } from './useEvents.js';
 import { usePushNotifications } from './usePushNotifications.js';
@@ -314,9 +314,9 @@ const App = () => {
     const newMsgs = feed.filter(f => {
       if (!f.createdAt || f.user === sessionUser) return false;
       if (f.createdAt <= lastCommunityVisit) return false;
-      if (!f.action?.startsWith('@DM_')) return true; // Global lounge post
-      const otherUser = getDmOtherUser(f.action, sessionUser);
-      return isDmBetween(f.action, sessionUser, otherUser);
+      if (!isCommunityPostDm(f.action, f)) return true; // Global lounge post
+      const otherUser = getDmOtherUser(f.action, sessionUser, f);
+      return otherUser ? isDmBetween(f.action, sessionUser, otherUser, f) : false;
     });
     return newMsgs.length;
   }, [feed, sessionUser, activeTab, lastCommunityVisit]);
@@ -330,14 +330,20 @@ const App = () => {
     }
   }, [activeTab]);
 
-  // Instagram Chat States
+  // Community Chat & Interaction States
   const [replyingTo, setReplyingTo] = useState(null);
   const [heartBurstId, setHeartBurstId] = useState(null);
   const [activeEmojiBarId, setActiveEmojiBarId] = useState(null);
   const emojiBarHideTimer = useRef(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [chatXpBurst, setChatXpBurst] = useState(null);
+  const [unsendToast, setUnsendToast] = useState(null);
+  const [chatFilter, setChatFilter] = useState('all'); // 'all' | 'doubts' | 'milestones'
   const [userNote, setUserNote] = useState(() => {
     try { return localStorage.getItem('pm_user_note') || 'Deep Work ⚡'; } catch { return 'Deep Work ⚡'; }
+  });
+  const [userFocusStatus, setUserFocusStatus] = useState(() => {
+    try { return localStorage.getItem('pm_user_focus_status') || 'Grinding Mechanics ⚡'; } catch { return 'Grinding Mechanics ⚡'; }
   });
 
   const [showPeerPicker, setShowPeerPicker] = useState(false);
@@ -610,7 +616,7 @@ const App = () => {
   // Push Notifications: fire local notification when a new message arrives in community
   useEffect(() => {
     if (!feed || !sessionUser) return;
-    const globalMsgs = feed.filter(f => !f.action?.startsWith('@DM_'));
+    const globalMsgs = feed.filter(f => !isCommunityPostDm(f.action, f));
     if (prevFeedLengthRef.current === 0) {
       prevFeedLengthRef.current = globalMsgs.length;
       return;
@@ -622,6 +628,16 @@ const App = () => {
       }
     }
     prevFeedLengthRef.current = globalMsgs.length;
+
+    // Check for incoming direct message
+    const dmMessages = feed.filter(f => isCommunityPostDm(f.action, f));
+    const myNewDm = dmMessages.find(f => {
+      const other = getDmOtherUser(f.action, sessionUser, f);
+      return other && f.user !== sessionUser && f.createdAt > (Date.now() - 4000);
+    });
+    if (myNewDm && document.hidden) {
+      showLocalNotification(`💬 New DM from ${myNewDm.user}`, extractDmText(myNewDm.action).slice(0, 60), 'dm-msg');
+    }
   }, [feed, sessionUser, showLocalNotification]);
 
   const shareAppToFriends = () => {
@@ -2737,22 +2753,23 @@ const App = () => {
     });
 
     const conversationMap = new Map();
-    feed.forEach(message => {
-      const otherUser = getDmOtherUser(message.action, sessionUser);
+    (feed || []).forEach(message => {
+      const otherUser = getDmOtherUser(message.action, sessionUser, message);
       if (otherUser) {
-        const lastRead = Number(localStorage.getItem(`pm_last_read_dm_${otherUser}`)) || 0;
+        const otherClean = String(otherUser).trim();
+        const lastRead = Number(localStorage.getItem(`pm_last_read_dm_${otherClean}`)) || 0;
         const isFromOther = message.user !== sessionUser;
         const isUnread = isFromOther && (!message.createdAt || message.createdAt > lastRead);
 
-        if (!conversationMap.has(otherUser)) {
-          conversationMap.set(otherUser, {
-            name: otherUser,
+        if (!conversationMap.has(otherClean)) {
+          conversationMap.set(otherClean, {
+            name: otherClean,
             lastMessage: message,
             hasUnread: isUnread,
             unreadCount: isUnread ? 1 : 0
           });
         } else {
-          const prev = conversationMap.get(otherUser);
+          const prev = conversationMap.get(otherClean);
           if (isUnread) prev.unreadCount = (prev.unreadCount || 0) + 1;
           if (message.createdAt > (prev.lastMessage?.createdAt || 0)) {
             prev.lastMessage = message;
@@ -2781,11 +2798,32 @@ const App = () => {
       !conversationPeers.some(cp => cp.name.toLowerCase() === peer.name.toLowerCase())
     );
 
-    const chatMessages = feed.filter(f => {
-       if (activeChat === "global") return !f.action?.startsWith("@DM_");
-       const targetUser = activeChat.split(":")[1];
-       return isDmBetween(f.action, sessionUser, targetUser);
+    const rawChatMessages = (feed || []).filter(f => {
+       if (activeChat === "global") return !isCommunityPostDm(f.action, f);
+       const targetUser = activeChat.replace(/^user:/, '').trim();
+       return isDmBetween(f.action, sessionUser, targetUser, f);
     });
+
+    // Apply active filter if in global lounge (all, doubts, milestones)
+    const chatMessages = rawChatMessages.filter(msg => {
+      if (activeChat !== "global") return true;
+      if (chatFilter === 'doubts') return msg.action?.includes('[DOUBT:') || msg.action?.toLowerCase().includes('doubt');
+      if (chatFilter === 'milestones') return msg.action?.includes('🔥') || msg.action?.includes('streak') || msg.action?.includes('module') || msg.action?.includes('finished');
+      return true;
+    });
+
+    const triggerChatXpBurst = (amount = 5) => {
+      setChatXpBurst({ id: Date.now(), amount });
+      setTimeout(() => setChatXpBurst(null), 2000);
+    };
+
+    const handleDirectUnsend = (messageId) => {
+      gunDeletePost(messageId);
+      setActiveEmojiBarId(null);
+      setUnsendToast("Message unsent");
+      setTimeout(() => setUnsendToast(null), 2400);
+      try { playTaskCompleteChime(); } catch {}
+    };
 
     const handleSendMessage = async (e) => {
       e.preventDefault();
@@ -2797,16 +2835,30 @@ const App = () => {
       setReplyingTo(null);
 
       let finalMsg = currentInput;
-      if (activeChat !== "global") {
-        const targetUser = activeChat.split(":")[1];
-        finalMsg = `@DM_${sessionUser}_${targetUser} ${finalMsg}`;
+      let dmTarget = null;
+      const isDm = activeChat !== "global";
+
+      if (isDm) {
+        dmTarget = activeChat.replace(/^user:/, '').trim();
+        finalMsg = `@DM[${sessionUser} -> ${dmTarget}]: ${finalMsg}`;
       }
       
       trackPostCreated();
       try {
-        const id = await gunPostMessage(finalMsg, currentReply);
+        const id = await gunPostMessage(finalMsg, currentReply, dmTarget);
         if (id) {
-          awardXP(2, 'Community Post');
+          // Award XP for messaging in Community (+5 XP for lounge or DM, +15 XP for solving a doubt!)
+          const isDoubtSolution = currentReply && (currentReply.text?.includes('DOUBT:') || currentReply.text?.toLowerCase().includes('doubt'));
+          const xpAmount = isDoubtSolution ? 15 : 5;
+          const xpReason = isDoubtSolution ? 'Solved Study Doubt' : (isDm ? `Study DM to @${dmTarget}` : 'Lounge Discussion');
+          
+          awardXP(xpAmount, xpReason);
+          triggerChatXpBurst(xpAmount);
+          try { playTaskCompleteChime(); } catch {}
+
+          if (isDm && dmTarget) {
+            try { localStorage.setItem(`pm_last_read_dm_${dmTarget}`, Date.now().toString()); } catch {}
+          }
         }
       } catch (err) {
         console.error("Failed sending message:", err);
@@ -3556,63 +3608,95 @@ const App = () => {
             {/* Chat Main Area - Ultra Spacious Instagram DM */}
             <div className="glass chat-main-area">
               
-              {/* Compact Instagram Chat Header (Height: ~48-52px) */}
-              <div className="chat-header">
-                <div style={{display: "flex", alignItems: "center", gap: "10px", minWidth: 0}}>
-                  {activeChat !== "global" && (
-                    <button 
-                      onClick={() => setActiveChat("global")} 
-                      style={{background: "rgba(255,255,255,0.08)", border: "none", color: "white", padding: "5px 10px", borderRadius: "100px", cursor: "pointer", fontSize: "0.78rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px", flexShrink: 0}}
-                      title="Back to Global Lounge"
-                    >
-                      ← Global
-                    </button>
-                  )}
-                  
-                  <div 
-                    className="ig-story-avatar" 
-                    style={{width: "36px", height: "36px", cursor: "pointer", flexShrink: 0}}
-                    onClick={() => { if (activeChat !== "global") setViewingProfile(activeChat.split(":")[1]); }}
-                  >
-                    <div style={{width: "100%", height: "100%", borderRadius: "50%", background: activeChat === "global" ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : getAvatarColor(activeChat.split(":")[1]), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", border: "2px solid #0f172a", fontSize: "0.95rem", color: "white"}}>
-                      {activeChat === "global" ? "🌍" : activeChat.split(":")[1].charAt(0).toUpperCase()}
+              {/* Modern Study Lounge Chat Header */}
+              {(() => {
+                const currentChatUser = activeChat !== "global" ? activeChat.replace(/^user:/, '').trim() : null;
+                const peerProfile = currentChatUser ? getProfileData(currentChatUser) : null;
+                const peerIsOnline = currentChatUser ? (allPeers.find(p => p.name.toLowerCase() === currentChatUser.toLowerCase())?.isOnline || false) : true;
+
+                return (
+                  <div className="chat-header">
+                    <div style={{display: "flex", alignItems: "center", gap: "10px", minWidth: 0}}>
+                      {activeChat !== "global" && (
+                        <button 
+                          onClick={() => setActiveChat("global")} 
+                          style={{background: "rgba(255,255,255,0.08)", border: "none", color: "white", padding: "5px 12px", borderRadius: "100px", cursor: "pointer", fontSize: "0.78rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "5px", flexShrink: 0, transition: "background 0.2s"}}
+                          title="Back to Global Lounge"
+                        >
+                          ← Global
+                        </button>
+                      )}
+                      
+                      <div 
+                        className="ig-story-avatar" 
+                        style={{width: "38px", height: "38px", cursor: "pointer", flexShrink: 0, position: "relative"}}
+                        onClick={() => { if (currentChatUser) setViewingProfile(currentChatUser); }}
+                      >
+                        <div style={{width: "100%", height: "100%", borderRadius: "50%", background: activeChat === "global" ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : getAvatarColor(currentChatUser), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", border: "2px solid #0f172a", fontSize: "0.95rem", color: "white"}}>
+                          {activeChat === "global" ? "🌍" : currentChatUser.charAt(0).toUpperCase()}
+                        </div>
+                        {currentChatUser && peerIsOnline && (
+                          <div style={{position: "absolute", bottom: "-1px", right: "-1px", width: "9px", height: "9px", borderRadius: "50%", background: "#10b981", border: "2px solid #0f172a"}}></div>
+                        )}
+                      </div>
+
+                      <div style={{minWidth: 0, overflow: "hidden"}}>
+                        <div style={{display: "flex", alignItems: "center", gap: "6px"}}>
+                          <h2 style={{fontSize: "0.98rem", fontWeight: "800", margin: 0, color: "white", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                            {activeChat === "global" ? "Global Study Lounge" : currentChatUser}
+                          </h2>
+                          {peerProfile?.countryFlag && (
+                            <span style={{fontSize: "0.85rem"}} title={peerProfile?.country}>{peerProfile.countryFlag}</span>
+                          )}
+                          {currentChatUser && peerProfile?.prepType && (
+                            <span style={{fontSize: "0.62rem", background: "rgba(139,92,246,0.2)", color: "var(--accent-physics)", padding: "1px 6px", borderRadius: "100px", fontWeight: "bold", whiteSpace: "nowrap"}}>
+                              {peerProfile.prepType}
+                            </span>
+                          )}
+                        </div>
+                        <span style={{fontSize: "0.7rem", color: (activeChat === "global" || peerIsOnline) ? "#10b981" : "var(--text-muted)", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px"}}>
+                          <span style={{display: "inline-block", width: "6px", height: "6px", background: (activeChat === "global" || peerIsOnline) ? "#10b981" : "rgba(255,255,255,0.3)", borderRadius: "50%"}}></span>
+                          {activeChat === "global" ? `${allPeers.filter(p => p.isOnline).length || 1} online right now` : (peerIsOnline ? 'Active in Study Room' : 'Offline')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{display: "flex", alignItems: "center", gap: "6px", flexShrink: 0}}>
+                      {activeChat === "global" && (
+                        <button
+                          onClick={() => setShowDoubtModal(true)}
+                          style={{background: "rgba(168, 85, 247, 0.18)", border: "1px solid rgba(168, 85, 247, 0.4)", color: "#c084fc", borderRadius: "100px", padding: "5px 12px", fontSize: "0.76rem", fontWeight: "800", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", boxShadow: "0 2px 10px rgba(168,85,247,0.2)"}}
+                          title="Ask a Study Doubt or Practice Problem (+5 XP)"
+                        >
+                          <HelpCircle size={14}/>
+                          <span>Ask Doubt (+5 XP)</span>
+                        </button>
+                      )}
+
+                      {currentChatUser && (
+                        <button
+                          onClick={() => setViewingProfile(currentChatUser)}
+                          style={{background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#cbd5e1", borderRadius: "100px", padding: "5px 12px", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px"}}
+                        >
+                          <User size={12}/> Profile
+                        </button>
+                      )}
+
+                      <span style={{fontSize: "0.72rem", color: "var(--accent-physics)", background: "rgba(139,92,246,0.14)", border: "1px solid rgba(139,92,246,0.28)", padding: "3px 9px", borderRadius: "100px", fontWeight: "bold"}}>
+                        {activeChat === "global" ? 'Lounge' : 'Direct DM'}
+                      </span>
                     </div>
                   </div>
+                );
+              })()}
 
-                  <div style={{minWidth: 0, overflow: "hidden"}}>
-                    <h2 style={{fontSize: "0.98rem", fontWeight: "800", margin: 0, color: "white", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
-                      {activeChat === "global" ? "Global Lounge" : activeChat.split(":")[1]}
-                    </h2>
-                    <span style={{fontSize: "0.7rem", color: "#10b981", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px"}}>
-                      <span style={{display: "inline-block", width: "5px", height: "5px", background: "#10b981", borderRadius: "50%"}}></span> Active Now
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{display: "flex", alignItems: "center", gap: "6px", flexShrink: 0}}>
-                  <button
-                    onClick={() => setShowDoubtModal(true)}
-                    style={{background: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(168, 85, 247, 0.35)", color: "#c084fc", borderRadius: "100px", padding: "4px 10px", fontSize: "0.75rem", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px"}}
-                    title="Ask a Study Doubt or Practice Problem"
-                  >
-                    <HelpCircle size={13}/>
-                    <span>Ask Doubt</span>
-                  </button>
-
-                  <span style={{fontSize: "0.72rem", color: "var(--accent-physics)", background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", padding: "3px 8px", borderRadius: "100px", fontWeight: "bold"}}>
-                    {activeChat === "global" ? `${allPeers.filter(p => p.isOnline).length || 1} online` : 'DM'}
-                  </span>
-                </div>
-              </div>
-
-              
-              {/* Quick Conversation Switcher Strip (Visible on Desktop & Mobile) */}
+              {/* Quick Conversation Switcher Strip */}
               <div style={{display: "flex", alignItems: "center", gap: "8px", padding: "7px 12px", borderBottom: "1px solid rgba(255, 255, 255, 0.06)", background: "rgba(15, 23, 42, 0.55)", overflowX: "auto", scrollbarWidth: "none", flexShrink: 0}}>
                 <button
                   type="button"
                   onClick={() => setActiveChat("global")}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 12px", borderRadius: "100px", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", whiteSpace: "nowrap",
+                    display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 13px", borderRadius: "100px", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", whiteSpace: "nowrap",
                     border: activeChat === "global" ? "1px solid rgba(139, 92, 246, 0.6)" : "1px solid rgba(255,255,255,0.08)",
                     background: activeChat === "global" ? "linear-gradient(135deg, rgba(59,130,246,0.3), rgba(139,92,246,0.35))" : "rgba(255,255,255,0.04)",
                     color: activeChat === "global" ? "#fff" : "var(--text-muted)", transition: "all 0.2s"
@@ -3627,9 +3711,12 @@ const App = () => {
                     <button
                       key={peer.name}
                       type="button"
-                      onClick={() => setActiveChat(`user:${peer.name}`)}
+                      onClick={() => {
+                        setActiveChat(`user:${peer.name}`);
+                        try { localStorage.setItem(`pm_last_read_dm_${peer.name}`, Date.now().toString()); } catch {}
+                      }}
                       style={{
-                        display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 12px", borderRadius: "100px", fontSize: "0.8rem", fontWeight: isActive ? "700" : "600", cursor: "pointer", whiteSpace: "nowrap",
+                        display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 12px", borderRadius: "100px", fontSize: "0.8rem", fontWeight: isActive ? "800" : "600", cursor: "pointer", whiteSpace: "nowrap",
                         border: isActive ? "1px solid rgba(236, 72, 153, 0.6)" : "1px solid rgba(255,255,255,0.08)",
                         background: isActive ? "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(168,85,247,0.25))" : "rgba(255,255,255,0.04)",
                         color: isActive ? "#fff" : "var(--text-muted)", transition: "all 0.2s"
@@ -3638,7 +3725,9 @@ const App = () => {
                       <span style={{width: "7px", height: "7px", borderRadius: "50%", background: peer.isOnline ? "#10b981" : "rgba(255,255,255,0.25)", display: "inline-block"}}></span>
                       <span>💬 {peer.name}</span>
                       {peer.hasUnread && !isActive && (
-                        <span style={{background: "#ec4899", color: "white", borderRadius: "100px", fontSize: "0.58rem", padding: "1px 5px", fontWeight: "900", marginLeft: "2px", boxShadow: "0 0 8px rgba(236,72,153,0.8)"}}>NEW</span>
+                        <span style={{background: "#ec4899", color: "white", borderRadius: "100px", fontSize: "0.58rem", padding: "1px 6px", fontWeight: "900", marginLeft: "2px", boxShadow: "0 0 8px rgba(236,72,153,0.8)"}}>
+                          {peer.unreadCount > 9 ? '9+' : (peer.unreadCount || 1)}
+                        </span>
                       )}
                     </button>
                   );
@@ -3648,13 +3737,48 @@ const App = () => {
                   type="button"
                   onClick={() => setShowPeerPicker(true)}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "100px", fontSize: "0.78rem", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap",
-                    border: "1px dashed rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.02)", color: "var(--text-muted)", transition: "all 0.2s"
+                    display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "100px", fontSize: "0.78rem", fontWeight: "700", cursor: "pointer", whiteSpace: "nowrap",
+                    border: "1px dashed rgba(236, 72, 153, 0.45)", background: "rgba(236, 72, 153, 0.08)", color: "#f472b6", transition: "all 0.2s"
                   }}
                 >
-                  <Users size={12}/> + Peer DM
+                  <Users size={13}/> + New Message
                 </button>
               </div>
+
+              {/* Lounge Stream Filter Bar (Visible in Global Lounge) */}
+              {activeChat === "global" && (
+                <div style={{display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderBottom: "1px solid rgba(255, 255, 255, 0.05)", background: "rgba(15, 23, 42, 0.4)", overflowX: "auto", scrollbarWidth: "none", flexShrink: 0}}>
+                  <span style={{fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: "700", marginRight: "3px", display: "flex", alignItems: "center", gap: "4px"}}>
+                    <Sparkles size={11} color="#a855f7"/> Stream:
+                  </span>
+                  {[
+                    { id: 'all', label: 'All Discussion 💬' },
+                    { id: 'doubts', label: 'Study Doubts 🧠 (+15 XP Solve)' },
+                    { id: 'milestones', label: 'Streaks & Wins 🔥' }
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setChatFilter(f.id)}
+                      style={{
+                        padding: "3px 10px",
+                        borderRadius: "100px",
+                        fontSize: "0.74rem",
+                        fontWeight: chatFilter === f.id ? "800" : "600",
+                        border: "none",
+                        cursor: "pointer",
+                        background: chatFilter === f.id ? "rgba(139, 92, 246, 0.25)" : "rgba(255, 255, 255, 0.04)",
+                        color: chatFilter === f.id ? "#c084fc" : "var(--text-muted)",
+                        outline: chatFilter === f.id ? "1px solid rgba(139, 92, 246, 0.45)" : "none",
+                        transition: "all 0.15s",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* In-Lounge DM Alert Banner when receiving DMs */}
               {activeChat === "global" && conversationPeers.some(cp => cp.hasUnread) && (() => {
@@ -3677,27 +3801,28 @@ const App = () => {
                   </div>
                 );
               })()}
-{/* Mobile Instagram Notes Tray (Visible only on mobile screens) */}
+
+              {/* Mobile Peer Carousel Tray */}
               <div className="mobile-notes-tray">
-                {/* Self Note */}
+                {/* Self Status */}
                 <div 
                   onClick={() => {
-                    const newN = prompt("Update your Instagram study note (e.g. Grinding Physics ⚡):", userNote);
-                    if (newN !== null && newN.trim()) {
-                      const cleanN = newN.trim().slice(0, 28);
-                      setUserNote(cleanN);
-                      localStorage.setItem('pm_user_note', cleanN);
-                    }
+                    const statusOptions = ['Grinding Mechanics ⚡', 'Calculus PYQs 📐', 'Organic Reactions 🧪', 'Mock Review 🎯', '25m Focus Sprint ⏱️', 'Deep Revision 📚'];
+                    const currentIdx = statusOptions.indexOf(userFocusStatus);
+                    const nextStatus = statusOptions[(currentIdx + 1) % statusOptions.length];
+                    setUserFocusStatus(nextStatus);
+                    try { localStorage.setItem('pm_user_focus_status', nextStatus); } catch {}
                   }}
                   style={{display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", flexShrink: 0}}
+                  title="Tap to cycle your study focus status"
                 >
                   <div className="ig-story-avatar" style={{width: "38px", height: "38px"}}>
                     <div style={{width: "100%", height: "100%", borderRadius: "50%", background: getAvatarColor(sessionUser), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", border: "2px solid #0f172a", fontSize: "0.9rem", color: "white"}}>
                       {sessionUser.charAt(0).toUpperCase()}
                     </div>
                   </div>
-                  <span style={{fontSize: "0.6rem", color: "#f472b6", marginTop: "2px", fontWeight: "bold", maxWidth: "48px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
-                    {userNote || "+ Note"}
+                  <span style={{fontSize: "0.6rem", color: "#f472b6", marginTop: "2px", fontWeight: "bold", maxWidth: "56px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                    {userFocusStatus}
                   </span>
                 </div>
 
@@ -3711,12 +3836,12 @@ const App = () => {
                       onClick={() => setActiveChat(`user:${peer.name}`)}
                       style={{display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", flexShrink: 0}}
                     >
-                      <div className="ig-story-avatar" style={{width: "38px", height: "38px", background: peer.isOnline ? "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)" : "rgba(255,255,255,0.2)"}}>
+                      <div className="ig-story-avatar" style={{width: "38px", height: "38px", background: peer.isOnline ? "linear-gradient(45deg, #10b981, #059669)" : "rgba(255,255,255,0.2)"}}>
                         <div style={{width: "100%", height: "100%", borderRadius: "50%", background: getAvatarColor(peer.name), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", border: "2px solid #0f172a", fontSize: "0.9rem", color: "white"}}>
                           {peer.name.charAt(0).toUpperCase()}
                         </div>
                       </div>
-                      <span style={{fontSize: "0.6rem", color: peer.isOnline ? "white" : "var(--text-muted)", marginTop: "2px", maxWidth: "48px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                      <span style={{fontSize: "0.6rem", color: peer.isOnline ? "#10b981" : "var(--text-muted)", marginTop: "2px", maxWidth: "48px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
                         {peer.name}
                       </span>
                     </div>
@@ -3724,7 +3849,7 @@ const App = () => {
                 })}
               </div>
 
-              {/* Chat Messages Body - Takes ALL Remaining Height! */}
+              {/* Chat Messages Body */}
               <div 
                 className="chat-messages custom-scrollbar" 
               >
@@ -3732,13 +3857,17 @@ const App = () => {
                 {isCommunityLoading ? (
                   <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px"}}>
                     <div style={{width: "36px", height: "36px", borderRadius: "50%", border: "3px solid rgba(139,92,246,0.3)", borderTopColor: "#8b5cf6", animation: "spin 0.8s linear infinite"}} />
-                    <div style={{fontSize: "0.9rem", fontWeight: "600", color: "var(--text-muted)"}}>Loading messages...</div>
+                    <div style={{fontSize: "0.9rem", fontWeight: "600", color: "var(--text-muted)"}}>Connecting to study lounge...</div>
                   </div>
                 ) : chatMessages.length === 0 ? (
                   <div style={{textAlign: "center", color: "var(--text-muted)", margin: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px"}}>
                     <span style={{fontSize: "2.8rem"}}>👋</span>
-                    <div style={{fontWeight: "bold", fontSize: "1.05rem", color: "white"}}>It's quiet in the lounge...</div>
-                    <div style={{fontSize: "0.85rem"}}>Post a study doubt, share your goal, or double-click to ❤️!</div>
+                    <div style={{fontWeight: "bold", fontSize: "1.05rem", color: "white"}}>
+                      {activeChat === "global" ? "It's quiet in the study lounge..." : `Start a study discussion with @${activeChat.replace(/^user:/, '')}!`}
+                    </div>
+                    <div style={{fontSize: "0.85rem", color: "#94a3b8"}}>
+                      Send a message, ask a doubt, or share your goal to earn +5 XP! ⚡
+                    </div>
                   </div>
                 ) : (
                   chatMessages.map(msg => {
@@ -3792,10 +3921,11 @@ const App = () => {
                               </div>
                            )}
 
-                           {/* Message Bubble + Action Hover Wrapper */}
+                           {/* Message Bubble + Action Hover/Tap Wrapper */}
                            <div 
                              style={{position: "relative", display: "flex", alignItems: "center", gap: "6px", flexDirection: isMe ? "row-reverse" : "row", maxWidth: "100%"}} 
                              className="chat-msg-wrapper"
+                             onClick={() => setActiveEmojiBarId(prev => prev === msg.id ? null : msg.id)}
                              onMouseEnter={() => {
                                if (emojiBarHideTimer.current) clearTimeout(emojiBarHideTimer.current);
                                setActiveEmojiBarId(msg.id);
@@ -3812,13 +3942,14 @@ const App = () => {
                                </div>
                              )}
 
-                             {/* Instagram Message Bubble or Doubt Card */}
+                             {/* Study Doubt Card or Custom Cosmic Bubble */}
                              {isDoubtMsg && doubtMeta ? (
                                <div 
                                  onDoubleClick={() => {
                                    setHeartBurstId(msg.id);
                                    setTimeout(() => setHeartBurstId(null), 850);
                                    gunToggleReaction(msg.id, '❤️');
+                                   try { playTaskCompleteChime(); } catch {}
                                  }}
                                  className="ig-doubt-card"
                                  style={{maxWidth: "100%", cursor: "pointer"}}
@@ -3828,7 +3959,7 @@ const App = () => {
                                    <span style={{fontSize: "0.75rem", fontWeight: "800", color: "#c084fc", background: "rgba(168, 85, 247, 0.2)", padding: "2px 8px", borderRadius: "100px", display: "flex", alignItems: "center", gap: "4px"}}>
                                      🧠 {doubtMeta.subject} Doubt
                                    </span>
-                                   <span style={{fontSize: "0.68rem", color: "var(--text-muted)"}}>Active Learning</span>
+                                   <span style={{fontSize: "0.68rem", color: "#10b981", fontWeight: "bold"}}>+15 XP for Solving</span>
                                  </div>
                                  <div style={{fontSize: "0.95rem", fontWeight: "600", color: "white", lineHeight: 1.45, marginBottom: "8px", wordBreak: "break-word"}}>
                                    {displayText}
@@ -3841,22 +3972,24 @@ const App = () => {
                                  )}
                                  <div style={{display: "flex", gap: "6px", alignItems: "center"}}>
                                    <button 
-                                     onClick={() => {
+                                     onClick={(e) => {
+                                       e.stopPropagation();
                                        setReplyingTo({ id: msg.id, user: msg.user, text: displayText });
                                        setChatInput("Solution: ");
                                      }}
-                                     style={{background: "rgba(139, 92, 246, 0.2)", border: "1px solid rgba(139, 92, 246, 0.4)", color: "#e9d5ff", borderRadius: "100px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px"}}
+                                     style={{background: "linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(168, 85, 247, 0.4))", border: "1px solid rgba(168, 85, 247, 0.5)", color: "#fff", borderRadius: "100px", padding: "5px 14px", fontSize: "0.75rem", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", boxShadow: "0 2px 10px rgba(139,92,246,0.25)"}}
                                    >
-                                     💡 Solve & Reply
+                                     💡 Solve Doubt (+15 XP)
                                    </button>
                                  </div>
-                               </div>
+                                </div>
                              ) : (
                                <div 
                                  onDoubleClick={() => {
                                    setHeartBurstId(msg.id);
                                    setTimeout(() => setHeartBurstId(null), 850);
                                    gunToggleReaction(msg.id, '❤️');
+                                   try { playTaskCompleteChime(); } catch {}
                                  }}
                                  className={isMe ? "ig-bubble-me" : "ig-bubble-peer"}
                                  style={{
@@ -3867,12 +4000,12 @@ const App = () => {
                                    position: "relative",
                                    backdropFilter: "blur(12px)"
                                  }}
-                                 title="Double-click to react ❤️"
+                                 title="Double-click to react ❤️ · Tap to view actions"
                                >
                                  {/* Quoted Reply Banner */}
                                  {msg.replyTo && (
                                    <div style={{
-                                     borderLeft: isMe ? "3px solid rgba(255,255,255,0.75)" : "3px solid #ec4899",
+                                     borderLeft: isMe ? "3px solid rgba(255,255,255,0.8)" : "3px solid #a855f7",
                                      paddingLeft: "8px",
                                      marginBottom: "6px",
                                      paddingTop: "2px",
@@ -3881,7 +4014,7 @@ const App = () => {
                                      borderRadius: "0 8px 8px 0",
                                      fontSize: "0.78rem"
                                    }}>
-                                     <div style={{fontWeight: "bold", fontSize: "0.72rem", color: isMe ? "rgba(255,255,255,0.9)" : "#f472b6"}}>
+                                     <div style={{fontWeight: "bold", fontSize: "0.72rem", color: isMe ? "rgba(255,255,255,0.9)" : "#c084fc"}}>
                                        @{msg.replyTo.user}
                                      </div>
                                      <div style={{color: "rgba(255,255,255,0.75)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
@@ -3894,7 +4027,7 @@ const App = () => {
                                </div>
                              )}
 
-                             {/* Instagram Floating Hover Action Capsule */}
+                             {/* Direct Hover / Tap Action Capsule */}
                              {isShowingMenu && (
                                <div 
                                  className="ig-reaction-capsule glass" 
@@ -3912,15 +4045,17 @@ const App = () => {
                                    emojiBarHideTimer.current = setTimeout(() => setActiveEmojiBarId(null), 450);
                                  }}
                                >
-                                 {['❤️', '🔥', '😂', '😮', '👏', '💯'].map(emoji => (
+                                 {['❤️', '🔥', '💡', '🎯', '👏', '💯'].map(emoji => (
                                    <button 
                                      key={emoji}
-                                     onClick={() => {
+                                     onClick={(e) => {
+                                       e.stopPropagation();
                                        gunToggleReaction(msg.id, emoji);
-                                       if (emoji === '❤️') {
+                                       if (emoji === '❤️' || emoji === '🔥') {
                                          setHeartBurstId(msg.id);
                                          setTimeout(() => setHeartBurstId(null), 850);
                                        }
+                                       try { playTaskCompleteChime(); } catch {}
                                      }}
                                      className="ig-reaction-emoji-btn"
                                      title={`React ${emoji}`}
@@ -3931,7 +4066,8 @@ const App = () => {
 
                                  {/* Reply Button */}
                                  <button 
-                                   onClick={() => {
+                                   onClick={(e) => {
+                                     e.stopPropagation();
                                      setReplyingTo({ id: msg.id, user: msg.user, text: displayText });
                                      setActiveEmojiBarId(null);
                                    }}
@@ -3941,19 +4077,33 @@ const App = () => {
                                    <CornerUpLeft size={13}/>
                                  </button>
 
-                                 {/* Delete Button */}
-                                 <button 
-                                   onClick={() => {
-                                     if (window.confirm("Delete this message?")) {
-                                       gunDeletePost(msg.id);
-                                       setActiveEmojiBarId(null);
-                                     }
-                                   }}
-                                   style={{background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", borderRadius: "50%", display: "flex", alignItems: "center"}}
-                                   title="Delete message"
-                                 >
-                                   <Trash2 size={13}/>
-                                 </button>
+                                 {/* Direct Unsend / Delete (Instant - No browser confirm popup!) */}
+                                 {isMe && (
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       handleDirectUnsend(msg.id);
+                                     }}
+                                     style={{
+                                       background: "rgba(239, 68, 68, 0.15)", 
+                                       border: "1px solid rgba(239, 68, 68, 0.3)", 
+                                       color: "#f87171", 
+                                       cursor: "pointer", 
+                                       padding: "3px 8px", 
+                                       borderRadius: "100px", 
+                                       display: "flex", 
+                                       alignItems: "center", 
+                                       gap: "4px",
+                                       fontSize: "0.72rem",
+                                       fontWeight: "700",
+                                       transition: "all 0.15s"
+                                     }}
+                                     title="Direct Unsend (Immediate)"
+                                   >
+                                     <Trash2 size={12}/>
+                                     <span>Unsend</span>
+                                   </button>
+                                 )}
                                </div>
                              )}
                            </div>
@@ -3970,8 +4120,8 @@ const App = () => {
                                      onClick={() => gunToggleReaction(msg.id, emoji)}
                                      title={users.join(', ')}
                                      style={{
-                                       background: hasReacted ? "rgba(236, 72, 153, 0.25)" : "rgba(255, 255, 255, 0.08)",
-                                       border: hasReacted ? "1px solid rgba(236, 72, 153, 0.5)" : "1px solid rgba(255, 255, 255, 0.12)",
+                                       background: hasReacted ? "rgba(139, 92, 246, 0.25)" : "rgba(255, 255, 255, 0.08)",
+                                       border: hasReacted ? "1px solid rgba(139, 92, 246, 0.5)" : "1px solid rgba(255, 255, 255, 0.12)",
                                        borderRadius: "100px", padding: "2px 7px", fontSize: "0.75rem",
                                        cursor: "pointer", display: "flex", alignItems: "center", gap: "3px", color: "white",
                                        transition: "transform 0.15s"
@@ -3995,14 +4145,47 @@ const App = () => {
                 )}
               </div>
               
-              {/* Instagram Chat Composer */}
-              <div className="chat-composer">
+              {/* Floating Instant Unsend Toast */}
+              {unsendToast && (
+                <div style={{
+                  position: "absolute",
+                  bottom: "74px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "rgba(15, 23, 42, 0.96)",
+                  border: "1px solid rgba(239, 68, 68, 0.45)",
+                  color: "#fca5a5",
+                  padding: "7px 18px",
+                  borderRadius: "100px",
+                  fontSize: "0.82rem",
+                  fontWeight: "700",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "7px",
+                  zIndex: 60,
+                  boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
+                  pointerEvents: "none",
+                  animation: "slideUp 0.15s ease-out"
+                }}>
+                  <span>🗑️</span> {unsendToast}
+                </div>
+              )}
+
+              {/* Chat Composer */}
+              <div className="chat-composer" style={{position: "relative"}}>
                 
+                {/* Floating XP Reward Burst (+5 XP ⚡) */}
+                {chatXpBurst && (
+                  <div className="chat-xp-burst-float">
+                    +{chatXpBurst.amount} XP ⚡
+                  </div>
+                )}
+
                 {/* Quoted Reply Banner */}
                 {replyingTo && (
-                  <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 12px", background: "rgba(255,255,255,0.06)", borderRadius: "12px", marginBottom: "8px", borderLeft: "3px solid #ec4899", animation: "slideUp 0.15s ease-out"}}>
+                  <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 12px", background: "rgba(255,255,255,0.06)", borderRadius: "12px", marginBottom: "8px", borderLeft: "3px solid #8b5cf6", animation: "slideUp 0.15s ease-out"}}>
                     <div style={{fontSize: "0.78rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
-                      <span style={{color: "#f472b6", fontWeight: "bold"}}>Replying to @{replyingTo.user}: </span>
+                      <span style={{color: "#c084fc", fontWeight: "bold"}}>Replying to @{replyingTo.user}: </span>
                       <span style={{color: "var(--text-muted)"}}>{replyingTo.text}</span>
                     </div>
                     <button type="button" onClick={() => setReplyingTo(null)} style={{background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "2px"}} title="Cancel reply">
@@ -4011,10 +4194,10 @@ const App = () => {
                   </div>
                 )}
 
-                {/* Quick Emojis Drawer (Toggled by Smiley icon, does NOT eat screen space when closed!) */}
+                {/* Quick Emojis Drawer */}
                 {showEmojiPicker && (
                   <div style={{display: "flex", gap: "8px", alignItems: "center", padding: "6px 12px", background: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "100px", marginBottom: "8px", width: "fit-content", animation: "slideUp 0.15s ease-out", boxShadow: "0 6px 20px rgba(0,0,0,0.4)"}}>
-                    {['❤️', '🔥', '👏', '😂', '💯', '✨', '🚀', '📚', '⚡', '🙌'].map(emoji => (
+                    {['❤️', '🔥', '👏', '💡', '🎯', '💯', '✨', '🚀', '📚', '⚡', '🙌'].map(emoji => (
                       <button
                         key={emoji}
                         type="button"
@@ -4030,14 +4213,14 @@ const App = () => {
                 )}
 
                 {/* Active Learning Study Prompt Chips */}
-                <div style={{display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "6px", marginBottom: "4px", scrollbarWidth: "none"}}>
+                <div style={{display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "6px", marginBottom: "4px", scrollbarWidth: "none", alignItems: "center"}}>
                   <button type="button" onClick={() => setShowDoubtModal(true)} className="study-icebreaker-pill">
-                    ❓ Ask Doubt
+                    ❓ Ask Doubt (+5 XP)
                   </button>
                   <button type="button" onClick={() => setChatInput("🎯 Today's Target: ")} className="study-icebreaker-pill">
                     🎯 Today's Goal
                   </button>
-                  <button type="button" onClick={() => setChatInput("⚡ Quick Quiz: ")} className="study-icebreaker-pill">
+                  <button type="button" onClick={() => setChatInput("⚡ Quick Concept Quiz: ")} className="study-icebreaker-pill">
                     ⚡ Quick Quiz
                   </button>
                   <button type="button" onClick={() => setChatInput("⏱️ 25m Focus Sprint! Who is in?")} className="study-icebreaker-pill">
@@ -4050,29 +4233,31 @@ const App = () => {
                     <button 
                       type="button"
                       onClick={() => setShowEmojiPicker(prev => !prev)}
-                      style={{position: "absolute", left: "12px", background: "transparent", border: "none", color: showEmojiPicker ? "#ec4899" : "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", padding: "4px", transition: "color 0.2s"}}
-                      title="Toggle quick emojis"
+                      style={{position: "absolute", left: "12px", background: "transparent", border: "none", color: showEmojiPicker ? "#c084fc" : "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", padding: "4px", transition: "color 0.2s"}}
+                      title="Toggle quick study emojis"
                     >
                       <Smile size={19}/>
                     </button>
                     <input 
                       type="text" 
                       className="input-field" 
-                      placeholder={activeChat === "global" ? "Message lounge or ask doubt..." : `Message ${activeChat.split(":")[1]}...`}
+                      placeholder={activeChat === "global" ? "Share study progress, doubts, or solutions (+5 XP)..." : `Direct message @${activeChat.replace(/^user:/, '')} (+5 XP)...`}
                       value={chatInput} 
                       onChange={e => setChatInput(e.target.value)} 
                       style={{width: "100%", padding: "11px 16px 11px 42px", borderRadius: "100px", fontSize: "0.93rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white", outline: "none", transition: "all 0.25s"}}
-                      onFocus={(e) => e.target.style.borderColor = "#ec4899"}
+                      onFocus={(e) => e.target.style.borderColor = "var(--accent-physics)"}
                       onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
                     />
                   </div>
                   <button 
                     type="submit" 
                     className="btn-primary" 
-                    style={{borderRadius: "100px", padding: "11px 18px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "bold", fontSize: "0.88rem", background: "linear-gradient(135deg, #7928ca, #ff0080)", boxShadow: "0 4px 15px rgba(255, 0, 128, 0.4)", transition: "all 0.2s", flexShrink: 0}} 
+                    style={{borderRadius: "100px", padding: "10px 18px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "800", fontSize: "0.86rem", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 4px 15px rgba(99, 102, 241, 0.35)", transition: "all 0.2s", flexShrink: 0}} 
                     disabled={!chatInput.trim()}
                   >
                     <Send size={15}/>
+                    <span>Send</span>
+                    <span style={{fontSize: "0.66rem", background: "rgba(255,255,255,0.2)", padding: "1px 6px", borderRadius: "100px", fontWeight: 900}}>+5 XP</span>
                   </button>
                 </form>
               </div>

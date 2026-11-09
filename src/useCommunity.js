@@ -208,35 +208,149 @@ export const maskAbuse = (text) => {
 };
 
 // DM utility functions for reliable community chat messaging
-export const isDmBetween = (action, userA, userB) => {
-  if (!action || !action.startsWith('@DM_')) return false;
-  const firstSpace = action.indexOf(' ');
-  const header = (firstSpace !== -1 ? action.slice(4, firstSpace) : action.slice(4)).toLowerCase();
-  const uA = (userA || '').toLowerCase();
-  const uB = (userB || '').toLowerCase();
-  return header === `${uA}_${uB}` || header === `${uB}_${uA}`;
+export const isCommunityPostDm = (action, post = null) => {
+  if (post && (post.dmTo || post.isDm)) return true;
+  if (!action || typeof action !== 'string') return false;
+  return action.startsWith('@DM[') || action.startsWith('@DM::') || action.startsWith('@DM_') || action.startsWith('@dm_');
+};
+
+export const isDmBetween = (action, userA, userB, post = null) => {
+  if (!userA || !userB) return false;
+  const uA = String(userA).toLowerCase().trim();
+  const uB = String(userB).toLowerCase().trim();
+
+  // 1. Explicit property check on post object (100% reliable)
+  if (post && post.dmTo) {
+    const postUser = String(post.user || '').toLowerCase().trim();
+    const postDmTo = String(post.dmTo || '').toLowerCase().trim();
+    return (postUser === uA && postDmTo === uB) || (postUser === uB && postDmTo === uA);
+  }
+
+  if (!action || typeof action !== 'string') return false;
+
+  // 2. Structured modern tag: @DM[Sender -> Receiver]: Message
+  if (action.startsWith('@DM[')) {
+    const closeBracket = action.indexOf(']:');
+    if (closeBracket !== -1) {
+      const header = action.slice(4, closeBracket);
+      const parts = header.split('->').map(s => s.toLowerCase().trim());
+      if (parts.length === 2) {
+        return (parts[0] === uA && parts[1] === uB) || (parts[0] === uB && parts[1] === uA);
+      }
+    }
+  }
+
+  // 3. Structured tag: @DM::userA::userB::
+  if (action.startsWith('@DM::')) {
+    const parts = action.split('::');
+    if (parts.length >= 3) {
+      const p1 = parts[1].toLowerCase().trim();
+      const p2 = parts[2].toLowerCase().trim();
+      return (p1 === uA && p2 === uB) || (p1 === uB && p2 === uA);
+    }
+  }
+
+  // 4. Legacy format: @DM_userA_userB
+  if (action.startsWith('@DM_') || action.startsWith('@dm_')) {
+    const firstSpace = action.indexOf(' ');
+    const header = (firstSpace !== -1 ? action.slice(4, firstSpace) : action.slice(4)).toLowerCase();
+    
+    // Direct match if no spaces in usernames
+    if (header === `${uA}_${uB}` || header === `${uB}_${uA}`) return true;
+
+    // Check full action prefix
+    const lowerAction = action.toLowerCase();
+    if (lowerAction.startsWith(`@dm_${uA}_${uB}`) || lowerAction.startsWith(`@dm_${uB}_${uA}`)) return true;
+
+    // Fallback: if sender matches userA/userB, verify other user is in header
+    const postAuthor = String(post?.user || '').toLowerCase().trim();
+    if (postAuthor === uA && (header.includes(uB) || lowerAction.includes(uB))) return true;
+    if (postAuthor === uB && (header.includes(uA) || lowerAction.includes(uA))) return true;
+    if (lowerAction.includes(uA) && lowerAction.includes(uB)) return true;
+  }
+
+  return false;
 };
 
 export const extractDmText = (action) => {
-  if (!action || !action.startsWith('@DM_')) return action;
-  const firstSpace = action.indexOf(' ');
-  return firstSpace !== -1 ? action.slice(firstSpace + 1) : '';
+  if (!action || typeof action !== 'string') return '';
+  if (action.startsWith('@DM[')) {
+    const closeBracket = action.indexOf(']:');
+    if (closeBracket !== -1) {
+      return action.slice(closeBracket + 2).trim();
+    }
+  }
+  if (action.startsWith('@DM::')) {
+    const parts = action.split('::');
+    if (parts.length >= 4) {
+      return parts.slice(3).join('::').trim();
+    }
+  }
+  if (action.startsWith('@DM_') || action.startsWith('@dm_')) {
+    const firstSpace = action.indexOf(' ');
+    return firstSpace !== -1 ? action.slice(firstSpace + 1).trim() : '';
+  }
+  return action;
 };
 
-export const getDmOtherUser = (action, currentUser) => {
-  if (!action || !action.startsWith('@DM_')) return null;
-  const firstSpace = action.indexOf(' ');
-  const header = firstSpace !== -1 ? action.slice(4, firstSpace) : action.slice(4);
-  const cur = (currentUser || '').toLowerCase();
-  const lowerHeader = header.toLowerCase();
-  
-  if (lowerHeader.startsWith(cur + '_')) {
-    return header.slice(currentUser.length + 1);
+export const getDmOtherUser = (action, currentUser, post = null) => {
+  if (!currentUser) return null;
+  const cur = String(currentUser).toLowerCase().trim();
+
+  // 1. Direct explicit field on post
+  if (post && post.dmTo) {
+    const postUser = String(post.user || '').trim();
+    const postDmTo = String(post.dmTo || '').trim();
+    if (postUser.toLowerCase() === cur) return postDmTo;
+    if (postDmTo.toLowerCase() === cur) return postUser;
+    return null;
   }
-  const idx = lowerHeader.lastIndexOf('_' + cur);
-  if (idx > 0) {
-    return header.slice(0, idx);
+
+  if (!action || typeof action !== 'string') return null;
+
+  // 2. Structured tag @DM[Sender -> Receiver]:
+  if (action.startsWith('@DM[')) {
+    const closeBracket = action.indexOf(']:');
+    if (closeBracket !== -1) {
+      const header = action.slice(4, closeBracket);
+      const parts = header.split('->').map(s => s.trim());
+      if (parts.length === 2) {
+        if (parts[0].toLowerCase() === cur) return parts[1];
+        if (parts[1].toLowerCase() === cur) return parts[0];
+      }
+    }
   }
+
+  // 3. Structured tag: @DM::userA::userB::
+  if (action.startsWith('@DM::')) {
+    const parts = action.split('::');
+    if (parts.length >= 3) {
+      if (parts[1].toLowerCase() === cur) return parts[2];
+      if (parts[2].toLowerCase() === cur) return parts[1];
+    }
+  }
+
+  // 4. Legacy @DM_ format
+  if (action.startsWith('@DM_') || action.startsWith('@dm_')) {
+    const postUser = String(post?.user || '').trim();
+    if (postUser && postUser.toLowerCase() !== cur) {
+      // The other person sent this to current user!
+      return postUser;
+    }
+
+    const firstSpace = action.indexOf(' ');
+    const header = firstSpace !== -1 ? action.slice(4, firstSpace) : action.slice(4);
+    const lowerHeader = header.toLowerCase();
+
+    if (lowerHeader.startsWith(cur + '_')) {
+      return header.slice(cur.length + 1).trim();
+    }
+    const idx = lowerHeader.lastIndexOf('_' + cur);
+    if (idx > 0) {
+      return header.slice(0, idx).trim();
+    }
+  }
+
   return null;
 };
 
@@ -250,6 +364,8 @@ const parsePostsMap = (data, banned = []) => {
       prep: val.prep || '',
       xp: val.xp || 0,
       action: val.action || '',
+      dmTo: val.dmTo || null,
+      isDm: Boolean(val.isDm || val.dmTo || (val.action && (val.action.startsWith('@DM') || val.action.startsWith('@dm')))),
       time: val.time || 'just now',
       createdAt: val.createdAt || 0,
       likes: val.likes || 0,
@@ -447,6 +563,8 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
                   prep: val.prep || '',
                   xp: val.xp || 0,
                   action: val.action || '',
+                  dmTo: val.dmTo || null,
+                  isDm: Boolean(val.isDm || val.dmTo || (val.action && (val.action.startsWith('@DM') || val.action.startsWith('@dm')))),
                   time: val.time || 'just now',
                   createdAt: val.createdAt || 0,
                   likes: val.likes || 0,
@@ -488,7 +606,7 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
     };
   }, []);
 
-  const postMessage = useCallback(async (text, replyTo = null) => {
+  const postMessage = useCallback(async (text, replyTo = null, dmTo = null) => {
     if (!text?.trim() || !FIREBASE_URL || FIREBASE_URL === '__FIREBASE_URL__') return;
     if (bannedUsers.includes(sessionUser)) {
       alert("Access restricted: This account has been suspended from the community.");
@@ -503,6 +621,8 @@ export const useCommunity = (sessionUser, currentXP, prepType) => {
       prep: prepType || '',
       xp: currentXP || 0,
       action: cleanText.trim(),
+      dmTo: dmTo ? String(dmTo).trim() : null,
+      isDm: Boolean(dmTo),
       time: 'just now',
       createdAt: Date.now(),
       likes: 0,
