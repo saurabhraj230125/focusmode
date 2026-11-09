@@ -154,6 +154,19 @@ const App = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // User & Session Database States
+  const [usersDb, setUsersDb] = useState(() => {
+    try {
+      const saved = localStorage.getItem('planmaker_users');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [sessionUser, setSessionUser] = useState(() => {
+    return localStorage.getItem('planmaker_session') || null;
+  });
+
   // Global States
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isZenStudyOpen, setIsZenStudyOpen] = useState(false);
@@ -244,17 +257,7 @@ const App = () => {
   const [joinedCommunities, setJoinedCommunities] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pm_communities') || '[]'); } catch { return []; }
   });
-  const [usersDb, setUsersDb] = useState(() => {
-    try {
-      const saved = localStorage.getItem('planmaker_users');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-  const [sessionUser, setSessionUser] = useState(() => {
-    return localStorage.getItem('planmaker_session') || null;
-  }); 
+ 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editProfileData, setEditProfileData] = useState(() => {
     const detected = detectUserCountry();

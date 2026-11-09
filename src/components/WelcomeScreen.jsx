@@ -12,7 +12,6 @@ import { PrivacyPolicy } from './PrivacyPolicy.jsx';
 import { TermsOfService } from './TermsOfService.jsx';
 import { AboutUs } from './AboutUs.jsx';
 import { ContactUs } from './ContactUs.jsx';
-import { CookieConsent } from './CookieConsent.jsx';
 
 export const WelcomeScreen = ({
   authMode,
@@ -1001,13 +1000,6 @@ export const WelcomeScreen = ({
           welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
         }} />
       )}
-
-      {/* ── LIGHTWEIGHT COOKIE CONSENT BANNER ── */}
-      <CookieConsent onNavigate={(path, stepNum) => {
-        setStep(stepNum !== undefined ? stepNum : 7);
-        navigate(path);
-        welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-      }} />
     </div>
   );
 };
