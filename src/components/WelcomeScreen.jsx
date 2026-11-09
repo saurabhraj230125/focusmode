@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Lock, ArrowRight, Headphones, BrainCircuit, Shield, 
@@ -7,6 +7,12 @@ import {
 } from 'lucide-react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import Blog from '../Blog.jsx';
+import { Footer } from './Footer.jsx';
+import { PrivacyPolicy } from './PrivacyPolicy.jsx';
+import { TermsOfService } from './TermsOfService.jsx';
+import { AboutUs } from './AboutUs.jsx';
+import { ContactUs } from './ContactUs.jsx';
+import { CookieConsent } from './CookieConsent.jsx';
 
 export const WelcomeScreen = ({
   authMode,
@@ -24,14 +30,18 @@ export const WelcomeScreen = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const welcomeContainerRef = useRef(null);
 
-  // 0: Home Hero, 2: Setup (Name & Aim), 3: Login/Register, 4: Blog, 5: About, 6: Mission
+  // 0: Home Hero, 2: Setup (Name & Aim), 3: Login/Register, 4: Blog, 5: About, 6: Mission, 7: Privacy, 8: Terms, 9: Contact
   const [step, setStep] = useState(() => {
     if (localStorage.getItem('planmaker_explicit_logout')) return 3;
     if (location.pathname === '/about') return 5;
     if (location.pathname === '/mission') return 6;
     if (location.pathname === '/blog') return 4;
     if (location.pathname === '/login') return 3;
+    if (location.pathname === '/privacy-policy') return 7;
+    if (location.pathname === '/terms-of-service') return 8;
+    if (location.pathname === '/contact') return 9;
     return 0;
   });
 
@@ -46,17 +56,27 @@ export const WelcomeScreen = ({
       document.title = "FocusMode | Hyper-Focused Study Universe";
     } else if (location.pathname === '/about') {
       setStep(5);
-      document.title = "About Us | FocusMode";
+      document.title = "About Us | FocusMode Player";
     } else if (location.pathname === '/mission') {
       setStep(6);
-      document.title = "Our Mission | FocusMode";
+      document.title = "Our Mission | FocusMode Player";
     } else if (location.pathname === '/blog') {
       setStep(4);
-      document.title = "Study Tips & Blog | FocusMode";
+      document.title = "Study Tips & Blog | FocusMode Player";
     } else if (location.pathname === '/login') {
       setStep(3);
-      document.title = "Login | FocusMode";
+      document.title = "Login | FocusMode Player";
+    } else if (location.pathname === '/privacy-policy') {
+      setStep(7);
+      document.title = "Privacy Policy | FocusMode Player";
+    } else if (location.pathname === '/terms-of-service') {
+      setStep(8);
+      document.title = "Terms of Service | FocusMode Player";
+    } else if (location.pathname === '/contact') {
+      setStep(9);
+      document.title = "Contact Us | FocusMode Player";
     }
+    welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
 
   const handleClearTestData = () => {
@@ -76,15 +96,29 @@ export const WelcomeScreen = ({
   };
 
   return (
-    <div className="welcome-container" style={{
-      position: 'fixed',
-      inset: 0,
-      overflowY: 'auto',
-      overflowX: 'hidden',
-      zIndex: 1000,
-      background: 'radial-gradient(circle at 50% 10%, #110d29 0%, #05040d 100%)',
-      color: '#fff'
-    }}>
+    <div 
+      ref={welcomeContainerRef}
+      className="welcome-container" 
+      style={{
+        position: 'fixed',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        minHeight: '100vh',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        justifyContent: 'flex-start',
+        zIndex: 1000,
+        background: 'radial-gradient(circle at 50% 10%, #110d29 0%, #05040d 100%)',
+        color: '#fff',
+        boxSizing: 'border-box',
+        padding: 0,
+        margin: 0
+      }}
+    >
       
       {/* Background Animated Atmosphere */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: -1 }}>
@@ -94,29 +128,32 @@ export const WelcomeScreen = ({
       </div>
 
       {/* ── TOP FLOATING HEADER ── */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, display: 'flex', justifyContent: 'center', padding: '12px 16px' }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, display: 'flex', justifyContent: 'center', padding: '10px 14px', boxSizing: 'border-box', pointerEvents: 'none' }}>
         <motion.header 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           style={{
-            padding: '10px 24px',
+            pointerEvents: 'auto',
+            padding: '8px 20px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             width: '100%',
             maxWidth: '1040px',
-            background: 'rgba(15, 23, 42, 0.75)',
+            background: 'rgba(15, 23, 42, 0.82)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: '100px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            boxSizing: 'border-box',
+            gap: '12px'
           }}
         >
           <div 
-            onClick={() => { setStep(0); navigate('/'); }} 
-            style={{ fontWeight: 800, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+            onClick={() => { setStep(0); navigate('/'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+            style={{ fontWeight: 800, fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flexShrink: 0 }}
           >
             <div style={{
               width: '32px',
@@ -126,7 +163,8 @@ export const WelcomeScreen = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(139,92,246,0.4)'
+              boxShadow: '0 4px 12px rgba(139,92,246,0.4)',
+              flexShrink: 0
             }}>
               <Headphones size={18} color="#fff" />
             </div>
@@ -134,33 +172,44 @@ export const WelcomeScreen = ({
               background: 'linear-gradient(to right, #fff, #c4b5fd)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              letterSpacing: '-0.5px'
+              letterSpacing: '-0.5px',
+              whiteSpace: 'nowrap'
             }}>
               FocusMode <span style={{ color: '#ec4899', WebkitTextFillColor: '#ec4899' }}>Player</span>
             </span>
           </div>
 
-          <nav style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
+          <nav style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
             <button 
-              onClick={() => { setStep(6); navigate('/mission'); }} 
+              className="welcome-nav-text-link"
+              onClick={() => { setStep(6); navigate('/mission'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }} 
               style={{ background: 'none', border: 'none', color: step === 6 ? '#c4b5fd' : '#94a3b8', fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', transition: 'color 0.2s' }}
             >
               Mission
             </button>
             <button 
-              onClick={() => { setStep(5); navigate('/about'); }} 
+              className="welcome-nav-text-link"
+              onClick={() => { setStep(5); navigate('/about'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }} 
               style={{ background: 'none', border: 'none', color: step === 5 ? '#c4b5fd' : '#94a3b8', fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', transition: 'color 0.2s' }}
             >
               About
             </button>
             <button 
-              onClick={() => { setStep(4); navigate('/blog'); }} 
+              className="welcome-nav-text-link"
+              onClick={() => { setStep(4); navigate('/blog'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }} 
               style={{ background: 'none', border: 'none', color: step === 4 ? '#c4b5fd' : '#94a3b8', fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', transition: 'color 0.2s' }}
             >
               Blog
             </button>
+            <button 
+              className="welcome-nav-text-link"
+              onClick={() => { setStep(9); navigate('/contact'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+              style={{ background: 'none', border: 'none', color: step === 9 ? '#c4b5fd' : '#94a3b8', fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', transition: 'color 0.2s' }}
+            >
+              Contact
+            </button>
 
-            <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
+            <div className="welcome-nav-text-link" style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
 
             <button
               onClick={() => { setStep(3); setAuthMode('login'); navigate('/login'); }}
@@ -170,11 +219,12 @@ export const WelcomeScreen = ({
                 background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
                 border: 'none',
                 color: '#fff',
-                fontSize: '0.88rem',
+                fontSize: '0.86rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 boxShadow: '0 4px 15px rgba(139,92,246,0.35)',
-                transition: 'transform 0.2s'
+                transition: 'transform 0.2s',
+                whiteSpace: 'nowrap'
               }}
               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -185,7 +235,16 @@ export const WelcomeScreen = ({
         </motion.header>
       </div>
 
-      <AnimatePresence mode="wait">
+      {/* ── MAIN CONTENT WRAPPER ── */}
+      <div style={{
+        flex: '1 0 auto',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        boxSizing: 'border-box'
+      }}>
+        <AnimatePresence mode="wait">
         
         {/* ── STEP 0: HERO & INTERACTIVE SHOWCASE ── */}
         {step === 0 && (
@@ -836,72 +895,55 @@ export const WelcomeScreen = ({
         {step === 5 && (
           <motion.main
             key="about-page"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            style={{
-              paddingTop: '110px',
-              paddingBottom: '4rem',
-              width: '100%',
-              maxWidth: '820px',
-              margin: '0 auto',
-              paddingLeft: '1.25rem',
-              paddingRight: '1.25rem'
-            }}
+            transition={{ duration: 0.35 }}
+            style={{ paddingTop: '80px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}
           >
-            <div className="glass" style={{
-              padding: 'clamp(1.75rem, 5vw, 3rem)',
-              borderRadius: '28px',
-              background: 'rgba(15, 23, 42, 0.7)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1.5rem',
-              color: '#cbd5e1',
-              lineHeight: 1.8
-            }}>
-              <div style={{ textAlign: 'center' }}>
-                <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', margin: '0 0 10px' }}>
-                  About Focus Mode Player
-                </h1>
-                <p style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>
-                  Built by students and developers who understand the struggle of modern exam preparation.
-                </p>
-              </div>
+            <AboutUs onBack={() => { setStep(0); navigate('/'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+          </motion.main>
+        )}
 
-              <p>
-                Focus Mode Player was born out of a simple frustration: preparing for competitive exams (JEE, NEET, UPSC, SAT, College Finals) requires thousands of hours of intense focus, yet every device we own is weaponized to shatter our attention span.
-              </p>
+        {/* ── STEP 7: PRIVACY POLICY (GOOGLE ADSENSE COMPLIANT) ── */}
+        {step === 7 && (
+          <motion.main
+            key="privacy-page"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            style={{ paddingTop: '80px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}
+          >
+            <PrivacyPolicy onBack={() => { setStep(0); navigate('/'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+          </motion.main>
+        )}
 
-              <p>
-                We combined the best productivity science — <strong>Pomodoro sprints, Feynman technique active recall, Spaced Repetition mistake tracking, and Gamma binaural soundscapes</strong> — into a unified, distraction-free web studio.
-              </p>
+        {/* ── STEP 8: TERMS OF SERVICE ── */}
+        {step === 8 && (
+          <motion.main
+            key="terms-page"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            style={{ paddingTop: '80px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}
+          >
+            <TermsOfService onBack={() => { setStep(0); navigate('/'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+          </motion.main>
+        )}
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '1rem' }}>
-                <button
-                  onClick={() => setStep(0)}
-                  style={{
-                    padding: '12px 24px',
-                    borderRadius: '100px',
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Back to Home
-                </button>
-                <button
-                  onClick={() => setStep(2)}
-                  className="btn-primary"
-                  style={{ padding: '12px 28px', borderRadius: '100px', fontWeight: 800, cursor: 'pointer' }}
-                >
-                  Start Studying Free
-                </button>
-              </div>
-            </div>
+        {/* ── STEP 9: CONTACT US ── */}
+        {step === 9 && (
+          <motion.main
+            key="contact-page"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            style={{ paddingTop: '80px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}
+          >
+            <ContactUs onBack={() => { setStep(0); navigate('/'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }} />
           </motion.main>
         )}
 
@@ -909,23 +951,24 @@ export const WelcomeScreen = ({
         {step === 4 && (
           <motion.main
             key="blog-page"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.35 }}
             style={{
-              paddingTop: '110px',
+              paddingTop: '90px',
               paddingBottom: '4rem',
               width: '100%',
               maxWidth: '960px',
               margin: '0 auto',
               paddingLeft: '1.25rem',
-              paddingRight: '1.25rem'
+              paddingRight: '1.25rem',
+              boxSizing: 'border-box'
             }}
           >
             <div style={{ marginBottom: '1.5rem' }}>
               <button
-                onClick={() => setStep(0)}
+                onClick={() => { setStep(0); navigate('/'); welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -948,6 +991,23 @@ export const WelcomeScreen = ({
         )}
 
       </AnimatePresence>
+      </div>
+
+      {/* ── GLOBAL AD-SENSE COMPLIANT FOOTER ── */}
+      {[0, 4, 5, 6, 7, 8, 9].includes(step) && (
+        <Footer onNavigate={(path, stepNum) => {
+          setStep(stepNum !== undefined ? stepNum : 0);
+          navigate(path);
+          welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        }} />
+      )}
+
+      {/* ── LIGHTWEIGHT COOKIE CONSENT BANNER ── */}
+      <CookieConsent onNavigate={(path, stepNum) => {
+        setStep(stepNum !== undefined ? stepNum : 7);
+        navigate(path);
+        welcomeContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      }} />
     </div>
   );
 };

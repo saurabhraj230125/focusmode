@@ -30,6 +30,7 @@ import { AmbientSoundPlayer } from './components/AmbientSoundPlayer.jsx';
 import { DailyFocusQuests } from './components/DailyFocusQuests.jsx';
 import { WelcomeScreen } from './components/WelcomeScreen.jsx';
 import { ZenStudyRoom } from './components/ZenStudyRoom.jsx';
+import { CookieConsent } from './components/CookieConsent.jsx';
 import { playTaskCompleteChime, playTimerCompleteChime, playLevelUpChime } from './utils/soundEffects.js';
 
 // --- TIME AGO UTILITY ---
@@ -1603,7 +1604,8 @@ const App = () => {
   };
 
   // Views
-  if (!sessionUser) {
+  const isPublicComplianceRoute = ['/privacy-policy', '/terms-of-service', '/about', '/contact', '/mission'].includes(location.pathname);
+  if (!sessionUser || isPublicComplianceRoute) {
     return (
       <WelcomeScreen 
         authMode={authMode} setAuthMode={setAuthMode}
@@ -4159,6 +4161,20 @@ return (
             </div>
           </div>
           <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => handleTabChange('profile')}><User size={18} /> My Profile</div>
+          
+          {/* Legal & Compliance Links */}
+          <div style={{ marginTop: 'auto', paddingTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Link to="/privacy-policy" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Privacy</Link>
+              <span>·</span>
+              <Link to="/terms-of-service" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Terms</Link>
+              <span>·</span>
+              <Link to="/contact" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Contact</Link>
+            </div>
+            <div style={{ fontSize: '0.68rem', opacity: 0.65 }}>
+              © {new Date().getFullYear()} FocusMode Player
+            </div>
+          </div>
         </div>
       </nav>
 
@@ -4490,6 +4506,9 @@ return (
           <p style={{ fontSize: '1.2rem', color: '#fca5a5', marginTop: '10px', textAlign: 'center' }}>You are on fire! Keep it up! 🚀</p>
         </div>
       )}
+
+      {/* Global Lightweight Cookie Consent Banner */}
+      <CookieConsent onNavigate={(path) => navigate(path)} />
     </div>
   );
 };
