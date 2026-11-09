@@ -31,7 +31,8 @@ import { DailyFocusQuests } from './components/DailyFocusQuests.jsx';
 import { WelcomeScreen } from './components/WelcomeScreen.jsx';
 import { ZenStudyRoom } from './components/ZenStudyRoom.jsx';
 import { CookieConsent } from './components/CookieConsent.jsx';
-import { playTaskCompleteChime, playTimerCompleteChime, playLevelUpChime } from './utils/soundEffects.js';
+import { FocusShieldModal, FocusShieldBreachAlert, FocusShieldMobilePrompt, DEFAULT_BLOCKED_TARGETS } from './components/FocusShieldModal.jsx';
+import { playTaskCompleteChime, playTimerCompleteChime, playLevelUpChime, playShieldAlertSound } from './utils/soundEffects.js';
 
 // --- TIME AGO UTILITY ---
 const formatTimeAgo = (timestamp) => {
@@ -563,6 +564,92 @@ const App = () => {
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [sessionType, setSessionType] = useState('pomodoro');
+
+  // ── FOCUS SHIELD & ANTI-DISTRACTION (INSTAGRAM / APP BLOCKER) ─────────────
+  const [isShieldActive, setIsShieldActive] = useState(() => localStorage.getItem('pm_focus_shield_enabled') === 'true');
+  const [blockedTargets, setBlockedTargets] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pm_focus_shield_targets');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    const init = {};
+    DEFAULT_BLOCKED_TARGETS.forEach(t => { init[t.id] = t.defaultEnabled; });
+    return init;
+  });
+  const [shieldBlockedCount, setShieldBlockedCount] = useState(() => parseInt(localStorage.getItem('pm_focus_shield_blocked_count') || '0', 10));
+  const [showFocusShieldModal, setShowFocusShieldModal] = useState(false);
+  const [showBreachAlert, setShowBreachAlert] = useState(false);
+  const [showShieldMobilePrompt, setShowShieldMobilePrompt] = useState(false);
+  const wakeLockRef = useRef(null);
+
+  // Sync shield state changes to local storage
+  useEffect(() => {
+    try {
+      localStorage.setItem('pm_focus_shield_enabled', String(isShieldActive));
+    } catch {}
+  }, [isShieldActive]);
+
+  // Screen Wake Lock: Keeps phone screen awake while studying so phone doesn't sleep
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator && isShieldActive && isActive) {
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        } else if (wakeLockRef.current) {
+          await wakeLockRef.current.release();
+          wakeLockRef.current = null;
+        }
+      } catch (err) {
+        // Safe to ignore if device battery saver or permissions restrict wakelock
+      }
+    };
+    requestWakeLock();
+    return () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, [isActive, isShieldActive]);
+
+  // Distraction breach detector: Detects when student switches away to Instagram / background
+  useEffect(() => {
+    let breachRecorded = false;
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (isActive && isShieldActive) {
+          breachRecorded = true;
+        }
+      } else {
+        if (breachRecorded) {
+          breachRecorded = false;
+          setShowBreachAlert(true);
+          try { playShieldAlertSound(); } catch {}
+          setShieldBlockedCount(prev => {
+            const next = prev + 1;
+            try { localStorage.setItem('pm_focus_shield_blocked_count', String(next)); } catch {}
+            return next;
+          });
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isActive, isShieldActive]);
+
+  // Auto prompt on mobile: ask student if they want to enable Focus Shield for Instagram blocking
+  useEffect(() => {
+    const isMob = typeof window !== 'undefined' && (
+      window.innerWidth <= 768 || /mobile|android|iphone|ipad/i.test(navigator.userAgent)
+    );
+    const alreadyPrompted = localStorage.getItem('pm_focus_shield_prompted');
+    if (isMob && !alreadyPrompted && !isShieldActive) {
+      const timer = setTimeout(() => {
+        setShowShieldMobilePrompt(true);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [isShieldActive]);
 
   // UI Toast State
   const [toastMsg, setToastMsg] = useState(null);
@@ -1155,12 +1242,18 @@ const App = () => {
       }
       if (sessionUser) {
         let xpGained = sessionType === 'pomodoro' ? 50 : (sessionType === 'pomodoro50' ? 100 : 10);
-        awardXP(xpGained, `Completed ${sessionType.includes('pomodoro') ? 'Deep Pomodoro Session' : 'Rest Break'}`);
-        gunPostMessage(`completed a ${sessionType.includes('pomodoro') ? 'deep focus sprint' : 'short break'}.`);
+        if (isShieldActive && sessionType.includes('pomodoro')) {
+          xpGained += 25; // 🛡️ Focus Shield Iron Will bonus
+          awardXP(xpGained, `Completed ${sessionType.includes('pomodoro') ? 'Deep Pomodoro (+25 XP 🛡️ Focus Shield)' : 'Rest Break'}`);
+          gunPostMessage(`completed a ${sessionType.includes('pomodoro') ? 'deep focus sprint' : 'short break'} with 🛡️ Focus Shield active.`);
+        } else {
+          awardXP(xpGained, `Completed ${sessionType.includes('pomodoro') ? 'Deep Pomodoro Session' : 'Rest Break'}`);
+          gunPostMessage(`completed a ${sessionType.includes('pomodoro') ? 'deep focus sprint' : 'short break'}.`);
+        }
       }
     }
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, sessionType, sessionUser]);
+  }, [isActive, timeLeft, sessionType, sessionUser, isShieldActive]);
 
   // Helper Functions
   const loadUserData = (username) => {
@@ -1244,6 +1337,35 @@ const App = () => {
       }
     }));
     setProgress(total === 0 ? 0 : Math.round((completed / total) * 100));
+  };
+
+  // ── FOCUS SHIELD HANDLERS ─────────────────────────────────────────────────
+  const handleResolveBreach = () => {
+    setShowBreachAlert(false);
+    if (sessionUser) {
+      awardXP(10, '🛡️ Focus Lock Re-engaged');
+    }
+    try { playTaskCompleteChime(); } catch {}
+  };
+
+  const handleEnableShieldFromPrompt = () => {
+    setIsShieldActive(true);
+    try {
+      localStorage.setItem('pm_focus_shield_enabled', 'true');
+      localStorage.setItem('pm_focus_shield_prompted', 'true');
+    } catch {}
+    setShowShieldMobilePrompt(false);
+    if (sessionUser) {
+      awardXP(15, '🛡️ Activated Focus Shield Iron Will');
+    }
+    try { playLevelUpChime(); } catch {}
+  };
+
+  const handleDismissShieldPrompt = () => {
+    try {
+      localStorage.setItem('pm_focus_shield_prompted', 'true');
+    } catch {}
+    setShowShieldMobilePrompt(false);
   };
 
   // ── STREAK MANAGEMENT ───────────────────────────────────────────────────
@@ -1935,6 +2057,41 @@ const App = () => {
               >
                 <Maximize2 size={15}/>
                 <span>Zen Mode</span>
+              </button>
+              <button 
+                onClick={() => setShowFocusShieldModal(true)} 
+                style={{
+                  padding: '10px 14px', 
+                  background: isShieldActive ? 'rgba(16,185,129,0.18)' : 'rgba(239,68,68,0.12)', 
+                  border: isShieldActive ? '1px solid rgba(16,185,129,0.45)' : '1px solid rgba(239,68,68,0.3)', 
+                  borderRadius: '100px', 
+                  color: isShieldActive ? '#34d399' : '#f87171', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  fontSize: '0.8rem', 
+                  fontWeight: 700,
+                  transition: 'all 0.2s ease',
+                  boxShadow: isShieldActive && isActive ? '0 0 16px rgba(16,185,129,0.35)' : 'none'
+                }} 
+                title="Focus Shield: Block Instagram, Reels & phone distractions during study"
+              >
+                <span>🛡️</span>
+                <span>{isShieldActive ? 'Shield ON' : 'Block Apps'}</span>
+                {shieldBlockedCount > 0 && (
+                  <span style={{
+                    fontSize: '0.65rem',
+                    background: isShieldActive ? '#059669' : '#dc2626',
+                    color: '#fff',
+                    borderRadius: '50px',
+                    padding: '1px 6px',
+                    marginLeft: '2px',
+                    fontWeight: 800
+                  }}>
+                    {shieldBlockedCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -4825,6 +4982,34 @@ return (
 
       {/* Global Lightweight Cookie Consent Banner */}
       <CookieConsent onNavigate={(path) => navigate(path)} />
+
+      {/* Focus Shield & Anti-Distraction Modals */}
+      <FocusShieldModal
+        isOpen={showFocusShieldModal}
+        onClose={() => setShowFocusShieldModal(false)}
+        isShieldActive={isShieldActive}
+        setIsShieldActive={setIsShieldActive}
+        blockedTargets={blockedTargets}
+        setBlockedTargets={setBlockedTargets}
+        blockedCount={shieldBlockedCount}
+        awardXP={awardXP}
+        sessionUser={sessionUser}
+      />
+
+      <FocusShieldBreachAlert
+        isOpen={showBreachAlert}
+        onResolve={handleResolveBreach}
+        onOpenSettings={() => {
+          setShowBreachAlert(false);
+          setShowFocusShieldModal(true);
+        }}
+      />
+
+      <FocusShieldMobilePrompt
+        isOpen={showShieldMobilePrompt}
+        onEnable={handleEnableShieldFromPrompt}
+        onDismiss={handleDismissShieldPrompt}
+      />
     </div>
   );
 };
